@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import { Maintenance, compatibility, ROOT, PACKAGE } from "../lib/community.js";
 import { findDshHome, findAiBase, patchDrift } from "../lib/core.js";
 import { selfCheck, resolveHost } from "../lib/selfcheck.js";
+import { currentHost } from "../lib/instance.js";
 import { readOverrides, writeOverride, clearOverride } from "../lib/anchors.js";
 import { logAudit, readAudit } from "../lib/audit.js";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -17,18 +18,8 @@ const rawArgs = process.argv.slice(2);
 const LEGACY = { apply: "--apply", revert: "--revert", uninstall: "--uninstall", edit: "--edit", "legacy-status": "--status" };
 const [op = "status", argument, argument2] = rawArgs,
   home = process.env.DSH_HOME || findDshHome();
-// A supplied Desktop CLI is sufficient for installation. Avoid a recursive host scan
-// from ordinary Node; packaged Electron can resolve its own resources directly.
-function cliAiBase() {
-  if (!process.env.PURGE_DSH_CLI) return findAiBase();
-  const resources = path.resolve(
-    path.dirname(fs.realpathSync(process.env.PURGE_DSH_CLI)),
-    "../../..",
-  );
-  const candidate = path.join(resources, "app/dsh/node_modules/@deepseek-ai");
-  return fs.existsSync(candidate) ? candidate : "";
-}
-const aiBase = cliAiBase();
+// Resolve the running/explicit installation, not another machine-wide Desktop.
+const aiBase = currentHost();
 // 懒构造：status / diagnose / selfcheck 不该因为 profile 目录暂时不可用就直接崩。
 const maintenance = () => new Maintenance({
   home,

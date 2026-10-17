@@ -1,4 +1,10 @@
-import { h, useState, useEffect } from "../shared/react.js";
+import {
+  h,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from "../shared/react.js";
 import { apiJson } from "../api/client.js";
 import { Btn, HelpTip } from "./primitives.js";
 /**
@@ -54,7 +60,7 @@ export function StatusExtras() {
     (n, l) => n + (l.pending?.length || 0),
     0,
   );
-  const total = layers.length;
+  const total = layers.filter((layer) => layer.applicable !== false).length;
   return h(
     "section",
     { className: "dshpp-card", "aria-label": "破甲状态" },
@@ -122,9 +128,11 @@ export function StatusExtras() {
                   h(
                     "span",
                     { className: "dshpp-check-val" },
-                    layer.state === "pending"
-                      ? `待应用 #${(layer.pending || []).join("/#")}`
-                      : `${layer.applied}/${layer.required ?? layer.total}`,
+                    layer.applicable === false
+                      ? "不适用"
+                      : layer.state === "pending"
+                        ? `待应用 #${(layer.pending || []).join("/#")}`
+                        : `${layer.applied}/${layer.required ?? layer.total}`,
                   ),
                 ),
               )
@@ -181,6 +189,43 @@ export function StatusExtras() {
   );
 }
 
+export function assertMaintenanceResult(result) {
+  if (!result || typeof result !== "object")
+    throw new Error("维护接口返回了无效结果");
+  if (result.ok === false) {
+    const errors = Array.isArray(result.errors)
+      ? result.errors.filter(Boolean).join("；")
+      : "";
+    const partial = result.applied
+      ? "；部分目标已更新，请重启对应 DSH 进程加载"
+      : "";
+    throw new Error((result.error || errors || "维护操作失败") + partial);
+  }
+}
+export function maintenanceNotice(op, result) {
+  if (op === "backup") {
+    if (!result.id)
+      throw new Error("备份操作未返回备份编号，请刷新列表核对结果");
+    return `备份已创建：${result.id}`;
+  }
+  if (op === "rollback")
+    return (
+      (result.note || "插件回滚已完成") +
+      "。请重启 DSH 进程；仅刷新浏览器不会加载新版后端。"
+    );
+  if (op === "update") {
+    if (result.applied === false || result.skipped)
+      return result.note || "未安装新版本，当前安装未更新。";
+    if (result.applied || result.needRestart || result.restart_required) {
+      const version =
+        result.release?.version || result.localVersion || result.remoteVersion;
+      return `插件已安装${version ? "：" + version : ""}。请重启 DSH 进程；仅刷新浏览器不会加载新版后端。`;
+    }
+    return result.note || "更新请求已完成，请刷新状态核对安装结果。";
+  }
+  return result.note || "维护操作已完成";
+}
+
 export function CommunityMaintenance() {
   const [value, setValue] = useState(null),
     [notice, setNotice] = useState(""),
@@ -188,25 +233,56 @@ export function CommunityMaintenance() {
     [selected, setSelected] = useState(""),
     [releases, setReleases] = useState(null),
     [release, setRelease] = useState("");
-  const load = () =>
-    apiJson("/dsh-purge/community")
-      .then(setValue)
-      .catch((e) => setNotice(e.message));
+  const [listState, setListState] = useState("loading"),
+    [listError, setListError] = useState("");
+  const mounted = useRef(false),
+    generation = useRef(0),
+    running = useRef(false);
+  const load = useCallback(async () => {
+    const request = ++generation.current;
+    setListState("loading");
+    setListError("");
+    try {
+      const result = await apiJson("/dsh-purge/community");
+      assertMaintenanceResult(result);
+      if (!Array.isArray(result.backups)) throw new Error("备份列表响应无效");
+      if (!mounted.current || request !== generation.current) return;
+      setValue(result);
+      setSelected((current) =>
+        result.backups.some((b) => b.id === current) ? current : "",
+      );
+      setListState("ready");
+    } catch (e) {
+      if (!mounted.current || request !== generation.current) return;
+      setListError(e.message);
+      setListState("error");
+    }
+  }, []);
+  useEffect(() => {
+    mounted.current = true;
+    load();
+    return () => {
+      mounted.current = false;
+      generation.current++;
+    };
+  }, [load]);
   async function run(op) {
+    if (running.current) return;
     if (
       op === "rollback" &&
       !window.confirm(
-        "只回滚 Purge 插件及其入口，保留当前提示词和设置；完成后需手动重启 DSH。继续？",
+        "只回滚 Purge 插件及其入口，保留当前提示词和设置；完成后需重启 DSH 进程；仅刷新浏览器不会加载新版后端。继续？",
       )
     )
       return;
     if (
       op === "update" &&
       !window.confirm(
-        "将先备份，再安装所选社区正式版；不会重新应用宿主补丁。安装后请手动重启 DSH。继续？",
+        "将先备份，再安装所选社区正式版；不会重新应用宿主补丁。安装后请重启 DSH 进程；仅刷新浏览器不会加载新版后端。继续？",
       )
     )
       return;
+    running.current = true;
     setBusy(true);
     setNotice("处理中…");
     try {
@@ -215,7 +291,10 @@ export function CommunityMaintenance() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ op, id: selected, ref: release }),
       });
+      assertMaintenanceResult(r);
+      if (!mounted.current) return;
       if (op === "check") {
+        if (!Array.isArray(r.versions)) throw new Error("发行列表响应无效");
         setReleases(r.versions.filter((v) => v.asset));
         setRelease(r.versions.find((v) => v.asset)?.ref || "");
         setNotice(
@@ -226,17 +305,21 @@ export function CommunityMaintenance() {
               : "当前已是最新正式版",
         );
       } else {
-        setNotice(r.note || `备份已创建：${r.id}`);
-        await load();
+        setNotice(maintenanceNotice(op, r));
       }
     } catch (e) {
-      setNotice(
-        e.message === "timeout"
-          ? "维护请求超时，操作可能仍在执行；请先刷新状态，勿重复提交。"
-          : e.message,
-      );
+      if (mounted.current)
+        setNotice(
+          e.message === "timeout"
+            ? "维护请求超时，操作可能仍在执行；请先刷新状态，勿重复提交。"
+            : e.message,
+        );
     } finally {
-      setBusy(false);
+      // A failed write may already have created a recovery snapshot. Read once;
+      // never replay the mutation to discover whether it succeeded.
+      if (op !== "check" && mounted.current) await load();
+      running.current = false;
+      if (mounted.current) setBusy(false);
     }
   }
   return h(
@@ -307,6 +390,20 @@ export function CommunityMaintenance() {
       : null,
     h("h3", { style: { marginTop: 20 } }, "本机备份"),
     h(
+      Btn,
+      { disabled: busy || listState === "loading", onClick: load },
+      "刷新备份列表",
+    ),
+    listState === "loading"
+      ? h("p", { role: "status" }, "正在读取备份…")
+      : null,
+    listState === "error"
+      ? h("p", { role: "alert" }, `读取备份失败：${listError}`)
+      : null,
+    listState === "ready" && !value.backups.length
+      ? h("p", { role: "status" }, "暂无备份")
+      : null,
+    h(
       "div",
       { className: "dshpp-row" },
       h(Btn, { disabled: busy, onClick: () => run("backup") }, "立即备份"),
@@ -316,7 +413,7 @@ export function CommunityMaintenance() {
           "aria-label": "选择回滚备份",
           value: selected,
           onChange: (e) => setSelected(e.target.value),
-          disabled: busy,
+          disabled: busy || listState !== "ready",
         },
         h("option", { value: "" }, "选择备份"),
         ...(value?.backups || []).map((b) =>
@@ -329,14 +426,17 @@ export function CommunityMaintenance() {
       ),
       h(
         Btn,
-        { disabled: busy || !selected, onClick: () => run("rollback") },
+        {
+          disabled: busy || !selected || listState !== "ready",
+          onClick: () => run("rollback"),
+        },
         "回滚插件",
       ),
     ),
     h(
       "p",
       { className: "dshpp-hint" },
-      "备份只保存在本机。回滚保留当前提示词、规则和其他插件设置；两种安装操作均需手动重启 DSH。",
+      "备份只保存在本机。回滚保留当前提示词、规则和其他插件设置；安装或回滚后需要重启 DSH 进程；仅刷新浏览器不会加载新版后端。",
     ),
     notice ? h("p", { role: "status" }, notice) : null,
   );

@@ -43,7 +43,7 @@ PURGE_DSH_CLI=/absolute/path/to/dsh node package/bin/community.js migrate ./dsh-
 PURGE_DSH_CLI=/absolute/path/to/dsh node package/bin/community.js rollback <备份ID>
 ```
 
-默认管理 `$DSH_HOME/profiles/desktop`；非默认位置可显式设置 `DSH_HOME` 与 `PURGE_PROFILE_DIR`。安装/回滚依赖真实 DSH CLI。新建安装也用 migrate；没有旧 Purge 的快照不能用于“回滚到不存在”，卸载需用 DSH 插件管理器单独完成。
+维护与只读自检使用当前实例的 profile，不再静默默认 desktop；具体优先级、Web CLI 定位和错误处理见 [Web / Headless 维护定位](WEB-MAINTENANCE.md)。可显式设置 `DSH_HOME`、`DSH_PROFILE` 与 `PURGE_PROFILE_DIR`。安装/回滚依赖真实 DSH CLI。新建安装也用 migrate；没有旧 Purge 的快照不能用于“回滚到不存在”，卸载需用 DSH 插件管理器单独完成。
 
 ## 发布
 
