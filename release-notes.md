@@ -1,6 +1,9 @@
-# 1.6.0
+# 1.6.1
 
-> 1.6.0 = 动作审计日志 + 发行包 smoke test（进 CI）+ 一轮全项目体检修复。
+> 1.6.1 = 合并社区 PR #1（桌面宿主启动期崩溃修复）+ 安装包持久化。
+
+- **合并 [PR #1](https://github.com/kingcharleslzy-ai/dsh-purge/pull/1)（@luowang-ui）**：`repairOfficialCliAfterUnpack()` 是同步函数却调用了异步 `atomicCopyFile` 且未 await——在 Windows/Node 24 上，rejection 绕过 `try/catch` 升级为 `uncaughtException`，宿主在加载阶段直接退出（「应用无法启动或已意外停止」）。顺带修掉一个数据完整性问题：异步拷贝让 `.dsh-purge.bak` 可能在补丁写入之后才读文件，存成补丁后的字节。新增 `atomicCopyFileSync`，并补了回归用例。
+- **安装包持久化**：`install()` 先把 tgz 复制到 `$DSH_HOME/dsh-purge-community/pkgs/` 再交给 pnpm，避免 `file:` 指向 `/tmp` 或 Downloads 导致重启后依赖解析失败。
 
 - **审计日志**：`apply` / `revert` / `boost` / `probe` / `preset` / `reanchor` 每次动作写一条 JSONL（`audit.jsonl`，1MB 轮转保留 2 份）；`purge-community audit` 或面板「维护 → 最近动作」可读。apply 记录含快照 id、宿主版本、成功/已应用/失败计数与失败补丁号。
 - **发行包 smoke test**：`npm run smoke` 从 tgz 解包后验证——8 个导出目标存在、核心模块可导入、自带预设能解析成 20 行定义、`cordis.patch.yml` 条目完整、CLI 在空目录可运行、无宿主时 selfcheck 安全降级为 broken。已接进 community/release 两条 workflow。

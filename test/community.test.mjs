@@ -11,6 +11,7 @@ import {
   download,
   PACKAGE,
 } from "../lib/community.js";
+import { atomicCopyFileSync } from "../lib/core.js";
 function setup() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "purge-community-")),
     profile = path.join(home, "profiles/desktop"),
@@ -395,5 +396,33 @@ test("large files are stored once and restored byte-for-byte", async () => {
     assert.equal(f.manager.list().length <= 1, true);
   } finally {
     f.close();
+  }
+});
+
+test("atomicCopyFileSync copies atomically and cleans up on failure", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "purge-copy-"));
+  try {
+    const src = path.join(dir, "src.txt");
+    fs.writeFileSync(src, "official bytes");
+    const dst = path.join(dir, "nested", "dst.txt");
+    atomicCopyFileSync(src, dst);
+    assert.equal(fs.readFileSync(dst, "utf8"), "official bytes");
+    assert.equal(
+      fs.readdirSync(path.dirname(dst)).filter((n) => n.endsWith(".copytmp")).length,
+      0,
+      "no temp file left behind",
+    );
+    // 目标目录不可写：抛错且不留临时文件
+    fs.chmodSync(path.dirname(dst), 0o500);
+    try {
+      atomicCopyFileSync(src, path.join(path.dirname(dst), "x.txt"));
+      assert.fail("should throw on unwritable directory");
+    } catch (e) {
+      assert(e instanceof Error);
+    } finally {
+      fs.chmodSync(path.dirname(dst), 0o700);
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 });

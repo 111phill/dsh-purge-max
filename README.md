@@ -9,7 +9,7 @@
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.6.0** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
+当前版本 **1.6.1** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
 
 </div>
 
@@ -29,7 +29,7 @@ curl -fsSL https://raw.githubusercontent.com/kingcharleslzy-ai/dsh-purge/master/
 <summary>不想用脚本？手动三步</summary>
 
 ```sh
-V=1.6.0
+V=1.6.1
 curl -fsSLO https://github.com/kingcharleslzy-ai/dsh-purge/releases/download/v$V/dsh-purge-community-$V.tgz
 curl -fsSLO https://github.com/kingcharleslzy-ai/dsh-purge/releases/download/v$V/SHA256SUMS.txt
 shasum -a 256 -c SHA256SUMS.txt && mkdir -p /tmp/pc && tar -xzf dsh-purge-community-$V.tgz -C /tmp/pc
@@ -40,7 +40,7 @@ ELECTRON_RUN_AS_NODE=1 "/Applications/DeepSeek Harness.app/Contents/MacOS/DeepSe
 
 ## 为什么用它，而不是原版
 
-| | 原版 1.1.71 | 本分支 1.6.0 |
+| | 原版 1.1.71 | 本分支 1.6.1 |
 | --- | --- | --- |
 | 宿主适配 | 只到 0.1.7 / 0.2.0，上游已停更 | **0.2.1-rc.2 逐条回归，0 漂移** |
 | 补丁 | 82 条，锚点随新版失效后静默跳过 | **83 条**（新增 `ask_user_question` 不阻塞），带**逐条状态与漂移诊断** |
