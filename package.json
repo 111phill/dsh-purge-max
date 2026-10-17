@@ -1,6 +1,6 @@
 {
   "name": "dsh-purge-community",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "description": "Purge Community：独立维护的 DSH 提示词与规则管理插件，统一右侧设置、逐条补丁诊断、备份与插件回滚。",
   "type": "module",
   "main": "lib/index.js",
@@ -35,6 +35,7 @@
     "README.zh-CN.md",
     "LICENSE",
     "NOTICE.md",
+    "CONTRIBUTORS.md",
     "AGENTS.md"
   ],
   "scripts": {
@@ -86,7 +87,7 @@
     },
     "install": {
       "preferred": "tarball",
-      "tarball": "https://github.com/kingcharleslzy-ai/dsh-purge/releases/latest/download/dsh-purge-community-1.6.3.tgz",
+      "tarball": "https://github.com/kingcharleslzy-ai/dsh-purge/releases/latest/download/dsh-purge-community-1.6.4.tgz",
       "git": "https://github.com/kingcharleslzy-ai/dsh-purge.git"
     }
   },
@@ -101,6 +102,14 @@
   },
   "dshTarget": "0.2.1-rc.1 (runtime injection + host patches verified)",
   "contributors": [
-    "小杨 / YuJunZhiXue (original dsh-purge author)"
+    "小杨 / YuJunZhiXue (original dsh-purge author)",
+    {
+      "name": "luowang-ui",
+      "url": "https://github.com/luowang-ui"
+    },
+    {
+      "name": "heigit",
+      "url": "https://github.com/heigit"
+    }
   ]
 }

@@ -9,7 +9,7 @@
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.6.3** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
+当前版本 **1.6.4** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
 
 </div>
 
@@ -29,7 +29,7 @@ curl -fsSL https://raw.githubusercontent.com/kingcharleslzy-ai/dsh-purge/master/
 <summary>不想用脚本？手动三步</summary>
 
 ```sh
-V=1.6.3
+V=1.6.4
 curl -fsSLO https://github.com/kingcharleslzy-ai/dsh-purge/releases/download/v$V/dsh-purge-community-$V.tgz
 curl -fsSLO https://github.com/kingcharleslzy-ai/dsh-purge/releases/download/v$V/SHA256SUMS.txt
 shasum -a 256 -c SHA256SUMS.txt && mkdir -p /tmp/pc && tar -xzf dsh-purge-community-$V.tgz -C /tmp/pc
@@ -40,7 +40,7 @@ ELECTRON_RUN_AS_NODE=1 "/Applications/DeepSeek Harness.app/Contents/MacOS/DeepSe
 
 ## 为什么用它，而不是原版
 
-| | 原版 1.1.71 | 本分支 1.6.3 |
+| | 原版 1.1.71 | 本分支 1.6.4 |
 | --- | --- | --- |
 | 宿主适配 | 只到 0.1.7 / 0.2.0，上游已停更 | **0.2.1-rc.2 逐条回归，0 漂移** |
 | 补丁 | 82 条，锚点随新版失效后静默跳过 | **83 条**（新增 `ask_user_question` 不阻塞），带**逐条状态与漂移诊断** |
@@ -146,12 +146,16 @@ purge-community rollback <backup-id>
 ```sh
 npm --prefix packages/purge-panel ci --ignore-scripts --legacy-peer-deps
 npm run build:client     # packages/purge-panel/src → 根 client.js
-npm test                 # 28 项：补丁锚点 / 自检 / boost / 提示词装配 / 备份安装
+npm test                 # 52 项：备份安装 / 实例定位 / 自检 / 现有功能回归
 npm run test:ui && npm --prefix packages/purge-panel test
 npm run check:client && npm run diagnose
 ```
 
 `test/patch-anchors.test.mjs` 把 0.2.1 的真实源码片段钉进用例——谁改了锚点没同步用例，测试直接失败。
+
+## 贡献者
+
+感谢 [@heigit](https://github.com/heigit) 提交 [issue #3](https://github.com/kingcharleslzy-ai/dsh-purge/issues/3) 的复现、源码定位与验证反馈，以及 [@luowang-ui](https://github.com/luowang-ui) 在 [PR #1](https://github.com/kingcharleslzy-ai/dsh-purge/pull/1) 中修复桌面 CLI 的同步原子复制问题。完整名单见 [CONTRIBUTORS.md](CONTRIBUTORS.md)。
 
 ## 来源
 

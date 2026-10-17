@@ -25,7 +25,7 @@ The script finds DSH Desktop, downloads the latest verified release, checks SHA2
 
 Then fully quit and reopen DSH, open **Purge** in the left rail, press **Apply**, and quit/reopen once more.
 
-**Current version 1.6.3 — qualified against DSH Desktop 0.2.1-rc.2 (and rc.1).**
+**Current version 1.6.4 — qualified against DSH Desktop 0.2.1-rc.2 (and rc.1).**
 
 ```
 purge-community selfcheck     # 27-layer proof that each bypass is live
@@ -35,3 +35,7 @@ purge-community diagnose      # which patch anchor drifted, with line numbers
 Maintenance snapshots stay local under `$DSH_HOME/dsh-purge-community/backups` (last 5 + one per day x7 + 200MB cap). Rollback restores plugin code and enablement only.
 
 See the [Chinese README](../README.md) for the full feature table, panel tour and troubleshooting.
+
+## Contributors
+
+Thanks to [@heigit](https://github.com/heigit) for the reproduction, analysis and validation feedback in [issue #3](https://github.com/kingcharleslzy-ai/dsh-purge/issues/3), and [@luowang-ui](https://github.com/luowang-ui) for the Desktop CLI atomic-copy fix in [PR #1](https://github.com/kingcharleslzy-ai/dsh-purge/pull/1). See the [contributor list](../CONTRIBUTORS.md) for attribution.
