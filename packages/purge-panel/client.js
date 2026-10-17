@@ -10133,7 +10133,7 @@ function StatusExtras() {
     (n, l) => n + (l.pending?.length || 0),
     0
   );
-  const total = layers.length;
+  const total = layers.filter((layer) => layer.applicable !== false).length;
   return h(
     "section",
     { className: "dshpp-card", "aria-label": "\u7834\u7532\u72B6\u6001" },
@@ -10174,7 +10174,7 @@ function StatusExtras() {
               h(
                 "span",
                 { className: "dshpp-check-val" },
-                layer.state === "pending" ? `\u5F85\u5E94\u7528 #${(layer.pending || []).join("/#")}` : `${layer.applied}/${layer.required ?? layer.total}`
+                layer.applicable === false ? "\u4E0D\u9002\u7528" : layer.state === "pending" ? `\u5F85\u5E94\u7528 #${(layer.pending || []).join("/#")}` : `${layer.applied}/${layer.required ?? layer.total}`
               )
             )
           ) : h("div", { className: "dshpp-muted" }, "\u68C0\u6D4B\u4E2D\u2026")
@@ -10229,18 +10229,77 @@ function StatusExtras() {
     )
   );
 }
+function assertMaintenanceResult(result) {
+  if (!result || typeof result !== "object")
+    throw new Error("\u7EF4\u62A4\u63A5\u53E3\u8FD4\u56DE\u4E86\u65E0\u6548\u7ED3\u679C");
+  if (result.ok === false) {
+    const errors = Array.isArray(result.errors) ? result.errors.filter(Boolean).join("\uFF1B") : "";
+    const partial = result.applied ? "\uFF1B\u90E8\u5206\u76EE\u6807\u5DF2\u66F4\u65B0\uFF0C\u8BF7\u91CD\u542F\u5BF9\u5E94 DSH \u8FDB\u7A0B\u52A0\u8F7D" : "";
+    throw new Error((result.error || errors || "\u7EF4\u62A4\u64CD\u4F5C\u5931\u8D25") + partial);
+  }
+}
+function maintenanceNotice(op, result) {
+  if (op === "backup") {
+    if (!result.id)
+      throw new Error("\u5907\u4EFD\u64CD\u4F5C\u672A\u8FD4\u56DE\u5907\u4EFD\u7F16\u53F7\uFF0C\u8BF7\u5237\u65B0\u5217\u8868\u6838\u5BF9\u7ED3\u679C");
+    return `\u5907\u4EFD\u5DF2\u521B\u5EFA\uFF1A${result.id}`;
+  }
+  if (op === "rollback")
+    return (result.note || "\u63D2\u4EF6\u56DE\u6EDA\u5DF2\u5B8C\u6210") + "\u3002\u8BF7\u91CD\u542F DSH \u8FDB\u7A0B\uFF1B\u4EC5\u5237\u65B0\u6D4F\u89C8\u5668\u4E0D\u4F1A\u52A0\u8F7D\u65B0\u7248\u540E\u7AEF\u3002";
+  if (op === "update") {
+    if (result.applied === false || result.skipped)
+      return result.note || "\u672A\u5B89\u88C5\u65B0\u7248\u672C\uFF0C\u5F53\u524D\u5B89\u88C5\u672A\u66F4\u65B0\u3002";
+    if (result.applied || result.needRestart || result.restart_required) {
+      const version = result.release?.version || result.localVersion || result.remoteVersion;
+      return `\u63D2\u4EF6\u5DF2\u5B89\u88C5${version ? "\uFF1A" + version : ""}\u3002\u8BF7\u91CD\u542F DSH \u8FDB\u7A0B\uFF1B\u4EC5\u5237\u65B0\u6D4F\u89C8\u5668\u4E0D\u4F1A\u52A0\u8F7D\u65B0\u7248\u540E\u7AEF\u3002`;
+    }
+    return result.note || "\u66F4\u65B0\u8BF7\u6C42\u5DF2\u5B8C\u6210\uFF0C\u8BF7\u5237\u65B0\u72B6\u6001\u6838\u5BF9\u5B89\u88C5\u7ED3\u679C\u3002";
+  }
+  return result.note || "\u7EF4\u62A4\u64CD\u4F5C\u5DF2\u5B8C\u6210";
+}
 function CommunityMaintenance() {
   const [value, setValue] = useState(null), [notice, setNotice] = useState(""), [busy, setBusy] = useState(false), [selected, setSelected] = useState(""), [releases, setReleases] = useState(null), [release, setRelease] = useState("");
-  const load = () => apiJson("/dsh-purge/community").then(setValue).catch((e) => setNotice(e.message));
+  const [listState, setListState] = useState("loading"), [listError, setListError] = useState("");
+  const mounted = useRef(false), generation = useRef(0), running = useRef(false);
+  const load = useCallback(async () => {
+    const request = ++generation.current;
+    setListState("loading");
+    setListError("");
+    try {
+      const result = await apiJson("/dsh-purge/community");
+      assertMaintenanceResult(result);
+      if (!Array.isArray(result.backups)) throw new Error("\u5907\u4EFD\u5217\u8868\u54CD\u5E94\u65E0\u6548");
+      if (!mounted.current || request !== generation.current) return;
+      setValue(result);
+      setSelected(
+        (current) => result.backups.some((b) => b.id === current) ? current : ""
+      );
+      setListState("ready");
+    } catch (e) {
+      if (!mounted.current || request !== generation.current) return;
+      setListError(e.message);
+      setListState("error");
+    }
+  }, []);
+  useEffect(() => {
+    mounted.current = true;
+    load();
+    return () => {
+      mounted.current = false;
+      generation.current++;
+    };
+  }, [load]);
   async function run(op) {
+    if (running.current) return;
     if (op === "rollback" && !window.confirm(
-      "\u53EA\u56DE\u6EDA Purge \u63D2\u4EF6\u53CA\u5176\u5165\u53E3\uFF0C\u4FDD\u7559\u5F53\u524D\u63D0\u793A\u8BCD\u548C\u8BBE\u7F6E\uFF1B\u5B8C\u6210\u540E\u9700\u624B\u52A8\u91CD\u542F DSH\u3002\u7EE7\u7EED\uFF1F"
+      "\u53EA\u56DE\u6EDA Purge \u63D2\u4EF6\u53CA\u5176\u5165\u53E3\uFF0C\u4FDD\u7559\u5F53\u524D\u63D0\u793A\u8BCD\u548C\u8BBE\u7F6E\uFF1B\u5B8C\u6210\u540E\u9700\u91CD\u542F DSH \u8FDB\u7A0B\uFF1B\u4EC5\u5237\u65B0\u6D4F\u89C8\u5668\u4E0D\u4F1A\u52A0\u8F7D\u65B0\u7248\u540E\u7AEF\u3002\u7EE7\u7EED\uFF1F"
     ))
       return;
     if (op === "update" && !window.confirm(
-      "\u5C06\u5148\u5907\u4EFD\uFF0C\u518D\u5B89\u88C5\u6240\u9009\u793E\u533A\u6B63\u5F0F\u7248\uFF1B\u4E0D\u4F1A\u91CD\u65B0\u5E94\u7528\u5BBF\u4E3B\u8865\u4E01\u3002\u5B89\u88C5\u540E\u8BF7\u624B\u52A8\u91CD\u542F DSH\u3002\u7EE7\u7EED\uFF1F"
+      "\u5C06\u5148\u5907\u4EFD\uFF0C\u518D\u5B89\u88C5\u6240\u9009\u793E\u533A\u6B63\u5F0F\u7248\uFF1B\u4E0D\u4F1A\u91CD\u65B0\u5E94\u7528\u5BBF\u4E3B\u8865\u4E01\u3002\u5B89\u88C5\u540E\u8BF7\u91CD\u542F DSH \u8FDB\u7A0B\uFF1B\u4EC5\u5237\u65B0\u6D4F\u89C8\u5668\u4E0D\u4F1A\u52A0\u8F7D\u65B0\u7248\u540E\u7AEF\u3002\u7EE7\u7EED\uFF1F"
     ))
       return;
+    running.current = true;
     setBusy(true);
     setNotice("\u5904\u7406\u4E2D\u2026");
     try {
@@ -10249,22 +10308,27 @@ function CommunityMaintenance() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ op, id: selected, ref: release })
       });
+      assertMaintenanceResult(r);
+      if (!mounted.current) return;
       if (op === "check") {
+        if (!Array.isArray(r.versions)) throw new Error("\u53D1\u884C\u5217\u8868\u54CD\u5E94\u65E0\u6548");
         setReleases(r.versions.filter((v) => v.asset));
         setRelease(r.versions.find((v) => v.asset)?.ref || "");
         setNotice(
           r.error ? `\u68C0\u67E5\u66F4\u65B0\u5931\u8D25\uFF1A${r.error}` : r.hasUpdate ? `\u53D1\u73B0\u65B0\u7248\u672C ${r.remoteVersion}` : "\u5F53\u524D\u5DF2\u662F\u6700\u65B0\u6B63\u5F0F\u7248"
         );
       } else {
-        setNotice(r.note || `\u5907\u4EFD\u5DF2\u521B\u5EFA\uFF1A${r.id}`);
-        await load();
+        setNotice(maintenanceNotice(op, r));
       }
     } catch (e) {
-      setNotice(
-        e.message === "timeout" ? "\u7EF4\u62A4\u8BF7\u6C42\u8D85\u65F6\uFF0C\u64CD\u4F5C\u53EF\u80FD\u4ECD\u5728\u6267\u884C\uFF1B\u8BF7\u5148\u5237\u65B0\u72B6\u6001\uFF0C\u52FF\u91CD\u590D\u63D0\u4EA4\u3002" : e.message
-      );
+      if (mounted.current)
+        setNotice(
+          e.message === "timeout" ? "\u7EF4\u62A4\u8BF7\u6C42\u8D85\u65F6\uFF0C\u64CD\u4F5C\u53EF\u80FD\u4ECD\u5728\u6267\u884C\uFF1B\u8BF7\u5148\u5237\u65B0\u72B6\u6001\uFF0C\u52FF\u91CD\u590D\u63D0\u4EA4\u3002" : e.message
+        );
     } finally {
-      setBusy(false);
+      if (op !== "check" && mounted.current) await load();
+      running.current = false;
+      if (mounted.current) setBusy(false);
     }
   }
   return h(
@@ -10332,6 +10396,14 @@ function CommunityMaintenance() {
     ) : null,
     h("h3", { style: { marginTop: 20 } }, "\u672C\u673A\u5907\u4EFD"),
     h(
+      Btn,
+      { disabled: busy || listState === "loading", onClick: load },
+      "\u5237\u65B0\u5907\u4EFD\u5217\u8868"
+    ),
+    listState === "loading" ? h("p", { role: "status" }, "\u6B63\u5728\u8BFB\u53D6\u5907\u4EFD\u2026") : null,
+    listState === "error" ? h("p", { role: "alert" }, `\u8BFB\u53D6\u5907\u4EFD\u5931\u8D25\uFF1A${listError}`) : null,
+    listState === "ready" && !value.backups.length ? h("p", { role: "status" }, "\u6682\u65E0\u5907\u4EFD") : null,
+    h(
       "div",
       { className: "dshpp-row" },
       h(Btn, { disabled: busy, onClick: () => run("backup") }, "\u7ACB\u5373\u5907\u4EFD"),
@@ -10341,7 +10413,7 @@ function CommunityMaintenance() {
           "aria-label": "\u9009\u62E9\u56DE\u6EDA\u5907\u4EFD",
           value: selected,
           onChange: (e) => setSelected(e.target.value),
-          disabled: busy
+          disabled: busy || listState !== "ready"
         },
         h("option", { value: "" }, "\u9009\u62E9\u5907\u4EFD"),
         ...(value?.backups || []).map(
@@ -10354,14 +10426,17 @@ function CommunityMaintenance() {
       ),
       h(
         Btn,
-        { disabled: busy || !selected, onClick: () => run("rollback") },
+        {
+          disabled: busy || !selected || listState !== "ready",
+          onClick: () => run("rollback")
+        },
         "\u56DE\u6EDA\u63D2\u4EF6"
       )
     ),
     h(
       "p",
       { className: "dshpp-hint" },
-      "\u5907\u4EFD\u53EA\u4FDD\u5B58\u5728\u672C\u673A\u3002\u56DE\u6EDA\u4FDD\u7559\u5F53\u524D\u63D0\u793A\u8BCD\u3001\u89C4\u5219\u548C\u5176\u4ED6\u63D2\u4EF6\u8BBE\u7F6E\uFF1B\u4E24\u79CD\u5B89\u88C5\u64CD\u4F5C\u5747\u9700\u624B\u52A8\u91CD\u542F DSH\u3002"
+      "\u5907\u4EFD\u53EA\u4FDD\u5B58\u5728\u672C\u673A\u3002\u56DE\u6EDA\u4FDD\u7559\u5F53\u524D\u63D0\u793A\u8BCD\u3001\u89C4\u5219\u548C\u5176\u4ED6\u63D2\u4EF6\u8BBE\u7F6E\uFF1B\u5B89\u88C5\u6216\u56DE\u6EDA\u540E\u9700\u8981\u91CD\u542F DSH \u8FDB\u7A0B\uFF1B\u4EC5\u5237\u65B0\u6D4F\u89C8\u5668\u4E0D\u4F1A\u52A0\u8F7D\u65B0\u7248\u540E\u7AEF\u3002"
     ),
     notice ? h("p", { role: "status" }, notice) : null
   );

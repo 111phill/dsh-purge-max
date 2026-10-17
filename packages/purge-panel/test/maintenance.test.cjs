@@ -1,0 +1,220 @@
+const { test } = require("node:test"),
+  assert = require("node:assert/strict");
+const vm = require("node:vm"),
+  path = require("node:path");
+const React = require("react"),
+  { create, act } = require("react-test-renderer");
+const { buildSync } = require("esbuild");
+const bundle = buildSync({
+  entryPoints: [path.join(__dirname, "../src/components/maintenance.js")],
+  bundle: true,
+  write: false,
+  format: "cjs",
+  platform: "browser",
+  external: ["react", "react-dom"],
+}).outputFiles[0].text;
+const backup = (id) => ({
+  id,
+  created_at: "2026-10-18T00:00:00Z",
+  plugins: [{ version: "1.6.3" }],
+});
+const reply = (body, status = 200) =>
+  new Response(JSON.stringify(body), { status });
+function harness(transport) {
+  const calls = [],
+    context = {
+      module: { exports: {} },
+      exports: {},
+      require,
+      console,
+      URL,
+      AbortController,
+      setTimeout,
+      clearTimeout,
+      window: { location: { origin: "http://test" }, confirm: () => true },
+      fetch: async (url, init = {}) => {
+        const call = {
+          url: String(url),
+          method: init.method || "GET",
+          body: init.body ? JSON.parse(init.body) : null,
+        };
+        calls.push(call);
+        return transport(call);
+      },
+    };
+  context.exports = context.module.exports;
+  vm.runInNewContext(bundle, context);
+  return { Component: context.module.exports.CommunityMaintenance, calls };
+}
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+const text = (tree) => JSON.stringify(tree.toJSON());
+const button = (tree, label) =>
+  tree.root.findAllByType("button").find((b) => b.children.join("") === label);
+async function mount(h) {
+  let tree;
+  await act(async () => {
+    tree = create(React.createElement(h.Component));
+    await flush();
+  });
+  return tree;
+}
+async function click(tree, label) {
+  await act(async () => {
+    await button(tree, label).props.onClick();
+    await flush();
+  });
+}
+async function unmount(tree) {
+  await act(async () => tree.unmount());
+}
+
+test("mount/remount load existing backups and never preselect a rollback target", async () => {
+  let rows = [backup("first")];
+  const h = harness(() => reply({ ok: true, backups: rows }));
+  let tree = await mount(h);
+  assert(text(tree).includes("first"));
+  assert.equal(
+    tree.root.findByProps({ "aria-label": "选择回滚备份" }).props.value,
+    "",
+  );
+  assert(button(tree, "回滚插件").props.disabled);
+  await unmount(tree);
+  rows = [backup("second")];
+  tree = await mount(h);
+  assert(text(tree).includes("second"));
+  assert(!text(tree).includes("first"));
+  assert.equal(h.calls.filter((c) => c.method === "GET").length, 2);
+  assert(!h.calls.some((c) => c.method === "POST"));
+  await unmount(tree);
+});
+test("loading, read failure and empty backup lists are distinct; refresh recovers", async () => {
+  let resolve;
+  let mode = "pending";
+  const h = harness(() =>
+    mode === "pending"
+      ? new Promise((r) => {
+          resolve = r;
+        })
+      : reply({ ok: true, backups: [] }),
+  );
+  const tree = await mount(h);
+  assert(text(tree).includes("正在读取备份"));
+  assert(!text(tree).includes("暂无备份"));
+  await act(async () => {
+    resolve(reply({ ok: false, error: "profile ambiguous" }));
+    await flush();
+  });
+  assert(text(tree).includes("读取备份失败：profile ambiguous"));
+  assert(!text(tree).includes("暂无备份"));
+  mode = "empty";
+  await click(tree, "刷新备份列表");
+  assert(text(tree).includes("暂无备份"));
+  await unmount(tree);
+});
+test("HTTP 200 business failure shows the update error and rereads recovery backups without replaying writes", async () => {
+  let recovered = false;
+  const h = harness((c) => {
+    if (c.method === "GET")
+      return reply({
+        ok: true,
+        backups: recovered ? [backup("recovery")] : [],
+      });
+    if (c.body.op === "check")
+      return reply({
+        ok: true,
+        versions: [
+          { asset: "tgz", ref: "v1.6.4", label: "Purge Community 1.6.4" },
+        ],
+        hasUpdate: true,
+        remoteVersion: "1.6.4",
+      });
+    recovered = true;
+    return reply({ ok: false, errors: ["CLI not located"] });
+  });
+  const tree = await mount(h);
+  await click(tree, "检查社区版更新");
+  await click(tree, "安装所选版本");
+  assert(text(tree).includes("CLI not located"));
+  assert(text(tree).includes("recovery"));
+  assert(!text(tree).includes("备份已创建：undefined"));
+  assert.equal(h.calls.filter((c) => c.body?.op === "update").length, 1);
+  assert.equal(
+    tree.root.findByProps({ "aria-label": "选择回滚备份" }).props.value,
+    "",
+  );
+  await unmount(tree);
+});
+test("successful update reports its version and DSH process restart, not a backup notice", async () => {
+  const h = harness((c) =>
+    c.method === "GET"
+      ? reply({ ok: true, backups: [] })
+      : c.body.op === "check"
+        ? reply({
+            ok: true,
+            versions: [{ asset: "tgz", ref: "v1.6.4", label: "1.6.4" }],
+          })
+        : reply({
+            ok: true,
+            applied: true,
+            localVersion: "1.6.4",
+            needRestart: true,
+          }),
+  );
+  const tree = await mount(h);
+  await click(tree, "检查社区版更新");
+  await click(tree, "安装所选版本");
+  assert(text(tree).includes("插件已安装：1.6.4"));
+  assert(text(tree).includes("仅刷新浏览器不会加载新版后端"));
+  assert(!text(tree).includes("备份已创建："));
+  await unmount(tree);
+});
+test("no-op, backup success and partial update failure keep their own result semantics", async () => {
+  const h = harness((c) =>
+    c.method === "GET"
+      ? reply({ ok: true, backups: [] })
+      : reply({ ok: true, id: "created" }),
+  );
+  const tree = await mount(h);
+  await click(tree, "立即备份");
+  assert(text(tree).includes("备份已创建：created"));
+  await unmount(tree);
+  const context = { module: { exports: {} }, exports: {}, require };
+  context.exports = context.module.exports;
+  vm.runInNewContext(bundle, context);
+  const { maintenanceNotice, assertMaintenanceResult } = context.module.exports;
+  assert(
+    maintenanceNotice("update", { ok: true, applied: false }).includes(
+      "未安装新版本",
+    ),
+  );
+  assert.throws(
+    () =>
+      assertMaintenanceResult({
+        ok: false,
+        applied: true,
+        error: "one target failed",
+      }),
+    /部分目标已更新/,
+  );
+});
+test("late reads from an unmounted panel cannot update a new panel", async () => {
+  let resolve,
+    reads = 0;
+  const h = harness(() =>
+    ++reads === 1
+      ? new Promise((r) => {
+          resolve = r;
+        })
+      : reply({ ok: true, backups: [backup("current")] }),
+  );
+  let tree = await mount(h);
+  await unmount(tree);
+  tree = await mount(h);
+  await act(async () => {
+    resolve(reply({ ok: true, backups: [backup("stale")] }));
+    await flush();
+  });
+  assert(text(tree).includes("current"));
+  assert(!text(tree).includes("stale"));
+  await unmount(tree);
+});

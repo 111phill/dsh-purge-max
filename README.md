@@ -126,6 +126,8 @@ purge-community apply|revert|uninstall|edit   # 原版能力
 | 宿主组件版本不一致 | 只报告，不阻止写入 |
 | Windows / Web profile | 代码路径保留，未做端到端验收 |
 
+Web / Headless 的备份列表、更新结果和当前实例定位说明见 [维护定位](docs/WEB-MAINTENANCE.md)。这些维护回归不代表所有补丁已完成 Web 端到端验收。
+
 ## 出问题怎么办
 
 ```sh

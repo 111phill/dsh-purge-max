@@ -40,7 +40,7 @@
   "scripts": {
     "embed-prompt": "node scripts/embed-default-prompt.mjs",
     "build:client": "node packages/purge-panel/scripts/build.mjs --community",
-    "test": "node --test test/community.test.mjs test/patch-anchors.test.mjs test/selfcheck.test.mjs test/boost.test.mjs test/prompt-sections.test.mjs test/presets.test.mjs test/anchors.test.mjs test/audit.test.mjs",
+    "test": "node --test test/community.test.mjs test/patch-anchors.test.mjs test/selfcheck.test.mjs test/boost.test.mjs test/prompt-sections.test.mjs test/presets.test.mjs test/anchors.test.mjs test/audit.test.mjs test/instance.test.mjs",
     "test:ui": "node packages/purge-panel/test/community.cjs",
     "check:client": "node packages/purge-panel/scripts/build.mjs --community --check",
     "diagnose": "node bin/community.js diagnose",
