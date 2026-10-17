@@ -1,6 +1,8 @@
-# 1.6.1
+# 1.6.2
 
-> 1.6.1 = 合并社区 PR #1（桌面宿主启动期崩溃修复）+ 安装包持久化。
+> 1.6.2 = 修两个自定义预设标红：0.2.1 移除的 toolFilter + 旧包名。
+
+DSH 0.2.1 的 `dsh-tool-subagent` 会直接拒绝 `toolFilter`（改为在 agent preset 里用 `agentPreset` 选），老预设带着它整份挂载失败，两个自定义模式因此标红。红队预设里的工具行名还停留在 `dsh-purge/redteam/tools`（包已改名 `dsh-purge-community`），同样导致 `never started`。已改模板、加自愈（就地摘掉 `toolFilter`、迁移旧包名），并对本机两份预设执行了一次刷新。
 
 - **合并 [PR #1](https://github.com/kingcharleslzy-ai/dsh-purge/pull/1)（@luowang-ui）**：`repairOfficialCliAfterUnpack()` 是同步函数却调用了异步 `atomicCopyFile` 且未 await——在 Windows/Node 24 上，rejection 绕过 `try/catch` 升级为 `uncaughtException`，宿主在加载阶段直接退出（「应用无法启动或已意外停止」）。顺带修掉一个数据完整性问题：异步拷贝让 `.dsh-purge.bak` 可能在补丁写入之后才读文件，存成补丁后的字节。新增 `atomicCopyFileSync`，并补了回归用例。
 - **安装包持久化**：`install()` 先把 tgz 复制到 `$DSH_HOME/dsh-purge-community/pkgs/` 再交给 pnpm，避免 `file:` 指向 `/tmp` 或 Downloads 导致重启后依赖解析失败。

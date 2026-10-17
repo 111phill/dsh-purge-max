@@ -1,6 +1,6 @@
 {
   "name": "dsh-purge-community",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "description": "Purge Community：独立维护的 DSH 提示词与规则管理插件，统一右侧设置、逐条补丁诊断、备份与插件回滚。",
   "type": "module",
   "main": "lib/index.js",
@@ -86,7 +86,7 @@
     },
     "install": {
       "preferred": "tarball",
-      "tarball": "https://github.com/kingcharleslzy-ai/dsh-purge/releases/latest/download/dsh-purge-community-1.6.1.tgz",
+      "tarball": "https://github.com/kingcharleslzy-ai/dsh-purge/releases/latest/download/dsh-purge-community-1.6.2.tgz",
       "git": "https://github.com/kingcharleslzy-ai/dsh-purge.git"
     }
   },
