@@ -13638,6 +13638,17 @@ var RewindFallback = class extends Component {
     );
   }
 };
+var rewindVisible = true;
+var rewindProbe = null;
+function loadRewindVisibility() {
+  if (!rewindProbe) {
+    rewindProbe = apiJson("/dsh-purge/boost").then((r) => {
+      rewindVisible = r && r.rewind !== false;
+      return rewindVisible;
+    }).catch(() => true);
+  }
+  return rewindProbe;
+}
 var RewindSafe = class extends Component {
   constructor(p) {
     super(p);
@@ -13652,7 +13663,16 @@ var RewindSafe = class extends Component {
     } catch {
     }
   }
+  componentDidMount() {
+    loadRewindVisibility().then((on) => {
+      if (!on && !this.unmounted) this.forceUpdate();
+    });
+  }
+  componentWillUnmount() {
+    this.unmounted = true;
+  }
   render() {
+    if (!rewindVisible) return null;
     if (this.state.failed) return h(RewindFallback, this.props);
     return h(RewindButton, this.props);
   }

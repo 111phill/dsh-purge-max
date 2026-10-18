@@ -209,6 +209,22 @@ export class RewindFallback extends Component {
   }
 }
 
+/** 回退按钮是否显示：默认显示（原版功能），可用 `purge-community rewind off` 关掉。 */
+let rewindVisible = true;
+let rewindProbe = null;
+
+function loadRewindVisibility() {
+  if (!rewindProbe) {
+    rewindProbe = apiJson("/dsh-purge/boost")
+      .then((r) => {
+        rewindVisible = r && r.rewind !== false;
+        return rewindVisible;
+      })
+      .catch(() => true);
+  }
+  return rewindProbe;
+}
+
 export class RewindSafe extends Component {
   constructor(p) {
     super(p);
@@ -224,7 +240,16 @@ export class RewindSafe extends Component {
       /* ignore */
     }
   }
+  componentDidMount() {
+    loadRewindVisibility().then((on) => {
+      if (!on && !this.unmounted) this.forceUpdate();
+    });
+  }
+  componentWillUnmount() {
+    this.unmounted = true;
+  }
   render() {
+    if (!rewindVisible) return null;
     if (this.state.failed) return h(RewindFallback, this.props);
     return h(RewindButton, this.props);
   }

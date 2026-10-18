@@ -1,3 +1,26 @@
+# 1.6.17
+
+## 回退按钮可关
+
+- 输入框右侧、模型名左边的「回退」按钮现在受偏好控制：`purge-community rewind on|off`，或 `POST /dsh-purge/boost` 带 `rewind` 字段。默认仍为**开**（保留原版功能），关掉后整块不渲染、不占位。
+- 客户端启动时读一次 `/dsh-purge/boost` 的 `rewind` 字段；关闭时 `RewindSafe` 返回 `null`，菜单与草稿回填逻辑保留但不触发。
+- 审计新增 `rewind` 事件。本机已执行 `rewind off`。
+
+## 换包机制（macOS / Windows 不同）
+
+- **macOS**：文件允许重命名，助手等当前进程退出后把 `app.asar` 改名为 `app.asar.bak`，再拉起新进程 —— 所以是「点应用 → 自动退出重开」。
+- **Windows**：运行中的 `app.asar` 被文件锁占用，不能改名。助手写 `resources/app.asar.purge-handoff.json`，等**进程真正退出**后再换包。关窗口不算退出（可能留在托盘），需要托盘退出或结束进程。
+- 两条路径都已实现；Windows 不是没做，而是必须等进程让出文件锁。
+
+## 测试
+
+```
+npm test              125 通过 / 0 失败
+npm run test:ui       面板三套 + rewind 套件 PASS
+npm run test:electron 真实 Electron：selfCheck ok
+npm run check:client / check:docs / smoke  全 PASS
+```
+
 # 1.6.16
 
 ## 更正 1.6.15 的说法，补上真正失效的一环

@@ -10,6 +10,7 @@ import { logAudit, readAudit } from "../lib/audit.js";
 import { readFileSync, writeFileSync } from "node:fs";
 import { installPreset, presetStatus } from "../lib/presets.js";
 import { readBoost, writeBoost } from "../lib/boost.js";
+import { readTuning, writeTuning } from "../lib/tuning.js";
 import { createProbe, readProbe } from "../lib/probe.js";
 const rawArgs = process.argv.slice(2);
 // 原版 CLI 的全部动作（apply/revert/uninstall/edit/status）原样保留，
@@ -113,6 +114,15 @@ if (LEGACY[op]) {
     } else {
       throw Error("用法：purge-community reanchor list | show <id> | apply <id> [--index n] [--lines a-b] [--yes] | clear <id>");
     }
+  } else if (op === "rewind") {
+    const sub = (argument || "status").toLowerCase();
+    if (sub === "on" || sub === "off") {
+      const next = writeTuning({ rewind: sub === "on" });
+      logAudit("rewind", { enabled: next.rewind }, home);
+      result = { ok: true, rewind: next.rewind, restart_required: true };
+    } else {
+      result = { ok: true, rewind: readTuning(home).rewind !== false, hint: "purge-community rewind on|off" };
+    }
   } else if (op === "probe") {
     if (argument === "new" || argument === "create") {
       const probe = createProbe();
@@ -197,7 +207,7 @@ if (LEGACY[op]) {
     });
   } else
     throw Error(
-      "用法：purge-community status | host-status | diagnose | selfcheck [--json] | boost on|off | probe [new] | audit [--limit n] | preset [status|install] | backup [prune|usage] | rollback <备份ID> | migrate <tgz> | apply | revert | uninstall | edit",
+      "用法：purge-community status | host-status | diagnose | selfcheck [--json] | boost on|off | rewind on|off | probe [new] | audit [--limit n] | preset [status|install] | backup [prune|usage] | rollback <备份ID> | migrate <tgz> | apply | revert | uninstall | edit",
     );
   console.log(JSON.stringify(result, null, 2));
 } catch (e) {
