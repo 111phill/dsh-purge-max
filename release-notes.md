@@ -1,3 +1,9 @@
+# 1.6.23
+
+## 修 Windows 路径：注入契约测试用了 URL.pathname
+
+`new URL(import.meta.url).pathname` 在 Windows 上得到 `/D:/a/...`，拼出来成了 `D:\D:\a\...`，CI 直接 ENOENT。改用 `fileURLToPath()`，与仓库其它测试一致。1.6.22 因此未发布成功，本版为修正后重发。
+
 # 1.6.22
 
 ## 入口提示折叠
