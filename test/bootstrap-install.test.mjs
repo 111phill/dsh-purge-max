@@ -61,3 +61,19 @@ test('direct CLI invocation through a symlink still executes and rejects unknown
  fs.symlinkSync(path.resolve('scripts/bootstrap-install.mjs'),link);
  assert.throws(()=>execFileSync(process.execPath,[link,'--invalid-argument'],{encoding:'utf8',stdio:'pipe'}),error=>error.status===1 && error.stderr.includes('Unknown argument: --invalid-argument'));
 });
+
+
+test('real distribution CLI starts before runtime dependencies exist; migrate never imports selfcheck eagerly',t=>{
+ const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'purge-clean-bootstrap-'));t.after(()=>fs.rmSync(tmp,{recursive:true,force:true}));
+ const pack=path.join(tmp,'package'),home=path.join(tmp,'home'),profile=path.join(home,'profiles/desktop');
+ fs.mkdirSync(pack);fs.mkdirSync(profile,{recursive:true});fs.writeFileSync(path.join(profile,'package.json'),'{}');
+ for(const part of ['bin','lib','presets','package.json'])fs.cpSync(path.resolve(part),path.join(pack,part),{recursive:true});
+ assert(!fs.existsSync(path.join(pack,'node_modules')));
+ const env={...process.env,DSH_HOME:home,DSH_PROFILE:'desktop',PURGE_PROFILE_DIR:profile,PURGE_DSH_CLI:'',DSH_BASE:''};
+ const text=execFileSync(process.execPath,[path.join(pack,'bin/community.js'),'status'],{env,encoding:'utf8'});
+ assert.equal(JSON.parse(text).package,'dsh-purge-community');
+ assert.throws(()=>execFileSync(process.execPath,[path.join(pack,'bin/community.js'),'migrate',path.join(tmp,'missing.tgz')],{env,encoding:'utf8',stdio:'pipe'}),error=>{
+   assert(!/ERR_MODULE_NOT_FOUND|Cannot find package .yaml/.test(error.stderr));
+   return true;
+ });
+});

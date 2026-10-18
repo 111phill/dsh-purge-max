@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.11** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
+> 当前版本：**1.6.12** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -130,7 +130,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.11 |
+| 插件 | `dsh-purge-community` 1.6.12 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
@@ -149,7 +149,7 @@ purge-community probe new
 
 Electron 的 app.asar 本体必须用 `diskFs()` 读取；不要把普通 Node 自检通过当作 Electron 运行时通过。`npm run test:electron` 在临时目录内运行真实 Electron 测试，不改动安装或用户设置。
 
-## 12. 安装 / 更新失败：Agent 必读（1.6.11）
+## 12. 安装 / 更新失败：Agent 必读（1.6.12）
 
 1. 读取 DSH 版本、实际 Desktop 可执行文件、`DSH_HOME`、目标 profile。不要猜测另一台设备的路径。首次安装要求 profile 已初始化；Windows 用 `scripts/install.ps1`，macOS 用 `scripts/install.sh`，细节见 [安装指南](docs/INSTALLATION.md)。Web/Headless 继续使用当前实例的 CLI 与发行包迁移，不能套 Desktop 自动发现。
 2. 默认先 `--dry-run`（PowerShell `-DryRun`）确认来源与 SHA256，再按用户授权安装。更新/迁移前安装器自动快照；不要为了安装去改提示词、权限、更新偏好或其他插件。安装、宿主补丁应用与手动重启是三个独立动作。不要安装后自动 apply/restart。
@@ -159,7 +159,7 @@ Electron 的 app.asar 本体必须用 `diskFs()` 读取；不要把普通 Node �
 6. 失败时查看返回的 backup_id，确认 package.json/锁文件/安装状态。需要恢复时走 `rollback <id>`，保留当前用户内容。不能把失败说成安装成功；不能自动重启。公开 issue 只附脱敏错误，不上传配置、凭证、提示词或完整备份。
 7. 版本核对以 package.json / release-notes 为准。README.md 与 README.zh-CN.md 必须一致，维护文档不能再停在 1.2.0/1.3.0。安装器测试与完整 Windows DSH 界面/宿主补丁验收分开记录，不混为“全部 Windows 功能已验证”。
 
-## 13. Windows Electron 安装验收（1.6.11）
+## 13. Windows Electron 安装验收（1.6.12）
 
 Windows Desktop 的 exe 是 GUI 子系统。PowerShell 的 `& exe ...` 可能在子进程结束前返回，不能用它后面的 `$LASTEXITCODE` 推断已完成。安装器必须等待明确的进程对象、检查其真实 ExitCode、收集 UTF-8 输出后再清理 bootstrap。回归必须同时覆盖普通 Node 控制台进程与真正 GUI 子系统进程；只用 node.exe 模拟 Desktop 不够。
 
@@ -167,7 +167,7 @@ Windows Desktop 的 exe 是 GUI 子系统。PowerShell 的 `& exe ...` 可能在
 
 PowerShell 5.1 读取 UTF-8 JSON/文档应使用 `Get-Content -Raw -Encoding UTF8`，不要把默认 ANSI 解码造成的中文乱码误判为安装包损坏。
 
-## 14. Windows 换包与设置接口（1.6.11）
+## 14. Windows 换包与设置接口（1.6.12）
 
 - issue #10 / PR #11：Windows 密封宿主的「应用」只写磁盘补丁并启动等待助手，**不定时退出 host、不杀 Electron、不自动重开**。提醒用户从系统托盘完整退出，确认换包完成后手动打开。不要把关闭窗口当成退出，也不要自行执行旧版重启脚本。
 - `/dsh-purge/status` 的 `asar_handoff.phase`：`starting` 只是启动请求；`ready` / `waiting_for_quit` 才证明助手运行过；`complete` 才表示保留原归档并完成换包。`failed` / `expired` / `helper_stopped` 要读取 `resources/app.asar.purge-handoff.json` 及同名 `.log` 排查，不把 `.rename-pending` 当成功。状态与日志只包含换包诊断，不要上传用户配置。
@@ -176,14 +176,14 @@ PowerShell 5.1 读取 UTF-8 JSON/文档应使用 `Get-Content -Raw -Encoding UTF
 - issue #9：原生存在 `describe` / `replace` 的宿主不能注入 legacy `register`，否则特性探测型插件会读错存储。升级会逆向移除 #42 的精确旧模板，保留两处设置通知；未知改版停止并诊断，不能整份覆盖 settings 源码或迁移/清空用户 settings 文档。缺少现代 API 的老宿主保留原兼容接口。
 - 应用前逐文件备份有任一错误，停止写入，不能声称可回滚。Windows 实测必须验证打开的备份描述符已关闭、应用/还原字节一致；普通 Node/Linux 通过不足以证明 Windows 文件句柄正常。
 
-## 15. 解包后无法再次安装（1.6.11）
+## 15. 解包后无法再次安装（1.6.12）
 
-若 CLI 报 app/runtime 下的 pnpm.mjs 不存在，检查当前安装的 app/runtime 链接。Windows junction 必须使用同 resources 目录下 runtime 的绝对目标，不能传相对的 `..\\runtime`。新安装器会保留旧错误链接后修复；现有真实目录或其他有效运行时冲突时停止，不删除目录内容。旧更新器尚未加载修复代码时，使用独立 Windows 安装入口安装 1.6.11，不要反复点更新、删锁文件或全局重装 pnpm。
+若 CLI 报 app/runtime 下的 pnpm.mjs 不存在，检查当前安装的 app/runtime 链接。Windows junction 必须使用同 resources 目录下 runtime 的绝对目标，不能传相对的 `..\\runtime`。新安装器会保留旧错误链接后修复；现有真实目录或其他有效运行时冲突时停止，不删除目录内容。旧更新器尚未加载修复代码时，使用独立 Windows 安装入口安装 1.6.12，不要反复点更新、删锁文件或全局重装 pnpm。
 
 验收顺序必须覆盖：密封宿主安装 → 应用补丁 → 完整退出换包 → 打开解包宿主 → 再次真实安装/升级 → 备份/回滚/重新升级。只在归档还在时测试升级，不能证明换包之后的 CLI 路径仍正确。对比当前提示词与 profile 配置，不能用旧快照覆盖用户后续修改。
 
 
-## 16. 命令冲突与自检证据（1.6.11）
+## 16. 命令冲突与自检证据（1.6.12）
 
 同名命令由原插件保留。Purge 备用命令依次为 `/purge-community`、`/purge-rules`、`/purge-skills`、`/purge-rewind`；`status.commands` 可查看实际注册名称。备用名称也占用时只跳过该命令并报警，不覆盖他人命令，不影响其他命令、工具、提示词与 HTTP 接口。不要为恢复面板卸载用户的回退插件。
 
@@ -192,3 +192,9 @@ PowerShell 5.1 读取 UTF-8 JSON/文档应使用 `Get-Content -Raw -Encoding UTF
 未显式设置不等于未生效：当前有效但未固定为 `inferred`；看不到实际值为 `unknown`。只有确认的权限不匹配或补丁错误为 `broken`。JSON/text 均仅在 `broken` 时退出码 1，其余为 0；自动化还应检查 `state`，不能把 0 当成“已全部证明”。不要改权限、删配置或重装以消除黄色项。
 
 路由跟随 Cordis 的 webServer 子作用域注册和回收，不加入进程级轮询或固定超时假装 ready。只读状态不依赖 connection/session 列表。生命周期回归必须覆盖服务晚到、撤销/替换、父插件重载、卸载后不复活，以及真正 Desktop CommandRuntime 重名时其余工具和提示词仍注册。
+
+## 17. 独立安装器不能提前依赖 runtime 包（1.6.12）
+
+引导器解压 tgz 后直接执行 bin/community.js migrate，此时尚无 node_modules。CLI 顶层必须仅依赖随包模块和 Node 内建；自检等运行时依赖应在相应命令分支按需导入。1.6.11 将 yaml 经 selfcheck 提前引入，真实公开 Windows 入口失败，已转为预发布。不要在 bootstrap 阶段增加不受宿主控制的 npm install 来掩盖这一问题。
+
+发布验收必须先对无依赖的真实解压包运行引导 CLI，再安装依赖验证插件入口。还要用候选 tgz 和实际 Desktop CLI 执行完整 bootstrapInstall，不得只用 mock bin/community.js 或先安装依赖的 smoke 代替。供应链校验、备份和不自动重启策略保持不变。
