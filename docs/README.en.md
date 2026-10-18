@@ -25,7 +25,9 @@ The script finds DSH Desktop, downloads the latest verified release, checks SHA2
 
 Then fully quit and reopen DSH, open **Purge** in the left rail, press **Apply**, and quit/reopen once more.
 
-**Current version 1.6.12 — qualified against DSH Desktop 0.2.1-rc.2 (and rc.1).**
+**Current version 1.6.13 — qualified against DSH Desktop 0.2.1-rc.2 (and rc.1).**
+
+1.6.13 fixes legacy custom `unrestricted` presets rejected by DSH's removed `toolFilter` option. Before registration, it backs up the original files and translates the child policy into a native child preset selected with `agentPreset`. Parent tools, persona, expressions and depth settings remain intact; the child excludes exactly the supported legacy deny list. Original user YAML is retained byte for byte. Unknown or ambiguous policies stop with a diagnostic instead of silently dropping restrictions. The additional child preset is for delegation; choose the original preset for normal sessions. Updating never restarts DSH automatically.
 
 ```
 purge-community selfcheck     # 27-layer proof that each bypass is live
@@ -48,7 +50,7 @@ Official-format custom market index: https://kingcharleslzy-ai.github.io/dsh-pur
 
 Thanks to [@OGHong](https://github.com/OGHong) for diagnosing the Electron ASAR check in [issue #5](https://github.com/kingcharleslzy-ai/dsh-purge/issues/5). The fix uses the existing original-fs disk adapter and was tested in Electron 44.7.0.
 
-## Windows and installation recovery (1.6.12)
+## Windows and installation recovery (1.6.13)
 
 Run PowerShell 5.1+ or PowerShell 7:
 
@@ -57,24 +59,24 @@ Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/kingcharles
 & "$env:TEMP\purge-install.ps1"
 ```
 
-Use `-DshExe 'C:\path\DeepSeek Harness.exe'` for a custom or ambiguous installation, `-DshHome`, `-Profile`, `-Version 1.6.12`, or `-DryRun`. The initialized Desktop profile and the application's own runtime are required. No global Node installation, registry edits or automatic restart. Review a downloaded script before running it; a process-only execution-policy override is documented in the Chinese installation guide when required.
+Use `-DshExe 'C:\path\DeepSeek Harness.exe'` for a custom or ambiguous installation, `-DshHome`, `-Profile`, `-Version 1.6.13`, or `-DryRun`. The initialized Desktop profile and the application's own runtime are required. No global Node installation, registry edits or automatic restart. Review a downloaded script before running it; a process-only execution-policy override is documented in the Chinese installation guide when required.
 
 Issue #7 concerns a missing Windows dependency version in a registry mirror. Only the specific missing-metadata failure for the public `@dsh-ops/bash-win32-x64` package qualifies for one scoped retry against official npm, after validating official metadata. All pnpm security policies remain active; private/unknown registries, integrity failures and too-new packages are not bypassed. The market's first-install operation runs before this plugin loads: choose official npm there, or use this independent installer. A GitHub network warning is a separate problem.
 
 See [installation and recovery](INSTALLATION.md) and [Agent instructions](../AGENTS.md). Cross-platform installer tests do not establish complete Windows host-patch/UI compatibility. Existing prompts, settings and other plugins are preserved; restart manually only when convenient.
 
-Version 1.6.12 also verifies the real signed Windows Desktop runtime on Windows 11 (build 26300), with an isolated app copy and profile. It fixes a GUI-subsystem race: PowerShell could return before Electron read the temporary bootstrap, then delete the file and report success. The wrapper now waits for the exact process and checks its ExitCode. Regression tests include a delayed GUI executable, not only a console Node fixture. Installation, backup, rollback and settings retention are verified; full Windows UI/login/host-patch qualification remains separate.
+Version 1.6.13 also verifies the real signed Windows Desktop runtime on Windows 11 (build 26300), with an isolated app copy and profile. It fixes a GUI-subsystem race: PowerShell could return before Electron read the temporary bootstrap, then delete the file and report success. The wrapper now waits for the exact process and checks its ExitCode. Regression tests include a delayed GUI executable, not only a console Node fixture. Installation, backup, rollback and settings retention are verified; full Windows UI/login/host-patch qualification remains separate.
 
-### Windows handoff and settings compatibility in 1.6.12
+### Windows handoff and settings compatibility in 1.6.13
 
 Windows archive handoff waits for a full user quit, records helper readiness and verified completion, preserves a uniquely named archive backup, and never kills or relaunches the app. A pending marker is not success. If an official update changes the archive while waiting, handoff stops. See the maintenance guide before attempting offline repair.
 
 Modern hosts retain native describe/replace settings APIs. The exact historical legacy shim is removed on apply without changing user settings documents; unknown modified shims stop for diagnosis. Old hosts retain their compatibility API. Backup descriptors are closed before Windows atomic replacement; backup failures cancel host patch writes.
 
-Real Windows 1.6.12 acceptance covers archive handoff from the desktop host, SHA256-preserved backups, reload status, native Settings/ConfigEditor reads and writes, and rollback followed by re-upgrade. The isolated profile retains its default permissions. Mouse automation over UU remained unreliable; this is not a claim that every Windows control, login flow or model response has been manually tested. See [scope and evidence](releases/1.6.10.md).
+Real Windows 1.6.13 acceptance covers archive handoff from the desktop host, SHA256-preserved backups, reload status, native Settings/ConfigEditor reads and writes, and rollback followed by re-upgrade. The isolated profile retains its default permissions. Mouse automation over UU remained unreliable; this is not a claim that every Windows control, login flow or model response has been manually tested. See [scope and evidence](releases/1.6.10.md).
 
-Version 1.6.9 was changed to a prerelease after post-publication testing found an unpacked Windows runtime-link failure. Version 1.6.12 uses an absolute junction target, preserves invalid links, repairs the selected unpacked CLI before installation, and blocks archive handoff if its runtime is unavailable. For a previously broken updater, use the standalone installer rather than deleting runtime directories or lockfiles.
+Version 1.6.9 was changed to a prerelease after post-publication testing found an unpacked Windows runtime-link failure. Version 1.6.13 uses an absolute junction target, preserves invalid links, repairs the selected unpacked CLI before installation, and blocks archive handoff if its runtime is unavailable. For a previously broken updater, use the standalone installer rather than deleting runtime directories or lockfiles.
 
-## 1.6.12: command coexistence and evidence-based diagnostics
+## 1.6.13: command coexistence and evidence-based diagnostics
 
 A conflicting slash command remains owned by its original plugin; Purge uses a prefixed fallback. Status/maintenance routes and other registrations remain available. Permission checks distinguish explicit configuration, effective inferred defaults and unavailable evidence. Runtime observations take priority; YAML expressions are never executed by diagnostics. No settings changes or automatic restart are required by these fixes. See issues #12 and #15 and the release acceptance notes.

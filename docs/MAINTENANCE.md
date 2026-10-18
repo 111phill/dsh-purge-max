@@ -1,6 +1,6 @@
 # 维护、迁移与恢复
 
-当前版本 **1.6.12**。包名 `dsh-purge-community`，来源仅本仓库正式 GitHub Releases；保留内部 Cordis ID `dsh-purge`、HTTP `/dsh-purge/*` 及用户数据目录。主安装步骤与镜像故障决策树统一见 [安装指南](INSTALLATION.md)；[AGENTS.md](../AGENTS.md) 是 Agent 操作说明。
+当前版本 **1.6.13**。包名 `dsh-purge-community`，来源仅本仓库正式 GitHub Releases；保留内部 Cordis ID `dsh-purge`、HTTP `/dsh-purge/*` 及用户数据目录。主安装步骤与镜像故障决策树统一见 [安装指南](INSTALLATION.md)；[AGENTS.md](../AGENTS.md) 是 Agent 操作说明。
 
 ## 兼容与操作边界
 
@@ -40,7 +40,7 @@ profile 不存在/有多个且未明确选择时停止。Web/Headless 只用当�
 
 ## Windows 换包状态与离线恢复（issue #10）
 
-1.6.12 不再通过定时退出后台或杀掉桌面壳换包。用户点「应用」后助手等待所有同安装路径的 DSH 进程退出，保存唯一的原归档备份，验证 SHA256，然后停止；用户自行打开。正在运行的其他安装不受影响。等待期间官方替换归档会报错并保留新归档，须对新版本重新应用。
+1.6.13 不再通过定时退出后台或杀掉桌面壳换包。用户点「应用」后助手等待所有同安装路径的 DSH 进程退出，保存唯一的原归档备份，验证 SHA256，然后停止；用户自行打开。正在运行的其他安装不受影响。等待期间官方替换归档会报错并保留新归档，须对新版本重新应用。
 
 诊断位于 `resources/app.asar.purge-handoff.json` 和 `.json.log`。`starting` 不是就绪，`waiting_for_quit` 不是完成，磁盘补丁数不是当前进程已加载。助手没有确认就绪、提前结束或超时时，宿主保持运行。不要仅删除 pending 标记就宣布修复，不要禁用防病毒软件、全局调整权限或修改宿主崩溃提示来掩盖错误。
 
@@ -56,10 +56,17 @@ profile 不存在/有多个且未明确选择时停止。Web/Headless 只用当�
 
 ## 解包后 pnpm 路径缺失
 
-1.6.9 预发布后发现 Windows 相对 junction 会随启动目录指错。1.6.12 使用绝对目标，安装前修复当前实例的链接，旧错误链接改名留存。若旧更新器已报 pnpm.mjs 不存在，使用独立安装入口固定 1.6.12；不要删除 app/runtime 目录内容或手动清空锁文件。换包前运行时不可用时保留原归档。
+1.6.9 预发布后发现 Windows 相对 junction 会随启动目录指错。1.6.13 使用绝对目标，安装前修复当前实例的链接，旧错误链接改名留存。若旧更新器已报 pnpm.mjs 不存在，使用独立安装入口固定 1.6.13；不要删除 app/runtime 目录内容或手动清空锁文件。换包前运行时不可用时保留原归档。
 
-## 命令重名、接口 404 与自检黄色项（1.6.12）
+## 命令重名、接口 404 与自检黄色项（1.6.13）
 
 #12 的作者已更正最初推测：实测中断点是 `/rewind` 重名，不是 inactive context。新版保留命令原持有者，并通过备用命令继续提供 Purge 功能。无需卸载其他插件或添加进程级轮询。
 
 #15 将文件原值与有效值混淆。新版把 `inferred`、`unknown` 与 `broken` 分开；面板问号展示证据和范围。CLI 不执行配置表达式、不通过扫描别的安装猜测当前实例。参见 AGENTS §16；不要自动修改用户权限。
+## 预设迁移与回滚（1.6.13）
+
+`tool-subagent: toolFilter is no longer supported` 是预设激活兼容问题，不能用权限自检或“YAML 能解析”代替验收。新版会在注册前将可表达的旧 spawn deny 策略转换为原生子预设，原始用户文件不动。备份位于 `$DSH_HOME/dsh-purge-community/preset-migrations/`，每份带 SHA256 清单；缺少备份权限或已有快照损坏时停止。
+
+不要使用 `preset install --force` 覆盖自定义文件来消除红框，不要只删除 `toolFilter`。父会话工具完整，子会话仍排除原来的工具，深度、人设和设置保留。现阶段只支持单个 spawn deny 清单，未知工具/已有 agentPreset/allow/多策略需要单独设计，不能自动猜测。
+
+使用当前 Desktop 的真实 Electron 执行 `test/desktop-presets.mjs`，覆盖原错误复现、真实父/子 Agent 工具目录、重复加载、卸载和备份字节校验。此测试在隔离 home 中创建空白 Agent，不发送模型请求。代码回滚会撤销运行时转换，不需要覆盖用户文件；重新加载旧版本也会重新遇到新宿主的旧参数错误。不要自动重启用户应用。
