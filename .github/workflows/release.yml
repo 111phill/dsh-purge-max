@@ -68,5 +68,8 @@ jobs:
           $runtime = Join-Path $env:RUNNER_TEMP 'purge-electron'
           npm install --prefix $runtime --no-package-lock --no-audit --no-fund electron@44.7.0
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node (Join-Path $runtime 'node_modules/electron/install.js')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:PURGE_ELECTRON_EXEC = Join-Path $runtime 'node_modules/electron/dist/electron.exe'
+          if (-not (Test-Path -LiteralPath $env:PURGE_ELECTRON_EXEC)) { throw 'Electron binary was not installed' }
           node --test test/windows-electron-handoff.test.mjs
