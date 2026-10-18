@@ -1,6 +1,6 @@
 # 安装、升级与故障排查
 
-当前版本 **1.6.9**。面向用户与协助安装的 Agent。支持的安装器环境：macOS Desktop；Windows 11 的 PowerShell 5.1/7。完整 Windows 宿主补丁及界面验收与安装器测试分开，不能因安装通过就宣称全部功能正常。
+当前版本 **1.6.10**。面向用户与协助安装的 Agent。支持的安装器环境：macOS Desktop；Windows 11 的 PowerShell 5.1/7。完整 Windows 宿主补丁及界面验收与安装器测试分开，不能因安装通过就宣称全部功能正常。
 
 ## 安装前
 
@@ -11,9 +11,9 @@
 
 ## 命令
 
-macOS：下载 README 中的 `scripts/install.sh`，`sh /tmp/purge-install.sh --dry-run` 只校验，去掉 `--dry-run` 才安装。可以设置 `DSH_APP`、`DSH_HOME`、`PURGE_VERSION`，传入 `--version=1.6.9`、`--profile=desktop`。
+macOS：下载 README 中的 `scripts/install.sh`，`sh /tmp/purge-install.sh --dry-run` 只校验，去掉 `--dry-run` 才安装。可以设置 `DSH_APP`、`DSH_HOME`、`PURGE_VERSION`，传入 `--version=1.6.10`、`--profile=desktop`。
 
-Windows：下载 README 中的 `scripts/install.ps1`，`& "$env:TEMP\purge-install.ps1" -DryRun` 只校验。正式安装去掉 `-DryRun`。支持 `-DshExe 'C:\path\DeepSeek Harness.exe' -DshHome 'C:\path\home' -Profile desktop -Version 1.6.9`。应用路径不唯一会停止。默认先读取运行进程、卸载注册表中的安装位置，再检查常见目录；只读注册表，不写 PATH。
+Windows：下载 README 中的 `scripts/install.ps1`，`& "$env:TEMP\purge-install.ps1" -DryRun` 只校验。正式安装去掉 `-DryRun`。支持 `-DshExe 'C:\path\DeepSeek Harness.exe' -DshHome 'C:\path\home' -Profile desktop -Version 1.6.10`。应用路径不唯一会停止。默认先读取运行进程、卸载注册表中的安装位置，再检查常见目录；只读注册表，不写 PATH。
 
 若 PowerShell 执行策略阻止，先审阅脚本，再用独立进程 `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\purge-install.ps1"`；不需要 `Set-ExecutionPolicy` 修改全局/持久策略。不用 `iex` 执行返回内容。
 
@@ -54,8 +54,8 @@ Web/Headless：下载本仓库发行 `.tgz` 与 SHA256SUMS，校验**该文件�
 
 `node --test test/install-registry.test.mjs test/bootstrap-install.test.mjs` 覆盖正常安装、精确错误重试、私有源、混合错误、官方缺元数据、网络失败、SHA256 稳定别名、临时路径与子进程。`test/install-windows.ps1` 在 Windows PowerShell 5.1 和 PowerShell 7 验证入口参数、路径、退出状态和环境恢复。CI 在 Linux/macOS/Windows 执行安装器测试。真实 DSH 隔离 profile 的迁移/回滚另行记录；这些测试均不能替代完整 Windows DSH UI/宿主补丁验收。
 
-## Windows 真实运行时回归（1.6.9）
+## Windows 真实运行时回归（1.6.10）
 
 官方 Desktop 是 GUI 子系统 exe，PowerShell call operator 不足以证明安装结束。安装器通过 Start-Process 等待进程，读取实际退出码和 UTF-8 输出后才删除临时脚本。CI 增加延迟读取 bootstrap 的 GUI 子系统测试，防止再次出现假成功与 MODULE_NOT_FOUND。生产安装不需要 .NET 编译器；GUI 测试程序只由开发/CI 编译。
 
-本版在真实 Windows 11 专业版（build 26300）使用签名有效的官方 Desktop 0.2.1-rc.2 运行时、独立应用副本、DSH_HOME 和 user-data-dir 验证下载校验、安装、快照、回滚及设置保留，PowerShell 5.1/7 回归通过。该证据不代表登录、完整 UI 或全部宿主补丁已经验收。详见 [1.6.9 记录](releases/1.6.9.md)。
+本版在真实 Windows 11 专业版（build 26300）使用签名有效的官方 Desktop 0.2.1-rc.2 运行时、独立应用副本、DSH_HOME 和 user-data-dir 验证下载校验、安装、快照、回滚及设置保留，PowerShell 5.1/7 回归通过。该证据不代表登录、完整 UI 或全部宿主补丁已经验收。详见 [1.6.10 记录](releases/1.6.10.md)。

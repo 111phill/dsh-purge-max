@@ -61,6 +61,15 @@ test('real Windows PowerShell: missing unpacked app fails visibly, leaves origin
  const f=fixture();try{fs.rmSync(path.join(f.root,'app'),{recursive:true});const ps=path.join(f.root,'handoff.ps1');fs.writeFileSync(ps,script);const r=spawnSync(powershell,['-NoProfile','-File',ps,'-ExePath',path.join(f.root,'missing.exe'),'-AsarPath',f.asar,'-StatePath',f.asar+'.purge-handoff.json','-Token','missing'],{encoding:'utf8'});assert.equal(r.status,1);assert.equal(readWindowsAsarHandoff(f.asar).phase,'failed');assert.equal(fs.readFileSync(f.asar,'utf8'),'original archive');}finally{fs.rmSync(f.root,{recursive:true,force:true});}
 });
 
+test('real Windows PowerShell: missing unpacked runtime blocks handoff and retains archive',{skip:process.platform!=='win32'},()=>{
+ const f=fixture();try {
+  const entry=path.join(f.root,'runtime/primary-runtime/dependencies/pnpm/bin/pnpm.mjs');fs.mkdirSync(path.dirname(entry),{recursive:true});fs.writeFileSync(entry,'runtime');
+  const ps=path.join(f.root,'handoff.ps1');fs.writeFileSync(ps,script);
+  const r=spawnSync(powershell,['-NoProfile','-File',ps,'-ExePath',path.join(f.root,'missing.exe'),'-AsarPath',f.asar,'-StatePath',f.asar+'.purge-handoff.json','-Token','runtime'],{encoding:'utf8'});
+  assert.equal(r.status,1);assert.match(readWindowsAsarHandoff(f.asar).detail,/app\/runtime is unavailable/);assert.equal(fs.readFileSync(f.asar,'utf8'),'original archive');
+ }finally{fs.rmSync(f.root,{recursive:true,force:true});}
+});
+
 
 test('real Windows PowerShell: locked archive retries, timeout and changed archive remain visible',{skip:process.platform!=='win32'},async()=>{
  const f=fixture();const ps=path.join(f.root,'handoff.ps1');fs.writeFileSync(ps,script);
