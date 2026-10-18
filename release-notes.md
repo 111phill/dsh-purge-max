@@ -1,3 +1,12 @@
+# 1.6.8
+
+- 修复真实 Windows Electron 安装竞争条件：PowerShell call operator 可能提前返回，临时 bootstrap 被清理后子进程报 MODULE_NOT_FOUND，而父进程显示成功。改为等待明确的进程对象、读取真实 ExitCode 和 UTF-8 日志后再清理。
+- 新增真正 GUI 子系统可执行文件的延迟启动、参数和失败退出回归，PowerShell 5.1/7 均验证；不再只以 node.exe 代替 Electron。
+- 在真实 Windows 11 专业版 build 26300、签名有效的官方 DSH Desktop 0.2.1-rc.2 上做隔离安装、备份与回滚验收，保留当前及备份后新增的提示词。未修改默认 DSH 用户目录或既有生图服务，未自动重启或应用宿主补丁。
+- README、Agent 安装说明补充 Desktop profile 初始化限制和 PowerShell 5.1 UTF-8 读取方式。界面/登录/完整宿主补丁能力仍与安装器验收分开记录。
+
+验证明细见 [1.6.8 实机记录](docs/releases/1.6.8.md)。1.6.7 的 Windows 独立安装入口请改用本版。
+
 # 1.6.7
 
 - 修复 macOS 临时目录路径别名导致独立 bootstrap 入口静默跳过的问题；使用真实文件路径判断入口，并加入 symlink 启动回归。

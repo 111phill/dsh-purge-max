@@ -6,7 +6,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {bootstrapInstall,verifyChecksum,desktopCli} from '../scripts/bootstrap-install.mjs';
-const version='1.6.7',filename=`dsh-purge-community-${version}.tgz`;
+const version='1.6.8',filename=`dsh-purge-community-${version}.tgz`;
 function fixture(t){
  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'purge 空格 '));t.after(()=>fs.rmSync(tmp,{recursive:true,force:true}));
  const home=path.join(tmp,'home'), profile=path.join(home,'profiles','desktop'),pack=path.join(tmp,'pack');

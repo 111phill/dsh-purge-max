@@ -31,6 +31,12 @@ function Find-DshExecutable {
     if ($found.Count -ne 1) { throw 'Cannot uniquely locate DSH Desktop. Run again with -DshExe "C:\path\DeepSeek Harness.exe".' }
     return $found[0]
 }
+function ConvertTo-NativeArgument([string]$Value) {
+    # Start-Process joins ArgumentList on Windows; quote using CommandLineToArgvW rules.
+    $escaped = [regex]::Replace($Value, '(\\*)"', '$1$1\"')
+    $escaped = [regex]::Replace($escaped, '(\\+)$', '$1$1')
+    return '"' + $escaped + '"'
+}
 $runtime = Find-DshExecutable
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('purge-bootstrap-' + [guid]::NewGuid().ToString('N'))
 $names = @('ELECTRON_RUN_AS_NODE', 'DSH_HOME')
@@ -47,8 +53,16 @@ try {
     $arguments = @($bootstrap, "--profile=$Profile")
     if ($Version) { $arguments += "--version=$Version" }
     if ($DryRun) { $arguments += '--dry-run' }
-    & $runtime @arguments
-    if ($LASTEXITCODE -ne 0) { throw "Installer failed (exit $LASTEXITCODE). Keep the reported backup; do not clear lockfiles or disable verification." }
+    $standardOutput = Join-Path $temporary 'stdout.log'
+    $standardError = Join-Path $temporary 'stderr.log'
+    $quoted = ($arguments | ForEach-Object { ConvertTo-NativeArgument $_ }) -join ' '
+    # Electron is a GUI-subsystem exe: call operator may return before it finishes.
+    # Wait on that exact process before reading its status or deleting bootstrap files.
+    $process = Start-Process -FilePath $runtime -ArgumentList $quoted -Wait -PassThru -NoNewWindow -RedirectStandardOutput $standardOutput -RedirectStandardError $standardError
+    foreach ($log in @($standardOutput, $standardError)) {
+        if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log -Encoding UTF8 | Write-Output }
+    }
+    if ($process.ExitCode -ne 0) { throw "Installer failed (exit $($process.ExitCode)). Keep the reported backup; do not clear lockfiles or disable verification." }
 } finally {
     [Net.ServicePointManager]::SecurityProtocol = $previousProtocol
     foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $previous[$name], 'Process') }
