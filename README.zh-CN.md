@@ -9,7 +9,7 @@
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.6.8** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
+当前版本 **1.6.9** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
 
 </div>
 
@@ -32,9 +32,15 @@ sh /tmp/purge-install.sh
 curl -fsSL https://raw.githubusercontent.com/kingcharleslzy-ai/dsh-purge/master/scripts/install.sh | sh
 ```
 
+### 1.6.9 修复重点
+
+- **Windows 换包交接**：助手等待完整退出，显示真实状态与失败原因，保留原归档；不再定时退出后台，不杀进程、不自动重开（issue #10、PR #11）。
+- **插件设置冲突**：现代宿主保留原生设置接口，清理已注入的旧兼容层，避免其他插件设置页重复注册或读错数据（issue #9）。
+- **可靠备份**：修复 Windows 备份句柄未关闭的问题；备份失败停止写入宿主。已有提示词、规则及配置保留。
+
 ### Windows 11 · PowerShell
 
-1.6.8 已在真实 Windows 11 + 官方 DSH Desktop 0.2.1-rc.2 上验证安装与回滚。安装器会等待 Electron GUI 子进程结束，读取真实退出码后才清理临时文件；不再出现“父进程成功、子进程找不到脚本”的误报。
+1.6.9 已在真实 Windows 11 + 官方 DSH Desktop 0.2.1-rc.2 上验证安装与回滚。安装器会等待 Electron GUI 子进程结束，读取真实退出码后才清理临时文件；不再出现“父进程成功、子进程找不到脚本”的误报。
 
 ```powershell
 Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/kingcharleslzy-ai/dsh-purge/master/scripts/install.ps1 -OutFile "$env:TEMP\purge-install.ps1"
@@ -46,7 +52,7 @@ Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/kingcharles
 | 用途 | macOS 参数/环境变量 | Windows 参数 |
 | --- | --- | --- |
 | 只下载校验，不安装 | `--dry-run` | `-DryRun` |
-| 固定版本 | `--version=1.6.8` | `-Version 1.6.8` |
+| 固定版本 | `--version=1.6.9` | `-Version 1.6.9` |
 | 选择 profile | `--profile=desktop` | `-Profile desktop` |
 | 自定义数据目录 | `DSH_HOME=/path/to/home` | `-DshHome 'C:\path\home'` |
 | 自定义应用路径 | `DSH_APP='/path/DSH.app'` | `-DshExe 'C:\path\DeepSeek Harness.exe'` |
@@ -65,7 +71,7 @@ Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/kingcharles
 
 ## 为什么用它，而不是原版
 
-| | 原版 1.1.71 | 本分支 1.6.8 |
+| | 原版 1.1.71 | 本分支 1.6.9 |
 | --- | --- | --- |
 | 宿主适配 | 只到 0.1.7 / 0.2.0，上游已停更 | **0.2.1-rc.2 逐条回归，0 漂移** |
 | 补丁 | 82 条，锚点随新版失效后静默跳过 | **83 条**（新增 `ask_user_question` 不阻塞），带**逐条状态与漂移诊断** |
@@ -153,7 +159,7 @@ purge-community apply|revert|uninstall|edit   # 原版能力
 | macOS · DSH Desktop **0.2.1-rc.1 / rc.2** | 已回归：83 条锚点、面板、CLI、自检 27 层全绿 |
 | 其他 DSH 版本 | 允许应用，标"未验证"；先跑 `selfcheck` / `diagnose` |
 | 宿主组件版本不一致 | 只报告，不阻止写入 |
-| Windows 11 · Desktop **0.2.1-rc.2** | 真实官方运行时的安装、备份、回滚通过；界面/宿主补丁尚未全量验收 |
+| Windows 11 · Desktop **0.2.1-rc.2** | 真实运行时的安装、回滚、宿主交接、原生设置与重载自检通过；[验收范围](docs/releases/1.6.9.md) |
 | Web profile | 维护回归保留，未做完整端到端验收 |
 
 Web / Headless 的备份列表、更新结果和当前实例定位说明见 [维护定位](docs/WEB-MAINTENANCE.md)。这些维护回归不代表所有补丁已完成 Web 端到端验收。

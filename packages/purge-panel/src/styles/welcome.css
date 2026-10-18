@@ -1,0 +1,103 @@
+/* The first-run dialog is rendered before any settings page. It must own its
+   styles and cannot depend on the optional drill vendor stylesheet. */
+.dshpp-welcome-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  overflow: auto;
+  box-sizing: border-box;
+  background: rgb(0 0 0 / 35%);
+  color: var(--dsw-alias-label-primary, #171717);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: left;
+}
+.dshpp-welcome-card {
+  width: min(600px, 100%);
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 24px;
+  border: 1px solid var(--dsw-alias-border-l1, #ddd);
+  border-radius: 16px;
+  background: var(--dsw-alias-bg-layer-1, #fff);
+  box-shadow: 0 16px 64px rgb(0 0 0 / 18%);
+}
+.dshpp-welcome-card h2 {
+  margin: 0 0 6px;
+  font: inherit;
+  font-size: 20px;
+  font-weight: 600;
+}
+.dshpp-welcome-card h3 {
+  margin: 16px 0 6px;
+  font: inherit;
+  font-weight: 600;
+}
+.dshpp-welcome-lead {
+  color: var(--dsw-alias-label-secondary, #666);
+}
+.dshpp-welcome-warn {
+  margin: 16px 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2, #f5f5f5);
+}
+.dshpp-welcome-legal p {
+  margin: 10px 0;
+}
+.dshpp-welcome-legal a {
+  color: var(--dsw-alias-label-brand, #436ee8);
+  overflow-wrap: anywhere;
+}
+.dshpp-welcome-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 20px;
+  cursor: pointer;
+}
+.dshpp-welcome-check input {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 4px 0 0;
+  accent-color: var(--dsw-alias-label-brand, #436ee8);
+}
+.dshpp-welcome-ops {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+.dshpp-welcome-ops button {
+  min-height: 36px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--dsw-alias-label-primary, #171717);
+  color: var(--dsw-alias-bg-base, #fff);
+  font: inherit;
+  cursor: pointer;
+}
+.dshpp-welcome-ops button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.dshpp-welcome-ops button:focus-visible,
+.dshpp-welcome-check input:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-brand, #436ee8);
+  outline-offset: 3px;
+}
+@media (max-height: 600px) {
+  .dshpp-welcome-mask {
+    padding: 12px;
+  }
+  .dshpp-welcome-card {
+    max-height: calc(100dvh - 24px);
+    padding: 18px;
+  }
+}

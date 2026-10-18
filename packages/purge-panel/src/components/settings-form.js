@@ -458,6 +458,15 @@ export function PurgifySection({ page = "status", onStatus } = {}) {
               return;
             }
             if (action === "apply") {
+              if (d.manualQuit) {
+                setNotice({
+                  kind: "ok",
+                  text: "补丁已写入磁盘，当前进程尚未加载。换包助手等待你从系统托盘完整退出；完成后请手动打开 DSH，不会自动重启。",
+                });
+                setAskRestart(false);
+                loadAll();
+                return;
+              }
               setNotice({ kind: "ok", text: tr("ok.done") });
               loadAll();
               if (d.restarting || d.needs_full_quit) {
@@ -837,7 +846,7 @@ export function PurgifySection({ page = "status", onStatus } = {}) {
                 ? "is-warn"
                 : patchBusy
                   ? ""
-                  : tally.pending
+                  : s?.asar_still_sealed || tally.pending
                     ? "is-warn"
                     : "is-ok"),
           }),
@@ -848,9 +857,11 @@ export function PurgifySection({ page = "status", onStatus } = {}) {
               ? sealedReady
                 ? "宿主还没解开：点「应用」"
                 : "未定位到宿主：点「应用」重试"
-              : tally.pending
-                ? `还有 ${tally.pending} 条待应用`
-                : `${applied}/${total} 条补丁已生效`,
+              : s?.asar_still_sealed
+                ? `${applied}/${total} 条磁盘补丁（退出重开后加载）`
+                : tally.pending
+                  ? `还有 ${tally.pending} 条待应用`
+                  : `${applied}/${total} 条补丁已生效`,
           ),
           h(
             "span",

@@ -82,7 +82,7 @@ function StatusStrip({ info }) {
     h(
       "span",
       { className: "dshpp-strip-item" },
-      "宿主补丁 ",
+      info?.asar_still_sealed ? "磁盘补丁（当前未加载） " : "宿主补丁 ",
       h(
         "b",
         null,
@@ -109,7 +109,10 @@ function LayoutNotice({ info }) {
   return h(
     "p",
     { className: "dshpp-warn", role: "status" },
-    "DSH 宿主仍封在 app.asar 里（通常是刚更新过）：当前跑的宿主没有补丁。点下面的「应用」会解开 app.asar 并写入补丁，然后手动退出重开一次即可。",
+    "当前进程仍加载 app.asar，磁盘补丁计数不代表已加载。",
+    info.asar_handoff
+      ? ` 换包状态：${{ starting: "助手启动中（尚未确认就绪）", ready: "助手已就绪", waiting_for_quit: "等待从系统托盘完整退出", waiting_for_unlock: "等待归档解锁", moving: "正在保留原归档", complete: "换包完成，请手动打开 DSH", already_unsealed: "归档已移走，请手动打开 DSH", failed: "失败，请查看诊断并按恢复文档操作", expired: "等待超时，请重新应用或按恢复文档操作", helper_stopped: "助手意外结束，请重新应用或按恢复文档操作" }[info.asar_handoff.phase] || info.asar_handoff.phase}。`
+      : " 点「应用」写入补丁；Windows 会显示换包助手状态。完整退出后，确认归档已保留再手动打开。",
   );
 }
 
@@ -155,6 +158,21 @@ export function PurgePage() {
   useEffect(() => {
     if (tab === "status") loadInfo();
   }, [tab]);
+  useEffect(() => {
+    const phase = info?.asar_handoff?.phase;
+    if (
+      ![
+        "starting",
+        "ready",
+        "waiting_for_quit",
+        "waiting_for_unlock",
+        "moving",
+      ].includes(phase)
+    )
+      return;
+    const timer = setInterval(loadInfo, 2000);
+    return () => clearInterval(timer);
+  }, [info?.asar_handoff?.phase]);
   const active = TABS.find((row) => row[0] === tab) || TABS[0];
   return h(
     "div",

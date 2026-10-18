@@ -1,6 +1,6 @@
 # 维护、迁移与恢复
 
-当前版本 **1.6.8**。包名 `dsh-purge-community`，来源仅本仓库正式 GitHub Releases；保留内部 Cordis ID `dsh-purge`、HTTP `/dsh-purge/*` 及用户数据目录。主安装步骤与镜像故障决策树统一见 [安装指南](INSTALLATION.md)；[AGENTS.md](../AGENTS.md) 是 Agent 操作说明。
+当前版本 **1.6.9**。包名 `dsh-purge-community`，来源仅本仓库正式 GitHub Releases；保留内部 Cordis ID `dsh-purge`、HTTP `/dsh-purge/*` 及用户数据目录。主安装步骤与镜像故障决策树统一见 [安装指南](INSTALLATION.md)；[AGENTS.md](../AGENTS.md) 是 Agent 操作说明。
 
 ## 兼容与操作边界
 
@@ -37,3 +37,19 @@ profile 不存在/有多个且未明确选择时停止。Web/Headless 只用当�
 ## 发布约束
 
 同步 package.json、release-notes、README.md、README.zh-CN.md、英文指南、AGENTS.md、维护与安装文档的当前版本。`npm run check:docs` 检查中文副本一致及关键安装边界。CI 运行功能/打包回归和三个操作系统的安装器测试，Windows 入口同时跑 PowerShell 5.1/7；通过后 tag 发布 tgz、稳定别名、SHA256。市场索引跟随正式 release。真实宿主验收与模拟测试分别报告，不把未知平台写成已验证。
+
+## Windows 换包状态与离线恢复（issue #10）
+
+1.6.9 不再通过定时退出后台或杀掉桌面壳换包。用户点「应用」后助手等待所有同安装路径的 DSH 进程退出，保存唯一的原归档备份，验证 SHA256，然后停止；用户自行打开。正在运行的其他安装不受影响。等待期间官方替换归档会报错并保留新归档，须对新版本重新应用。
+
+诊断位于 `resources/app.asar.purge-handoff.json` 和 `.json.log`。`starting` 不是就绪，`waiting_for_quit` 不是完成，磁盘补丁数不是当前进程已加载。助手没有确认就绪、提前结束或超时时，宿主保持运行。不要仅删除 pending 标记就宣布修复，不要禁用防病毒软件、全局调整权限或修改宿主崩溃提示来掩盖错误。
+
+启动错误另见 `.json.broker.log`、`.json.launch.log`、`.json.launch.log.error`。实机发现 Electron 的 detached PowerShell 会退出 0 却不执行脚本，因此用短 broker 启动独立助手。broker 成功不代表握手成功；最终以状态文件为准。维护回归必须提供真实 Electron，并验证启动进程退出后助手仍存活，直到归档换包完成。
+
+助手始终没有完成时：先保留日志，从系统托盘完整退出 DSH，确认任务管理器没有**该安装路径**的进程。仅当本次「应用」已成功、`resources/app/package.json` 及宿主文件完整时，才在独立 PowerShell 中将 `resources/app.asar` **改名保留**为新的带时间戳 `.bak`，再手动打开 DSH。这绕开的是失效的交接进程，不是重写补丁。若文件仍被占用/权限不足，保持原件并停止；不要删除 app.asar 或强杀所有 Electron。此步骤不能套到刚被官方更新替换的新归档。
+
+回到原宿主：完整退出后，核对状态文件记录的 `backup` 与 `archive_sha256`，用 `Get-FileHash -Algorithm SHA256` 校验该原归档备份，确认没有跨官方版本。保留当前解包目录及现存归档，再将原备份复制回 `resources/app.asar`，手动打开。此过程不恢复 profile，不覆盖当前提示词、规则或其他插件设置。插件版本回滚仍使用前文 `rollback <id>`，两种回滚不要混淆。
+
+## 原生设置接口与 #42 迁移（issue #9）
+
+新版在原生 `describe` / `replace` 宿主只补设置更新事件，不制造混合 API。已注入的精确旧版 legacy shim 会在下次「应用」移除，需手动退出重开后生效。用户的 entry Config、settings.yaml/imported/legacy 文档均保留；这次修复不会把历史写入错误存储的数据静默合并。若其他插件此前把数据写入旧文档，先备份后由用户选择性迁移。未知第三方改写的 shim 停止应用，保留原文件、备份与诊断。
