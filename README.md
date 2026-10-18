@@ -9,38 +9,61 @@
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.6.5** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
+当前版本 **1.6.6** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
 
 </div>
 
 ---
 
-## 一行安装
+## 安装与迁移
+
+先打开一次 DSH，初始化目标 profile。默认 `desktop`。安装器先下载并校验发行包，再备份当前 profile、安装并合并旧 Purge 入口；保留提示词、规则、更新偏好和其他插件设置。**不自动重启，不自动应用宿主补丁，不修改全局 npm 源。**
+
+### macOS
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/kingcharleslzy-ai/dsh-purge/master/scripts/install.sh -o /tmp/purge-install.sh
+sh /tmp/purge-install.sh
+```
+
+也支持原有一行命令：
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/kingcharleslzy-ai/dsh-purge/master/scripts/install.sh | sh
 ```
 
-它会自动：找 DSH 桌面版 → 下载最新发行包 → 校验 SHA256 → 用 DSH 自带运行时跑安装器（**先备份 profile**，再把旧的 Purge 入口合并成一个）。
+### Windows 11 · PowerShell
 
-然后 **完全退出并重开 DSH** → 左侧栏点 **Purge** → 状态页顶部点 **应用** → 再退出重开一次。完事。
-
-<details>
-<summary>不想用脚本？手动三步</summary>
-
-```sh
-V=1.6.5
-curl -fsSLO https://github.com/kingcharleslzy-ai/dsh-purge/releases/download/v$V/dsh-purge-community-$V.tgz
-curl -fsSLO https://github.com/kingcharleslzy-ai/dsh-purge/releases/download/v$V/SHA256SUMS.txt
-shasum -a 256 -c SHA256SUMS.txt && mkdir -p /tmp/pc && tar -xzf dsh-purge-community-$V.tgz -C /tmp/pc
-ELECTRON_RUN_AS_NODE=1 "/Applications/DeepSeek Harness.app/Contents/MacOS/DeepSeek Harness" \
-  /tmp/pc/package/bin/community.js migrate "$PWD/dsh-purge-community-$V.tgz"
+```powershell
+Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/kingcharleslzy-ai/dsh-purge/master/scripts/install.ps1 -OutFile "$env:TEMP\purge-install.ps1"
+& "$env:TEMP\purge-install.ps1"
 ```
-</details>
+
+不需要全局 Node/pnpm 或管理员权限。使用所选 DSH Desktop 自带的运行时；找不到或存在多个安装时停止，可显式传入 `-DshExe 'C:\path\DeepSeek Harness.exe'`。如果执行策略阻止脚本，审阅下载的脚本后，在**单独进程**运行 `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\purge-install.ps1"`；不修改持久执行策略。
+
+| 用途 | macOS 参数/环境变量 | Windows 参数 |
+| --- | --- | --- |
+| 只下载校验，不安装 | `--dry-run` | `-DryRun` |
+| 固定版本 | `--version=1.6.6` | `-Version 1.6.6` |
+| 选择 profile | `--profile=desktop` | `-Profile desktop` |
+| 自定义数据目录 | `DSH_HOME=/path/to/home` | `-DshHome 'C:\path\home'` |
+| 自定义应用路径 | `DSH_APP='/path/DSH.app'` | `-DshExe 'C:\path\DeepSeek Harness.exe'` |
+
+安装完成后，在任务结束时**手动完全退出并重开 DSH**。已有用户按需要检查状态；首次安装若要应用宿主补丁，另行在 Purge 状态页操作，然后手动重开。安装成功不代表所有宿主补丁已经生效。
+
+### 市场 JSON 安装报错（issue #7）
+
+报 `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`，且明确提到 `@dsh-ops/bash-win32-x64` 的 `version not present in registry manifest` 时，可能是国内镜像尚未同步版本，**不是 Windows 不受支持的证据**。
+
+本版独立安装器会核对 npm 官方元数据；只有确认公开镜像缺版本时，才为本次 `@dsh-ops` 下载使用官方源重试一次，其他依赖仍沿用原来的源，供应链校验保持开启。不会把未知私有源自动切到公开源，也不会对真实的完整性或发布时间错误放宽校验。
+
+**DSH 市场首次安装在插件加载前执行**，安装后的插件代码无法接管这一步。可在市场安装对话框选择 npm 官方源重试，或使用上面的独立安装器。更换 tgz 并不保证绕过宿主依赖检查。GitHub `UND_ERR_DESTROYED` 等网络错误另行排查，不要把它等同于镜像缺版本。
+
+完整步骤、Agent 决策树、失败恢复与测试边界见 [安装与故障排查](docs/INSTALLATION.md) 和 [AGENTS.md](AGENTS.md)。
 
 ## 为什么用它，而不是原版
 
-| | 原版 1.1.71 | 本分支 1.6.5 |
+| | 原版 1.1.71 | 本分支 1.6.6 |
 | --- | --- | --- |
 | 宿主适配 | 只到 0.1.7 / 0.2.0，上游已停更 | **0.2.1-rc.2 逐条回归，0 漂移** |
 | 补丁 | 82 条，锚点随新版失效后静默跳过 | **83 条**（新增 `ask_user_question` 不阻塞），带**逐条状态与漂移诊断** |
@@ -136,7 +159,7 @@ Web / Headless 的备份列表、更新结果和当前实例定位说明见 [维
 
 ```sh
 # 应用打不开（最坏情况，回到更新前的密封包）
-R="/Applications/DeepSeek Harness.app/Contents/Resources"; mv "$R/app.asar.bak" "$R/app.asar"
+# 先确认备份存在并保留当前应用副本，再按维护文档人工恢复；不要盲目覆盖。
 
 # 只回滚宿主补丁
 purge-community revert
@@ -150,7 +173,7 @@ purge-community rollback <backup-id>
 ```sh
 npm --prefix packages/purge-panel ci --ignore-scripts --legacy-peer-deps
 npm run build:client     # packages/purge-panel/src → 根 client.js
-npm test                 # 63 项：备份安装 / 实例定位 / 自检 / 现有功能回归
+npm test                 # 安装器 / 备份安装 / 实例定位 / 自检 / 现有功能回归
 npm run test:ui && npm --prefix packages/purge-panel test
 npm run check:client && npm run diagnose
 npm run test:electron    # 实际 Electron ASAR 回归；不启动或修改 DSH

@@ -9,6 +9,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   release:
+    needs: installer
     if: github.repository == 'kingcharleslzy-ai/dsh-purge'
     runs-on: ubuntu-latest
     steps:
@@ -40,3 +41,23 @@ jobs:
           set -euo pipefail
           version="$(node -p "require('./package.json').version")"
           gh release create "$GITHUB_REF_NAME" "dsh-purge-community-$version.tgz" dsh-purge-community.tgz SHA256SUMS.txt --verify-tag --title "Purge Community $version" --notes-file release-notes.md
+
+  installer:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test test/install-registry.test.mjs test/bootstrap-install.test.mjs test/community.test.mjs
+      - name: Windows PowerShell 5.1 installer wrapper
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: ./test/install-windows.ps1
+      - name: PowerShell 7 installer wrapper
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./test/install-windows.ps1

@@ -25,7 +25,7 @@ The script finds DSH Desktop, downloads the latest verified release, checks SHA2
 
 Then fully quit and reopen DSH, open **Purge** in the left rail, press **Apply**, and quit/reopen once more.
 
-**Current version 1.6.5 — qualified against DSH Desktop 0.2.1-rc.2 (and rc.1).**
+**Current version 1.6.6 — qualified against DSH Desktop 0.2.1-rc.2 (and rc.1).**
 
 ```
 purge-community selfcheck     # 27-layer proof that each bypass is live
@@ -47,3 +47,18 @@ Automatic checks and automatic installation have separate switches in Maintenanc
 Official-format custom market index: https://kingcharleslzy-ai.github.io/dsh-purge/index.json. Add it to DSH's experimental Custom plugin markets. Community registry admission remains a separate review process.
 
 Thanks to [@OGHong](https://github.com/OGHong) for diagnosing the Electron ASAR check in [issue #5](https://github.com/kingcharleslzy-ai/dsh-purge/issues/5). The fix uses the existing original-fs disk adapter and was tested in Electron 44.7.0.
+
+## Windows and installation recovery (1.6.6)
+
+Run PowerShell 5.1+ or PowerShell 7:
+
+```powershell
+Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/kingcharleslzy-ai/dsh-purge/master/scripts/install.ps1 -OutFile "$env:TEMP\purge-install.ps1"
+& "$env:TEMP\purge-install.ps1"
+```
+
+Use `-DshExe 'C:\path\DeepSeek Harness.exe'` for a custom or ambiguous installation, `-DshHome`, `-Profile`, `-Version 1.6.6`, or `-DryRun`. The initialized Desktop profile and the application's own runtime are required. No global Node installation, registry edits or automatic restart. Review a downloaded script before running it; a process-only execution-policy override is documented in the Chinese installation guide when required.
+
+Issue #7 concerns a missing Windows dependency version in a registry mirror. Only the specific missing-metadata failure for the public `@dsh-ops/bash-win32-x64` package qualifies for one scoped retry against official npm, after validating official metadata. All pnpm security policies remain active; private/unknown registries, integrity failures and too-new packages are not bypassed. The market's first-install operation runs before this plugin loads: choose official npm there, or use this independent installer. A GitHub network warning is a separate problem.
+
+See [installation and recovery](INSTALLATION.md) and [Agent instructions](../AGENTS.md). Cross-platform installer tests do not establish complete Windows host-patch/UI compatibility. Existing prompts, settings and other plugins are preserved; restart manually only when convenient.

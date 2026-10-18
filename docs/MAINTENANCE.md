@@ -1,50 +1,39 @@
 # 维护、迁移与恢复
 
-## 身份
+当前版本 **1.6.6**。包名 `dsh-purge-community`，来源仅本仓库正式 GitHub Releases；保留内部 Cordis ID `dsh-purge`、HTTP `/dsh-purge/*` 及用户数据目录。主安装步骤与镜像故障决策树统一见 [安装指南](INSTALLATION.md)；[AGENTS.md](../AGENTS.md) 是 Agent 操作说明。
 
-- 显示名称：Purge Community
-- npm 包：dsh-purge-community
-- 正式版本：1.3.0；本仓库 Releases 默认发行源，上游分支/tag 属显式可选（带不兼容警告）
-- 保留内部 Cordis ID `dsh-purge`、HTTP `/dsh-purge/*` 和原用户数据路径
-- 旧 dsh-purge / dsh-purge-panel 依赖保留为恢复材料，只有社区包留在启用 bundles 中
+## 兼容与操作边界
 
-## 兼容检测
+已验证宿主目标为 Desktop 0.2.1-rc.1 / rc.2。缺失宿主布局时停止写入；其他版本标为未验证，组件版本不一致只报告。兼容状态不是“全部补丁已生效”的保证，使用 selfcheck/diagnose 逐条核对。安装器支持 Windows 入口不等于完整 Windows 补丁/UI 已验收。
 
-启动时同时读取 `dsh-agent-loop`、`dsh-system-prompt` 的包版本。两者必须均为 `0.2.1-rc.1` 才启用主插件运行时。缺失、未知或混合版本不会猜测兼容。维护接口仍可使用，以便备份及换回其他发行版。
-
-1.3.0 恢复原版写入能力：应用/还原/卸载/启动自愈/自动应用与自动更新都按配置与界面操作执行，写入前先建 profile 快照。宿主版本或锚点不符合预期时不再整体停摆，改用 `purge-community diagnose`（或面板「状态 → 兼容与诊断」）逐条确认；组件版本不一致时仍会拒绝写入。更新或回滚不等于重新应用宿主补丁。
+安装/更新、应用宿主补丁、重启是独立动作。安装前备份，应用宿主补丁前也备份；不因安装成功自动应用或重启。更新检查与自动安装分别设置，默认检查开、安装关，已有偏好继续保留。
 
 ## 快照
 
-使用 `backups/<时间-随机ID>/manifest.json` 标记完整备份，记录 SHA256、原 profile 和启用的 Purge bundles。未完成的备份不会出现在回滚列表。遇到符号链接、校验不一致或不属于当前 profile 的备份时停止，不继续写入。
+路径 `$DSH_HOME/dsh-purge-community/backups/<id>/manifest.json`，完整性清单含 SHA256 与原 profile、Purge bundles；大文件内容寻址去重在 `objects/`。默认保留最近 5 份、每天 1 份共 7 天、200MB 上限，当前操作快照受保护。维护锁防止并发；异常退出残留锁先确认没有维护进程，不能盲目删锁。
 
-快照包含：
+包含已安装 Purge 包、profile 的 package.json/cordis.patch.yml/pnpm-lock.yaml、Purge 状态、prompt-inject.md、规则。不会额外扫描独立凭证、会话或 Qwen 图库/模型。profile 本身可能含私密连接信息，**不要公开整个备份**。
 
-- 已安装的三个 Purge 包（存在才备份），不含 node_modules / .git
-- 当前 profile 的 package.json、cordis.patch.yml、pnpm-lock.yaml
-- 原 prompt-inject.md、dsh-purge/、rules/（存在才备份）
+## 失败恢复
 
-不采集 credentials、sessions、skills、Qwen 图库/模型或其他插件数据。配置内容可能含私人信息，目录权限 0700、普通文件 0600；切勿公开整个备份。
+下载/校验失败未进入迁移；迁移开始后先快照再安装。安装包复制到持久 pkgs 目录，避免 file: 依赖指向临时下载。失败返回备份 ID；原 package.json 仅在无其他依赖并发变更时恢复，不宣称整个 node_modules/锁文件已原子回滚。核对实际状态后再走回滚。
 
-## 回滚语义
-
-先验证快照、备份当前状态，再将快照插件复制到新的恢复目录，通过 DSH 自带包管理器安装，并仅恢复 Purge 的 bundle 启用列表。当前提示词、规则、工作区配置和其他插件保持现值。需要旧用户内容时，人工从 `settings/` 选择对应文件恢复，不整体覆盖 profile。
-
-不自动重启；操作成功后请手动完全退出并打开 DSH。安装器报错会保留恢复快照；包管理器中途失败时以错误信息和备份为准，不把失败显示成完成。维护锁遇到异常进程退出会保留，先确认没有维护进程再人工处理，不能盲目删锁后重复安装。
-
-## CLI
-
-使用发行包内 `bin/community.js`，与界面共用相同实现：
+回滚先验证快照、备份当前状态，用当前实例 DSH CLI 安装快照代码，仅恢复 Purge 启用入口，保留现在的提示词、规则和其他插件配置。用户内容若要取回，从快照按文件人工选择；不整份覆盖 profile。安装器失败的原锁文件可供核对，不能覆盖别的插件的新变化。
 
 ```sh
-node package/bin/community.js status
-node package/bin/community.js backup
-PURGE_DSH_CLI=/absolute/path/to/dsh node package/bin/community.js migrate ./dsh-purge-community-1.3.0.tgz
-PURGE_DSH_CLI=/absolute/path/to/dsh node package/bin/community.js rollback <备份ID>
+purge-community backup
+purge-community rollback <backup-id>
+# 已装插件无法加载时，用另行校验过的发行包 CLI：
+# 设置 PURGE_DSH_CLI / DSH_HOME / DSH_PROFILE 后执行
+node package/bin/community.js rollback <backup-id>
 ```
 
-维护与只读自检使用当前实例的 profile，不再静默默认 desktop；具体优先级、Web CLI 定位和错误处理见 [Web / Headless 维护定位](WEB-MAINTENANCE.md)。可显式设置 `DSH_HOME`、`DSH_PROFILE` 与 `PURGE_PROFILE_DIR`。安装/回滚依赖真实 DSH CLI。新建安装也用 migrate；没有旧 Purge 的快照不能用于“回滚到不存在”，卸载需用 DSH 插件管理器单独完成。
+profile 不存在/有多个且未明确选择时停止。Web/Headless 只用当前服务 CLI；见 [实例定位](WEB-MAINTENANCE.md)。不扫描并误操作其他桌面安装。
 
-## 发布
+## 镜像与更新
 
-版本号、根 package.json 和 release-notes.md 同步更新；测试通过后创建 vX.Y.Z tag。CI 检查构建可复现、运行维护/界面回归、打包并发布 `.tgz` 和 SHA256SUMS.txt。只发布已测试的支持范围，不以一个模板修复推断全部宿主补丁兼容。
+独立迁移器只为 issue #7 的明确公开包缺版本错误执行一次 scoped 官方源重试。官方元数据不完整、私有/未知源、真实发布时间/完整性/信任失败均停止。安装失败日志保留原错误，不清锁、不清全局缓存、不关闭校验、不全局换源。DSH 市场安装前置于插件加载，需选择官方源或换用独立入口。
+
+## 发布约束
+
+同步 package.json、release-notes、README.md、README.zh-CN.md、英文指南、AGENTS.md、维护与安装文档的当前版本。`npm run check:docs` 检查中文副本一致及关键安装边界。CI 运行功能/打包回归和三个操作系统的安装器测试，Windows 入口同时跑 PowerShell 5.1/7；通过后 tag 发布 tgz、稳定别名、SHA256。市场索引跟随正式 release。真实宿主验收与模拟测试分别报告，不把未知平台写成已验证。

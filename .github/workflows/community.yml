@@ -26,3 +26,23 @@ jobs:
       - run: npm --prefix packages/purge-panel test
       - run: node --check lib/index.js && node --check lib/core.js && node --check lib/reapply.js && node --input-type=module -e "import './lib/index.js'"
       - run: npm pack --ignore-scripts
+
+  installer:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test test/install-registry.test.mjs test/bootstrap-install.test.mjs test/community.test.mjs
+      - name: Windows PowerShell 5.1 installer wrapper
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: ./test/install-windows.ps1
+      - name: PowerShell 7 installer wrapper
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./test/install-windows.ps1

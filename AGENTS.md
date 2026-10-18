@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.5** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
+> 当前版本：**1.6.6** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -130,7 +130,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.5 |
+| 插件 | `dsh-purge-community` 1.6.6 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
@@ -148,3 +148,13 @@ purge-community probe new
 `GET /dsh-purge/community` 返回 `update_preferences` 和 `update_status`；`POST` 同一路径，`{op:"preferences",value:{autoCheck:true,autoInstall:false,intervalHours:6}}` 保存偏好。省略字段保留当前值，间隔接受 1–168 的整数。保存不代表安装；安装后等待用户手动重启，不自行调用重启接口。
 
 Electron 的 app.asar 本体必须用 `diskFs()` 读取；不要把普通 Node 自检通过当作 Electron 运行时通过。`npm run test:electron` 在临时目录内运行真实 Electron 测试，不改动安装或用户设置。
+
+## 12. 安装 / 更新失败：Agent 必读（1.6.6）
+
+1. 读取 DSH 版本、实际 Desktop 可执行文件、`DSH_HOME`、目标 profile。不要猜测另一台设备的路径。首次安装要求 profile 已初始化；Windows 用 `scripts/install.ps1`，macOS 用 `scripts/install.sh`，细节见 [安装指南](docs/INSTALLATION.md)。Web/Headless 继续使用当前实例的 CLI 与发行包迁移，不能套 Desktop 自动发现。
+2. 默认先 `--dry-run`（PowerShell `-DryRun`）确认来源与 SHA256，再按用户授权安装。更新/迁移前安装器自动快照；不要为了安装去改提示词、权限、更新偏好或其他插件。安装、宿主补丁应用与手动重启是三个独立动作。不要安装后自动 apply/restart。
+3. `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` 不是一律“发布太新”。若同时明确报 `@dsh-ops/bash-win32-x64@<版本> ... version not present in registry manifest`，先比较当前公开镜像与 npm 官方元数据。本版安装器仅对这一公开包、明确的公开镜像执行一次 scoped registry 重试；官方 name/version/time/integrity/tarball 不完整则停止。其余依赖保持原源，不改变全局设置。
+4. 市场 JSON 首次安装失败时插件尚未加载，插件运行时无法修复宿主安装器。先让用户选择 npm 官方源，或用独立安装入口。不要承诺“升级插件就能让旧宿主市场自动重试”；换 tgz 仍会触发宿主锁文件校验。
+5. 真实的发布时间不足、integrity/trust 错误、私有源、未知错误：保持失败，保留日志与快照；不要设 minimumReleaseAge=0、trustLockfile，也不要删锁文件、全局清缓存、修改全局 npm 源或把所有错误都归为镜像问题。GitHub `UND_ERR_DESTROYED` 是独立的网络线索，不能承诺换 npm 源会解决。
+6. 失败时查看返回的 backup_id，确认 package.json/锁文件/安装状态。需要恢复时走 `rollback <id>`，保留当前用户内容。不能把失败说成安装成功；不能自动重启。公开 issue 只附脱敏错误，不上传配置、凭证、提示词或完整备份。
+7. 版本核对以 package.json / release-notes 为准。README.md 与 README.zh-CN.md 必须一致，维护文档不能再停在 1.2.0/1.3.0。安装器测试与完整 Windows DSH 界面/宿主补丁验收分开记录，不混为“全部 Windows 功能已验证”。

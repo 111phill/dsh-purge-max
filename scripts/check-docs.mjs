@@ -11,6 +11,16 @@ const readmeEn = read("docs/README.en.md");
 const agents = read("AGENTS.md");
 
 const problems = [];
+if (read("README.zh-CN.md") !== readme) problems.push("README.zh-CN.md 必须与 README.md 保持一致");
+for (const file of ["docs/MAINTENANCE.md", "docs/INSTALLATION.md"]) {
+  if (!read(file).includes(`当前版本 **${version}**`)) problems.push(`${file} 当前版本未同步到 ${version}`);
+}
+for (const [file, needles] of [
+  ["README.md", ["scripts/install.ps1", "issue #7", "插件加载前", "不修改全局 npm 源"]],
+  ["AGENTS.md", ["scripts/install.ps1", "minimumReleaseAge=0", "不要安装后自动 apply/restart"]],
+]) {
+  for (const needle of needles) if (!read(file).includes(needle)) problems.push(`${file} 缺少安装边界：${needle}`);
+}
 if (notesFirst !== `# ${version}`) {
   problems.push(`release-notes.md 首行应为 "# ${version}"，实际是 "${notesFirst}"`);
 }
