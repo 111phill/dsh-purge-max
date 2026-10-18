@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.19** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
+> 当前版本：**1.6.20** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -16,7 +16,7 @@
 
 | 层 | 由谁提供 | 生效方式 | 你能怎么查 |
 | --- | --- | --- | --- |
-| **宿主补丁**（83 条） | 本插件写进 DSH 源码 | 点「应用」写入 → **退出重开**才加载 | `selfcheck` 看各层 `applied/required` |
+| **宿主补丁**（81 条） | 本插件写进 DSH 源码 | 点「应用」写入 → **退出重开**才加载 | `selfcheck` 看各层 `applied/required` |
 | **提示词注入** | 插件运行时（每步重贴） | `prompt-inject.md` 作为 `dsh-purge` section | 探针（§4）或看 `selfcheck` 的「运行时提示词注入」 |
 | **破甲强化段** | 插件运行时 | 尾部 section（默认开） | `purge-community boost` |
 | **权限配置** | profile 的 `cordis.patch.yml` | `danger-full-access` + `approval: never` | `selfcheck` 的「当前 profile 的权限选择」 |
@@ -29,7 +29,7 @@
 ```
 安装插件（curl 一行）
    ↓
-点「应用」→ 解包 host / 写 83 条补丁 / 建快照
+点「应用」→ 解包 host / 写 81 条补丁 / 建快照
    ↓
 退出并重开 DSH   ← 补丁只有重启后才被加载
    ↓
@@ -50,7 +50,7 @@ selfcheck 全绿 = 可以开工
 | 命令 | 作用 | 退出码 |
 | --- | --- | --- |
 | `purge-community status` | 宿主路径、补丁计数 | 0 |
-| `purge-community selfcheck [--json\|--text]` | 27 层逐层证据 | **broken → 1**，pending/ok → 0 |
+| `purge-community selfcheck [--json\|--text]` | 25 层逐层证据 | **broken → 1**，pending/ok → 0 |
 | `purge-community host-status` | 只读磁盘布局与当前服务入口证据，不退出/换包/重启 | 0，须检查 state |
 | `purge-community diagnose [--json]` | 锚点漂移诊断（含行号 + 片段） | 0 |
 | `purge-community reanchor list\|show\|apply <id> [--index n] [--lines a-b] [--yes]\|clear <id>` | 半自动重锚：把新锚点钉成本地覆盖 | 0 |
@@ -107,7 +107,7 @@ purge-community probe new
 
 **不变量**：`prompt-inject.md`、规则集、其他插件配置，任何时候都不该被「应用」或「回滚」覆盖。
 
-## 7. 补丁表：83 条，怎么读、怎么加
+## 7. 补丁表：81 条，怎么读、怎么加
 
 - 定义在 `lib/core.js` 的 `ALL_PATCHES`（`PATCHES` / `CODE_PATCHES` / `ENGINE_PATCHES` / `NEW_TOOL_PATCHES`）。
 - 每条 = `{id, name, layer, file, replacements:[{pattern, replace}], markers, optional?}`；`pattern` 是对宿主源码的**精确片段**（或正则），`markers` 用来判断"已应用"。
@@ -131,7 +131,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.19 |
+| 插件 | `dsh-purge-community` 1.6.20 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
