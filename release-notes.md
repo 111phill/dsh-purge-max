@@ -1,3 +1,38 @@
+# 1.6.26
+
+## 插话恢复原生：找到真正的根因了
+
+之前 #85/#86 把 steer 一律改成 followup，属于「按猜的根因下药」。这次读了宿主源码，找到真正的拦截点：
+
+```js
+// dsh-api-session-controller/lib/index.js:1032（原生）
+if (request.action.kind === "steer" && (target !== "next-turn" || agent.status !== "running"))
+  throw new RemoteError("session/steer-unavailable", "current turn no longer accepts steering", ...);
+```
+
+而 `agent.steer()` 本身在 idle 时并不抛错（`agent-loop` 的 `send()` 只是把消息塞进 `next-step` 并唤醒 driver，新回合的 `claim()` 会连 `next-step` 一起取走）。所以：
+
+- 真正会报错的是**这层守卫**：队列项已不在 next-turn、或回合刚结束；
+- 旧补丁改的是守卫**之后**的 `case "steer"`，对这条错误路径根本无效。
+
+本版：
+
+- 删除 #85 / #86；
+- 新增 #90：守卫命中时**降级为 followup**（消息入队，不报错），可用时保持原生插队；
+- #90 同时带迁移：宿主里若有旧的 `[dsh-purge-85]` / `[dsh-purge-86]` 改写，下次「应用」会把它们**精确还原**成原生两行，匹配不到就保持原样。
+
+补丁总数 81 → 80。
+
+## 测试
+
+```
+npm test   138 通过 / 0 失败
+新增 test/steer-migration.test.mjs：
+  - 守卫命中 → 入队而非 throw
+  - 旧 85 改写 → 还原 mode 分支
+  - 旧 86 改写 → 还原 agent.steer
+```
+
 # 1.6.25
 
 ## 反问等待改回「尊重模型给的超时」

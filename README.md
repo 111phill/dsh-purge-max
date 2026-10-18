@@ -4,12 +4,12 @@
 
 **给 DeepSeek Harness 拆闸的插件。**
 
-81 条宿主补丁 · 25 层破甲自检 · 提示词 / 规则 / 技能管理 · 左侧栏整页设置
+80 条宿主补丁 · 25 层破甲自检 · 提示词 / 规则 / 技能管理 · 左侧栏整页设置
 
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.6.25** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
+当前版本 **1.6.26** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
 
 </div>
 
@@ -82,7 +82,7 @@ Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/kingcharles
 | | 原版 1.1.71 | 本分支 1.6.13 |
 | --- | --- | --- |
 | 宿主适配 | 只到 0.1.7 / 0.2.0，上游已停更 | **0.2.1-rc.2 逐条回归，0 漂移** |
-| 补丁 | 82 条，锚点随新版失效后静默跳过 | **81 条**（新增 `ask_user_question` 不阻塞），带**逐条状态与漂移诊断** |
+| 补丁 | 82 条，锚点随新版失效后静默跳过 | **80 条**（新增 `ask_user_question` 不阻塞），带**逐条状态与漂移诊断** |
 | 装完怎么确认 | 没有 | **`selfcheck` 25 层逐层给证据（已确认/待应用/宿主推导/未确认/失败）+ `probe` 证明注入真的到模型** |
 | 面板 | 会话上方悬浮按钮 + 独立小窗 | **左侧栏整页**：顶部一句话状态 + 放大的「应用」，其余折叠；说明收进 `?` |
 | 更新 | 指向已停更的上游，分支/覆盖式安装 | 本仓库校验过的发行包（SHA256），保留通道/tag/pin 与多安装位置 |
@@ -164,7 +164,7 @@ purge-community apply|revert|uninstall|edit   # 原版能力
 
 | 环境 | 状态 |
 | --- | --- |
-| macOS · DSH Desktop **0.2.1-rc.1 / rc.2** | 已回归：81 条锚点、面板、CLI、自检 25 层全绿 |
+| macOS · DSH Desktop **0.2.1-rc.1 / rc.2** | 已回归：80 条锚点、面板、CLI、自检 25 层全绿 |
 | 其他 DSH 版本 | 允许应用，标"未验证"；先跑 `selfcheck` / `diagnose` |
 | 宿主组件版本不一致 | 只报告，不阻止写入 |
 | Windows 11 · Desktop **0.2.1-rc.2** | 真实运行时的安装、回滚、宿主交接、原生设置与重载自检通过；[验收范围](docs/releases/1.6.10.md) |
