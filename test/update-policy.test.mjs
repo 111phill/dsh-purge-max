@@ -1,0 +1,105 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { preferences, savePreferences, updateStatus, createUpdateController } from "../lib/update-policy.js";
+import { rememberUpdate } from "../lib/update.js";
+
+function setup(extra = {}) {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "purge-updates-"));
+  const waits = new Map(); let checks = 0, installs = 0, seq = 0;
+  const c = createUpdateController({ home, runningVersion: "1.6.4",
+    check: async () => { checks++; return { ok: true, hasUpdate: true, remoteVersion: "1.6.5" }; },
+    install: async () => { installs++; return { ok: true, applied: true, localVersion: "1.6.5" }; },
+    timers: { setTimeout(fn, delay) { const id = ++seq; waits.set(id, { fn, delay }); return id; }, clearTimeout(id) { waits.delete(id); } },
+    ...extra,
+  });
+  return { home, c, waits, counts: () => ({ checks, installs }), close() { c.stop(); fs.rmSync(home, { recursive: true, force: true }); } };
+}
+test("preferences default to check-only and preserve legacy automatic-install intent without migration writes", () => {
+  const f = setup(); try {
+    assert.deepEqual(preferences(f.home), { autoCheck: true, autoInstall: false, intervalHours: 6 });
+    assert.equal(preferences(f.home, { autoUpdateOnStart: true }).autoInstall, true);
+    assert.deepEqual(fs.readdirSync(f.home), []);
+    fs.writeFileSync(path.join(f.home, "cordis.patch.yml"), "CURRENT SETTINGS");
+    savePreferences(f.home, { intervalHours: 12 }, { autoUpdateOnStart: true });
+    assert.equal(preferences(f.home).autoInstall, true);
+    assert.equal(fs.readFileSync(path.join(f.home, "cordis.patch.yml"), "utf8"), "CURRENT SETTINGS");
+    assert.throws(() => savePreferences(f.home, { autoApplyOnStart: true }), /未知字段/);
+    assert.throws(() => savePreferences(f.home, { intervalHours: 0 }), /1–168/);
+    assert.throws(() => savePreferences(f.home, { autoInstall: "true" }), /开关/);
+  } finally { f.close(); }
+});
+test("checking runs independently from autoApplyOnStart and never installs by default", async () => {
+  const f = setup({ legacy: { autoApplyOnStart: false } }); try {
+    f.c.start(); assert.equal([...f.waits.values()][0].delay, 30000);
+    await [...f.waits.values()][0].fn();
+    assert.deepEqual(f.counts(), { checks: 1, installs: 0 });
+    assert([...f.waits.values()].some((v) => v.delay === 6 * 3600000));
+    assert.equal(updateStatus(f.home).hasUpdate, true);
+  } finally { f.close(); }
+});
+test("switches are saved independently; disabling checks pauses installation and timers", async () => {
+  const f = setup(); try {
+    savePreferences(f.home, { autoCheck: false, autoInstall: true }); f.c.start(); await f.c.run();
+    assert.equal(f.waits.size, 0); assert.deepEqual(f.counts(), { checks: 0, installs: 0 });
+    assert.equal(preferences(f.home).autoInstall, true);
+    savePreferences(f.home, { autoCheck: true, intervalHours: 1 }); f.c.refresh();
+    await f.c.run(); assert.deepEqual(f.counts(), { checks: 1, installs: 1 });
+  } finally { f.close(); }
+});
+test("a completed install stays pending until a new runtime loads it and is never repeated", async () => {
+  const f = setup(); try {
+    savePreferences(f.home, { autoInstall: true }); f.c.start(); await f.c.run(); await f.c.run();
+    assert.deepEqual(f.counts(), { checks: 2, installs: 1 });
+    assert.equal(updateStatus(f.home).pendingVersion, "1.6.5");
+    assert.equal(updateStatus(f.home).restartRequired, true);
+    f.c.stop();
+    const next = createUpdateController({ home: f.home, runningVersion: "1.6.5", check: async () => ({}), install: async () => assert.fail(), timers: { setTimeout() {}, clearTimeout() {} } });
+    next.start(); next.stop();
+    assert.equal(updateStatus(f.home).restartRequired, false);
+  } finally { f.close(); }
+});
+test("a pinned target or failed check cannot trigger an install", async () => {
+  for (const result of [{ ok: true, hasUpdate: true, channel: "beta" }, { ok: true, hasUpdate: true, pinned: true }, { ok: false, hasUpdate: true, error: "offline" }]) {
+    const f = setup({ check: async () => result }); try {
+      savePreferences(f.home, { autoInstall: true }); f.c.start(); await f.c.run();
+      assert.equal(f.counts().installs, 0);
+    } finally { f.close(); }
+  }
+});
+test("late checks after disposal or switching install off do not install", async () => {
+  for (const dispose of [true, false]) {
+    let resolve; const f = setup({ check: () => new Promise((r) => { resolve = r; }) }); try {
+      savePreferences(f.home, { autoInstall: true }); f.c.start(); const job = f.c.run();
+      if (dispose) f.c.stop(); else savePreferences(f.home, { autoInstall: false });
+      resolve({ ok: true, hasUpdate: true }); await job;
+      assert.equal(f.counts().installs, 0);
+    } finally { f.close(); }
+  }
+});
+test("overlapping checks share one operation, and partial installs retain restart evidence", async () => {
+  let resolve, calls = 0; const f = setup({
+    check: () => { calls++; return new Promise((r) => { resolve = r; }); },
+    install: async () => ({ ok: false, applied: true, localVersion: "1.6.5", error: "one profile failed" }),
+  }); try {
+    savePreferences(f.home, { autoInstall: true }); f.c.start();
+    const a = f.c.run(), b = f.c.run(); resolve({ ok: true, hasUpdate: true }); await Promise.all([a,b]);
+    assert.equal(calls, 1); assert.equal(updateStatus(f.home).restartRequired, true);
+    assert.match(updateStatus(f.home).error, /profile failed/);
+  } finally { f.close(); }
+});
+test("corrupt preferences fail closed; network failures remain visible without changing settings", async () => {
+  const f = setup({ check: async () => { throw Error("network down"); } }); try {
+    savePreferences(f.home, { autoInstall: true }); f.c.start(); await f.c.run();
+    assert.match(updateStatus(f.home).error, /network down/);
+    fs.writeFileSync(path.join(f.home, "dsh-purge/update-preferences.json"), "broken");
+    await f.c.run(); assert.equal(f.counts().installs, 0);
+    assert.equal(fs.readFileSync(path.join(f.home, "dsh-purge/update-preferences.json"), "utf8"), "broken");
+  } finally { f.close(); }
+});
+test("all updater results suppress automatic restart and client reload requests", () => {
+  const result = rememberUpdate({ ok: true, restartAfter: true, reloadClient: true, needRestart: true });
+  assert.equal(result.restartAfter, false); assert.equal(result.reloadClient, false); assert.equal(result.needRestart, true);
+});

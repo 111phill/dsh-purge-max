@@ -10257,6 +10257,92 @@ function maintenanceNotice(op, result) {
   }
   return result.note || "\u7EF4\u62A4\u64CD\u4F5C\u5DF2\u5B8C\u6210";
 }
+function UpdatePreferences({ value, status = {}, onSaved }) {
+  const [saving, setSaving] = useState(false), [error, setError] = useState("");
+  const locked = useRef(false);
+  if (!value) return null;
+  async function save(patch) {
+    if (locked.current) return;
+    locked.current = true;
+    setSaving(true);
+    setError("");
+    try {
+      const result = await apiJson("/dsh-purge/community", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ op: "preferences", value: patch })
+      });
+      assertMaintenanceResult(result);
+      onSaved(result.update_preferences);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      locked.current = false;
+      setSaving(false);
+    }
+  }
+  return h(
+    "section",
+    { "aria-label": "\u81EA\u52A8\u66F4\u65B0\u8BBE\u7F6E", className: "dshpp-card" },
+    h(
+      "div",
+      { className: "dshpp-row" },
+      h(
+        "label",
+        null,
+        h("input", {
+          type: "checkbox",
+          checked: value.autoCheck,
+          disabled: saving,
+          onChange: (e) => save({ autoCheck: e.target.checked }),
+          "aria-label": "\u81EA\u52A8\u68C0\u67E5\u66F4\u65B0"
+        }),
+        "\u81EA\u52A8\u68C0\u67E5\u66F4\u65B0"
+      ),
+      h(HelpTip, {
+        title: "\u81EA\u52A8\u68C0\u67E5\u66F4\u65B0",
+        children: "\u542F\u52A8 30 \u79D2\u540E\u68C0\u67E5\uFF0C\u4E4B\u540E\u6309\u95F4\u9694\u68C0\u67E5\u3002\u5173\u95ED\u4E0D\u4F1A\u6539\u53D8\u5DF2\u4FDD\u5B58\u7684\u81EA\u52A8\u5B89\u88C5\u504F\u597D\uFF0C\u4F46\u4F1A\u6682\u505C\u81EA\u52A8\u5B89\u88C5\u3002"
+      }),
+      h(
+        "select",
+        {
+          "aria-label": "\u66F4\u65B0\u68C0\u67E5\u95F4\u9694",
+          value: value.intervalHours,
+          disabled: saving || !value.autoCheck,
+          onChange: (e) => save({ intervalHours: Number(e.target.value) })
+        },
+        [.../* @__PURE__ */ new Set([1, 6, 12, 24, value.intervalHours])].sort((a, b) => a - b).map((v) => h("option", { key: v, value: v }, `\u6BCF ${v} \u5C0F\u65F6`))
+      )
+    ),
+    h(
+      "div",
+      { className: "dshpp-row" },
+      h(
+        "label",
+        null,
+        h("input", {
+          type: "checkbox",
+          checked: value.autoInstall,
+          disabled: saving,
+          onChange: (e) => save({ autoInstall: e.target.checked }),
+          "aria-label": "\u81EA\u52A8\u5B89\u88C5\u66F4\u65B0"
+        }),
+        "\u81EA\u52A8\u5B89\u88C5\u66F4\u65B0"
+      ),
+      h(HelpTip, {
+        title: "\u81EA\u52A8\u5B89\u88C5\u66F4\u65B0",
+        children: "\u4EC5\u5728\u81EA\u52A8\u68C0\u67E5\u5F00\u542F\u3001\u53D1\u73B0\u672A\u9501\u5B9A\u7684\u65B0\u6B63\u5F0F\u7248\u65F6\u5B89\u88C5\u3002\u5B89\u88C5\u524D\u5907\u4EFD\u3001\u6821\u9A8C\u53D1\u884C\u5305\uFF1B\u5931\u8D25\u4E0D\u81EA\u52A8\u5207\u6362\u6765\u6E90\u3002\u5B89\u88C5\u540E\u7B49\u5F85\u4F60\u624B\u52A8\u91CD\u542F\uFF0C\u4E0D\u4F1A\u81EA\u52A8\u91CD\u542F DSH\u3002"
+      })
+    ),
+    h(
+      "p",
+      { className: "dshpp-hint" },
+      status.restartRequired ? `\u5DF2\u5B89\u88C5 ${status.pendingVersion}\uFF0C\u7B49\u5F85\u4F60\u624B\u52A8\u91CD\u542F DSH\u3002` : !value.autoCheck ? "\u81EA\u52A8\u68C0\u67E5\u5DF2\u5173\u95ED\uFF0C\u81EA\u52A8\u5B89\u88C5\u6682\u505C\u3002" : status.checkedAt ? `\u4E0A\u6B21\u68C0\u67E5\uFF1A${new Date(status.checkedAt).toLocaleString()}${status.hasUpdate ? ` \xB7 \u53EF\u7528\u7248\u672C ${status.availableVersion}` : ""}` : "\u542F\u52A8\u540E\u81EA\u52A8\u68C0\u67E5\uFF1B\u5B89\u88C5\u540E\u4EC5\u63D0\u793A\u624B\u52A8\u91CD\u542F\u3002"
+    ),
+    status.error ? h("p", { role: "alert" }, status.error) : null,
+    error ? h("p", { role: "alert" }, error) : null
+  );
+}
 function CommunityMaintenance() {
   const [value, setValue] = useState(null), [notice, setNotice] = useState(""), [busy, setBusy] = useState(false), [selected, setSelected] = useState(""), [releases, setReleases] = useState(null), [release, setRelease] = useState("");
   const [listState, setListState] = useState("loading"), [listError, setListError] = useState("");
@@ -10335,6 +10421,11 @@ function CommunityMaintenance() {
     "section",
     { className: "dshpp-panel", "aria-label": "\u793E\u533A\u7248\u7EF4\u62A4" },
     h("h3", null, "\u7EF4\u62A4\uFF1A\u66F4\u65B0\u4E0E\u672C\u673A\u5907\u4EFD"),
+    h(UpdatePreferences, {
+      value: value?.update_preferences,
+      status: value?.update_status,
+      onSaved: (next) => setValue((current) => ({ ...current, update_preferences: next }))
+    }),
     h(
       "div",
       { className: "dshpp-row" },

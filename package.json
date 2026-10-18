@@ -1,7 +1,7 @@
 {
   "name": "dsh-purge-community",
-  "version": "1.6.4",
-  "description": "Purge Community：独立维护的 DSH 提示词与规则管理插件，统一右侧设置、逐条补丁诊断、备份与插件回滚。",
+  "version": "1.6.5",
+  "description": "Purge Community：独立维护的 DSH 插件，原生设置、宿主诊断、独立更新检查与安装、本机备份和回滚。",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -41,12 +41,14 @@
   "scripts": {
     "embed-prompt": "node scripts/embed-default-prompt.mjs",
     "build:client": "node packages/purge-panel/scripts/build.mjs --community",
-    "test": "node --test test/community.test.mjs test/patch-anchors.test.mjs test/selfcheck.test.mjs test/boost.test.mjs test/prompt-sections.test.mjs test/presets.test.mjs test/anchors.test.mjs test/audit.test.mjs test/instance.test.mjs",
+    "test": "node --test test/community.test.mjs test/patch-anchors.test.mjs test/selfcheck.test.mjs test/boost.test.mjs test/prompt-sections.test.mjs test/presets.test.mjs test/anchors.test.mjs test/audit.test.mjs test/instance.test.mjs test/update-policy.test.mjs test/market.test.mjs",
     "test:ui": "node packages/purge-panel/test/community.cjs",
     "check:client": "node packages/purge-panel/scripts/build.mjs --community --check",
     "diagnose": "node bin/community.js diagnose",
     "check:docs": "node scripts/check-docs.mjs",
-    "smoke": "npm pack --ignore-scripts && node scripts/smoke.mjs"
+    "smoke": "npm pack --ignore-scripts && node scripts/smoke.mjs",
+    "test:electron": "node scripts/check-electron-selfcheck.mjs",
+    "build:market": "node scripts/build-market.mjs"
   },
   "license": "MIT",
   "keywords": [
@@ -87,7 +89,7 @@
     },
     "install": {
       "preferred": "tarball",
-      "tarball": "https://github.com/kingcharleslzy-ai/dsh-purge/releases/latest/download/dsh-purge-community-1.6.4.tgz",
+      "tarball": "https://github.com/kingcharleslzy-ai/dsh-purge/releases/latest/download/dsh-purge-community.tgz",
       "git": "https://github.com/kingcharleslzy-ai/dsh-purge.git"
     }
   },
@@ -110,6 +112,14 @@
     {
       "name": "heigit",
       "url": "https://github.com/heigit"
+    },
+    {
+      "name": "OGHong",
+      "url": "https://github.com/OGHong"
     }
-  ]
+  ],
+  "author": {
+    "name": "kingcharleslzy-ai",
+    "url": "https://github.com/kingcharleslzy-ai"
+  }
 }
