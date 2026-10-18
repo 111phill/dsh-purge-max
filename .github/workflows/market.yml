@@ -1,0 +1,39 @@
+name: Publish plugin market
+on:
+  workflow_run:
+    workflows: ['Community release']
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.repository == 'kingcharleslzy-ai/dsh-purge' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm --prefix market ci --ignore-scripts --legacy-peer-deps
+      - run: node scripts/build-market.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - run: node market/validate.mjs market-dist/index.json
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: market-dist
+      - name: Deploy index
+        id: deployment
+        uses: actions/deploy-pages@v4

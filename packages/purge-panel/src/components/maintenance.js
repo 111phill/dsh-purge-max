@@ -226,6 +226,104 @@ export function maintenanceNotice(op, result) {
   return result.note || "维护操作已完成";
 }
 
+export function UpdatePreferences({ value, status = {}, onSaved }) {
+  const [saving, setSaving] = useState(false),
+    [error, setError] = useState("");
+  const locked = useRef(false);
+  if (!value) return null;
+  async function save(patch) {
+    if (locked.current) return;
+    locked.current = true;
+    setSaving(true);
+    setError("");
+    try {
+      const result = await apiJson("/dsh-purge/community", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ op: "preferences", value: patch }),
+      });
+      assertMaintenanceResult(result);
+      onSaved(result.update_preferences);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      locked.current = false;
+      setSaving(false);
+    }
+  }
+  return h(
+    "section",
+    { "aria-label": "自动更新设置", className: "dshpp-card" },
+    h(
+      "div",
+      { className: "dshpp-row" },
+      h(
+        "label",
+        null,
+        h("input", {
+          type: "checkbox",
+          checked: value.autoCheck,
+          disabled: saving,
+          onChange: (e) => save({ autoCheck: e.target.checked }),
+          "aria-label": "自动检查更新",
+        }),
+        "自动检查更新",
+      ),
+      h(HelpTip, {
+        title: "自动检查更新",
+        children:
+          "启动 30 秒后检查，之后按间隔检查。关闭不会改变已保存的自动安装偏好，但会暂停自动安装。",
+      }),
+      h(
+        "select",
+        {
+          "aria-label": "更新检查间隔",
+          value: value.intervalHours,
+          disabled: saving || !value.autoCheck,
+          onChange: (e) => save({ intervalHours: Number(e.target.value) }),
+        },
+        [...new Set([1, 6, 12, 24, value.intervalHours])]
+          .sort((a, b) => a - b)
+          .map((v) => h("option", { key: v, value: v }, `每 ${v} 小时`)),
+      ),
+    ),
+    h(
+      "div",
+      { className: "dshpp-row" },
+      h(
+        "label",
+        null,
+        h("input", {
+          type: "checkbox",
+          checked: value.autoInstall,
+          disabled: saving,
+          onChange: (e) => save({ autoInstall: e.target.checked }),
+          "aria-label": "自动安装更新",
+        }),
+        "自动安装更新",
+      ),
+      h(HelpTip, {
+        title: "自动安装更新",
+        children:
+          "仅在自动检查开启、发现未锁定的新正式版时安装。安装前备份、校验发行包；失败不自动切换来源。安装后等待你手动重启，不会自动重启 DSH。",
+      }),
+    ),
+    h(
+      "p",
+      { className: "dshpp-hint" },
+      status.restartRequired
+        ? `已安装 ${status.pendingVersion}，等待你手动重启 DSH。`
+        : !value.autoCheck
+          ? "自动检查已关闭，自动安装暂停。"
+          : status.checkedAt
+            ? `上次检查：${new Date(status.checkedAt).toLocaleString()}${status.hasUpdate ? ` · 可用版本 ${status.availableVersion}` : ""}`
+            : "启动后自动检查；安装后仅提示手动重启。",
+    ),
+    status.error ? h("p", { role: "alert" }, status.error) : null,
+    error ? h("p", { role: "alert" }, error) : null,
+  );
+}
+
 export function CommunityMaintenance() {
   const [value, setValue] = useState(null),
     [notice, setNotice] = useState(""),
@@ -326,6 +424,12 @@ export function CommunityMaintenance() {
     "section",
     { className: "dshpp-panel", "aria-label": "社区版维护" },
     h("h3", null, "维护：更新与本机备份"),
+    h(UpdatePreferences, {
+      value: value?.update_preferences,
+      status: value?.update_status,
+      onSaved: (next) =>
+        setValue((current) => ({ ...current, update_preferences: next })),
+    }),
     h(
       "div",
       { className: "dshpp-row" },

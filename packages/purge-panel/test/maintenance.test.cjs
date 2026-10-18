@@ -218,3 +218,56 @@ test("late reads from an unmounted panel cannot update a new panel", async () =>
   assert(!text(tree).includes("stale"));
   await unmount(tree);
 });
+
+test("update switches save separate preferences without invoking install or restart", async () => {
+  const prefs = { autoCheck: true, autoInstall: false, intervalHours: 6 };
+  const h = harness((c) => {
+    if (c.method === "GET")
+      return reply({
+        ok: true,
+        backups: [],
+        update_preferences: prefs,
+        update_status: { restartRequired: true, pendingVersion: "1.6.5" },
+      });
+    assert.equal(c.body.op, "preferences");
+    Object.assign(prefs, c.body.value);
+    return reply({ ok: true, update_preferences: prefs });
+  });
+  const tree = await mount(h);
+  assert(text(tree).includes("等待你手动重启"));
+  await act(async () => {
+    await tree.root
+      .findByProps({ "aria-label": "自动安装更新" })
+      .props.onChange({ target: { checked: true } });
+    await flush();
+  });
+  assert.equal(h.calls.at(-1).body.value.autoInstall, true);
+  assert.equal(
+    tree.root.findByProps({ "aria-label": "自动检查更新" }).props.checked,
+    true,
+  );
+  await act(async () => {
+    await tree.root
+      .findByProps({ "aria-label": "自动检查更新" })
+      .props.onChange({ target: { checked: false } });
+    await flush();
+  });
+  assert.equal(
+    tree.root.findByProps({ "aria-label": "自动安装更新" }).props.checked,
+    true,
+  );
+  assert.equal(
+    tree.root.findByProps({ "aria-label": "更新检查间隔" }).props.disabled,
+    true,
+  );
+  assert(
+    h.calls.every((c) => c.method === "GET" || c.body.op === "preferences"),
+  );
+  await act(async () => {
+    tree.root
+      .findByProps({ "aria-label": "自动安装更新（查看说明）" })
+      .props.onMouseEnter();
+  });
+  assert(text(tree).includes("不会自动重启 DSH"));
+  await unmount(tree);
+});

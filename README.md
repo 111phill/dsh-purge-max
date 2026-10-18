@@ -9,7 +9,7 @@
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.6.4** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
+当前版本 **1.6.5** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
 
 </div>
 
@@ -29,7 +29,7 @@ curl -fsSL https://raw.githubusercontent.com/kingcharleslzy-ai/dsh-purge/master/
 <summary>不想用脚本？手动三步</summary>
 
 ```sh
-V=1.6.4
+V=1.6.5
 curl -fsSLO https://github.com/kingcharleslzy-ai/dsh-purge/releases/download/v$V/dsh-purge-community-$V.tgz
 curl -fsSLO https://github.com/kingcharleslzy-ai/dsh-purge/releases/download/v$V/SHA256SUMS.txt
 shasum -a 256 -c SHA256SUMS.txt && mkdir -p /tmp/pc && tar -xzf dsh-purge-community-$V.tgz -C /tmp/pc
@@ -40,7 +40,7 @@ ELECTRON_RUN_AS_NODE=1 "/Applications/DeepSeek Harness.app/Contents/MacOS/DeepSe
 
 ## 为什么用它，而不是原版
 
-| | 原版 1.1.71 | 本分支 1.6.4 |
+| | 原版 1.1.71 | 本分支 1.6.5 |
 | --- | --- | --- |
 | 宿主适配 | 只到 0.1.7 / 0.2.0，上游已停更 | **0.2.1-rc.2 逐条回归，0 漂移** |
 | 补丁 | 82 条，锚点随新版失效后静默跳过 | **83 条**（新增 `ask_user_question` 不阻塞），带**逐条状态与漂移诊断** |
@@ -113,7 +113,11 @@ purge-community apply|revert|uninstall|edit   # 原版能力
 
 ## 更新
 
-**插件更新**：面板「状态 → 更多 → 检查更新」，或 `purge-community` 的更新通道；走本仓库校验过的发行包。
+**插件更新**：维护区分别设置「自动检查更新」和「自动安装更新」。默认启动 30 秒后检查，此后每 6 小时检查；可改 1–168 小时。默认不自动安装，旧的自动安装偏好继续保留。检查和安装独立于宿主补丁，关闭检查会暂停自动安装但保留其偏好。
+
+自动安装只使用本仓库校验过的正式发行包，尊重锁定版本、安装前备份；成功后标记「待手动重启」，不会自动重启 DSH 或刷新界面，也不会在等待重启时反复安装。手动检查与安装始终可用。设置即时生效，存于 `$DSH_HOME/dsh-purge/update-preferences.json`，不重写 profile、提示词或其他插件设置。详情见 [更新说明](docs/AUTO-UPDATE.md)。
+
+**市场安装**：官方自定义市场源地址为 `https://kingcharleslzy-ai.github.io/dsh-purge/index.json`，添加方式见 [市场说明](market/README.md)。社区市场收录需独立审核；自建源不代表已经被第三方收录。
 
 **DSH 官方更新后**：`app.asar` 会重新出现，面板顶部直接提示"宿主仍封在 app.asar 里"→ 点 **应用** → 退出重开一次。补丁表若因新版漂移，`diagnose` 会指出哪条、哪个文件、期望原文与可能的新位置。
 
@@ -146,16 +150,17 @@ purge-community rollback <backup-id>
 ```sh
 npm --prefix packages/purge-panel ci --ignore-scripts --legacy-peer-deps
 npm run build:client     # packages/purge-panel/src → 根 client.js
-npm test                 # 52 项：备份安装 / 实例定位 / 自检 / 现有功能回归
+npm test                 # 63 项：备份安装 / 实例定位 / 自检 / 现有功能回归
 npm run test:ui && npm --prefix packages/purge-panel test
 npm run check:client && npm run diagnose
+npm run test:electron    # 实际 Electron ASAR 回归；不启动或修改 DSH
 ```
 
 `test/patch-anchors.test.mjs` 把 0.2.1 的真实源码片段钉进用例——谁改了锚点没同步用例，测试直接失败。
 
 ## 贡献者
 
-感谢 [@heigit](https://github.com/heigit) 提交 [issue #3](https://github.com/kingcharleslzy-ai/dsh-purge/issues/3) 的复现、源码定位与验证反馈，以及 [@luowang-ui](https://github.com/luowang-ui) 在 [PR #1](https://github.com/kingcharleslzy-ai/dsh-purge/pull/1) 中修复桌面 CLI 的同步原子复制问题。完整名单见 [CONTRIBUTORS.md](CONTRIBUTORS.md)。
+感谢 [@heigit](https://github.com/heigit) 提交 [issue #3](https://github.com/kingcharleslzy-ai/dsh-purge/issues/3) 的复现、源码定位与验证反馈，以及 [@luowang-ui](https://github.com/luowang-ui) 在 [PR #1](https://github.com/kingcharleslzy-ai/dsh-purge/pull/1) 中修复桌面 CLI 的同步原子复制问题。感谢 [@OGHong](https://github.com/OGHong) 在 [issue #5](https://github.com/kingcharleslzy-ai/dsh-purge/issues/5) 中定位 Electron ASAR 自检误判并提供验证证据。完整名单见 [CONTRIBUTORS.md](CONTRIBUTORS.md)。
 
 ## 来源
 
