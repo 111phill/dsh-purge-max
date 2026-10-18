@@ -58,11 +58,11 @@ test("undo and chained patches declare their settle semantics", () => {
   assert.equal(patch(88).chainedAfter, 87);
 });
 
-test("0.2.1 ask_user_question stops blocking the turn", () => {
+test("0.2.1 ask_user_question keeps the requested wait and caps only -1", () => {
   const src = "\t\tasync execute(args, exec) {\n\t\t\tconst timeout = validateTimeout(args.timeout ?? defaultTimeout);\n\t\t\tvalidateQuestionIds(args.questions);";
   const out = applyReplacementsToText(src, patch(89));
   assert.equal(out.changed, true);
-  assert.ok(out.text.includes("const timeout = 1;"));
-  assert.ok(!out.text.includes("validateTimeout(args.timeout"));
+  assert.ok(out.text.includes("args.timeout === -1 ? 300 : (args.timeout ?? defaultTimeout)"));
+  assert.ok(!out.text.includes("const timeout = 1;"));
   assert.equal(applyReplacementsToText(out.text, patch(89)).changed, false);
 });

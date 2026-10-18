@@ -1,3 +1,35 @@
+# 1.6.25
+
+## 反问等待改回「尊重模型给的超时」
+
+#89 以前把 `timeout` 硬写成 1 秒。现在改成：
+
+```js
+const timeout = validateTimeout(args.timeout === -1 ? 300 : (args.timeout ?? defaultTimeout));
+```
+
+- 模型传 `timeout: 10` → 就等 10 秒；
+- 不传 → 原版默认 120 秒；
+- 传 `-1`（无限等）→ 收成 300 秒，避免无人值守时永久卡住。
+
+## 旧安装的迁移
+
+已装过 1.6.24 及更早的宿主里留着 `const timeout = 1; // [dsh-purge] ask_user_question never blocks a turn`。补丁 #89 现在带 `forbid` 标记：见到旧标记就判为「未应用」，下次「应用」会把这一行**精确替换**成新写法；匹配不到就保持原样并报 `pattern_not_found`，不整份覆盖宿主文件。
+
+## 破甲契约调整
+
+#89 从「闸门」名单里移除（它从来不是权限闸门，而是等待策略），闸门指纹表从 26 条变为 **25 条**。其余闸门一条未动。
+
+## 测试
+
+```
+npm test   135 通过 / 0 失败
+新增 test/ask-user-wait.test.mjs：
+  - 原生行 → 带上限的等待
+  - 旧 1 秒版本 → 迁移后不再出现 timeout = 1
+  - 重复应用幂等
+```
+
 # 1.6.24
 
 ## 三处收尾

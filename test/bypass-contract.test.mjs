@@ -1,4 +1,4 @@
-// 破甲契约：这 26 条是"闸门"。任何人（包括后续优化）改动它们，
+// 破甲契约：这 25 条是"闸门"。任何人（包括后续优化）改动它们，
 // 指纹就会变，CI 直接红——要动必须先说明理由并更新这里的指纹。
 // 质量优化只能碰非闸门补丁（例如已移除的 #18/#19）。
 import { test } from "node:test";
@@ -32,7 +32,6 @@ const GATE_FINGERPRINTS = {
   66: "a97a223234457fee",
   67: "8cfd0fd1a4e97f0a",
   68: "2590e742617f1242",
-  89: "af163cd985c9ef58",
 };
 
 function fingerprint(patch) {
@@ -46,7 +45,7 @@ function fingerprint(patch) {
   return crypto.createHash("sha256").update(shape).digest("hex").slice(0, 16);
 }
 
-test("all 26 bypass gates exist with unchanged semantics", () => {
+test("all 25 bypass gates exist with unchanged semantics", () => {
   const byId = new Map(ALL_PATCHES.map((p) => [p.id, p]));
   const problems = [];
   for (const [id, expected] of Object.entries(GATE_FINGERPRINTS)) {
