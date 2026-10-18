@@ -9,7 +9,7 @@
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.6.13** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
+当前版本 **1.6.14** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
 
 </div>
 
@@ -31,6 +31,12 @@ sh /tmp/purge-install.sh
 ```sh
 curl -fsSL https://raw.githubusercontent.com/kingcharleslzy-ai/dsh-purge/master/scripts/install.sh | sh
 ```
+
+### 1.6.14 安装与诊断维护
+
+- 修复 [#20](https://github.com/kingcharleslzy-ai/dsh-purge/issues/20)：原子写入保留执行权限与私有文件权限；已被旧版改成不可执行的已识别 CLI 启动器可恢复。备份失败时停止替换，保留原文件。
+- 排查 [#19](https://github.com/kingcharleslzy-ai/dsh-purge/issues/19)：新增只读 `purge-community host-status`，区分磁盘归档、当前服务入口与未知状态，不再把磁盘写入计数当成运行时加载证据。**#19 的完整换包问题仍开放，本版未修改换包或重启流程。**
+- 现有功能、提示词、设置和预设保持；不自动应用或重启。验证范围与限制见 [1.6.14 验收记录](docs/releases/1.6.14.md)。
 
 ### 1.6.13 修复重点
 

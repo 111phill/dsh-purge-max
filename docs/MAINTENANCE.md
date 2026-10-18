@@ -1,6 +1,6 @@
 # 维护、迁移与恢复
 
-当前版本 **1.6.13**。包名 `dsh-purge-community`，来源仅本仓库正式 GitHub Releases；保留内部 Cordis ID `dsh-purge`、HTTP `/dsh-purge/*` 及用户数据目录。主安装步骤与镜像故障决策树统一见 [安装指南](INSTALLATION.md)；[AGENTS.md](../AGENTS.md) 是 Agent 操作说明。
+当前版本 **1.6.14**。包名 `dsh-purge-community`，来源仅本仓库正式 GitHub Releases；保留内部 Cordis ID `dsh-purge`、HTTP `/dsh-purge/*` 及用户数据目录。主安装步骤与镜像故障决策树统一见 [安装指南](INSTALLATION.md)；[AGENTS.md](../AGENTS.md) 是 Agent 操作说明。
 
 ## 兼容与操作边界
 
@@ -70,3 +70,12 @@ profile 不存在/有多个且未明确选择时停止。Web/Headless 只用当�
 不要使用 `preset install --force` 覆盖自定义文件来消除红框，不要只删除 `toolFilter`。父会话工具完整，子会话仍排除原来的工具，深度、人设和设置保留。现阶段只支持单个 spawn deny 清单，未知工具/已有 agentPreset/allow/多策略需要单独设计，不能自动猜测。
 
 使用当前 Desktop 的真实 Electron 执行 `test/desktop-presets.mjs`，覆盖原错误复现、真实父/子 Agent 工具目录、重复加载、卸载和备份字节校验。此测试在隔离 home 中创建空白 Agent，不发送模型请求。代码回滚会撤销运行时转换，不需要覆盖用户文件；重新加载旧版本也会重新遇到新宿主的旧参数错误。不要自动重启用户应用。
+
+
+## 1.6.14 权限恢复与只读诊断
+
+[#20](https://github.com/kingcharleslzy-ai/dsh-purge/issues/20) 的原子替换丢失可执行位已修复。CLI 备份失败会停止写入；旧备份保留。回滚启动器时需同时恢复内容与普通 rwx 权限，不能只复制文本。备份为同目录 `.dsh-purge.bak`；若备份来自已损坏权限的版本，不能据此假定它具有正确执行位。不要对整个应用递归 chmod，也不要为了修复启动器去应用宿主补丁或重启应用。
+
+[#19](https://github.com/kingcharleslzy-ai/dsh-purge/issues/19) 保持排查中。使用 `purge-community host-status` 或状态接口 `host_layout`，分别核对磁盘布局和当前服务入口。磁盘存在 app.asar 不足以证明当前服务从归档加载；归档已移走也不足以证明旧进程已经重载。Web/CLI 路径与 Desktop 路径不同，应保留并对照具体实例证据；不要直接移走归档、覆盖旧备份或反复重启来“消红”。
+
+本次只调整通用文件操作、CLI错误上报和只读诊断；未更改宿主补丁、换包助手、提示词或权限策略。完整验证见 [1.6.14](releases/1.6.14.md)。
