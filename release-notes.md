@@ -1,3 +1,21 @@
+# 1.6.19
+
+## 合并 PR #24：更正注释里的归因
+
+PR #23 的注释写的是「Node ≥24 把 noDeprecation 定义为只读」，不准确。实测（Node v22.22.3）：
+
+```
+$ NODE_OPTIONS=--no-deprecation node --input-type=module -e '...'
+{ value: true, writable: false, enumerable: true, configurable: true }
+THROWS: Cannot assign to read only property 'noDeprecation'
+
+# 不带该标志时该属性根本不存在，赋值成功
+```
+
+所以触发条件是「`--no-deprecation` 已生效」，与 Node 版本无关。已按 PR #24 更正注释，另加一条子进程用例把两种情形都钉住（有标志 → `writable:false`；无标志 → 属性不存在）。
+
+代码行为没有变化（保护逻辑本来就有），本版是注释与测试的修正。
+
 # 1.6.18
 
 ## 修复 issue #19：从 Web GUI 点应用时不换包

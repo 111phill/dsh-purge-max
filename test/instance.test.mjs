@@ -414,3 +414,21 @@ test("diskFs survives a read-only process.noDeprecation", async () => {
   const out = execFileSync(process.execPath, ["--input-type=module", "-e", script], { encoding: "utf8" });
   assert.match(out, /ok/);
 });
+
+test("the read-only property comes from the flag, not the Node version", async () => {
+  const { execFileSync } = await import("node:child_process");
+  const probe =
+    'const d=Object.getOwnPropertyDescriptor(process,"noDeprecation");' +
+    'console.log(d?JSON.stringify(d):"undefined")';
+  const withFlag = execFileSync(process.execPath, ["--input-type=module", "-e", probe], {
+    encoding: "utf8",
+    env: { ...process.env, NODE_OPTIONS: "--no-deprecation" },
+  });
+  const desc = JSON.parse(withFlag.trim().split("\n").pop());
+  assert.equal(desc.writable, false, "--no-deprecation makes it non-writable");
+  const without = execFileSync(process.execPath, ["--input-type=module", "-e", probe], {
+    encoding: "utf8",
+    env: { ...process.env, NODE_OPTIONS: "" },
+  });
+  assert.equal(without.trim().split("\n").pop(), "undefined");
+});
