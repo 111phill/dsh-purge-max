@@ -32,8 +32,10 @@ test("layout notice never equates a disk archive or absent archive with loaded c
       disk: { archive_exists: false },
     },
   });
+  // 换包正常时说明折进 details，但内容仍在，绝不能出现"已加载"这种断言
   assert.match(unpacked, /不能证明/);
-  assert.match(unpacked, /host-status/);
+  assert.match(unpacked, /已从解包目录启动/);
+  assert.doesNotMatch(unpacked, /已加载 app\.asar/);
   const different = render({
     asar_still_sealed: true,
     host_layout: {
