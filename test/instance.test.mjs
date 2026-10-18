@@ -388,3 +388,29 @@ test("a symlinked profile keeps its logical CLI name while using the canonical d
     f.close();
   }
 });
+
+test("apply restart distinguishes sealed / cross-surface / manual", async () => {
+  const { planApplyRestartAction } = await import("../lib/core.js");
+  assert.deepEqual(planApplyRestartAction({ sealed: true }), { action: "swap" });
+  assert.deepEqual(planApplyRestartAction({ foreign: { asar: "/x/app.asar" }, desktopPid: 42 }), {
+    action: "swap-foreign",
+    waitPid: 42,
+  });
+  const manual = planApplyRestartAction({ foreign: { asar: "/x/app.asar" }, desktopPid: 0 });
+  assert.equal(manual.action, "manual");
+  assert.match(manual.reason, /桌面宿主未运行/);
+  assert.deepEqual(planApplyRestartAction({}), { action: "plain" });
+});
+
+test("diskFs survives a read-only process.noDeprecation", async () => {
+  // PR #23：宿主用 --no-deprecation 启动时该属性只读，ESM 严格模式下赋值会抛
+  const { execFileSync } = await import("node:child_process");
+  const script = `
+    Object.defineProperty(process, "noDeprecation", { value: true, writable: false, configurable: true });
+    const { diskFs } = await import(${JSON.stringify(new URL("../lib/extract-asar.js", import.meta.url).href)});
+    diskFs();
+    console.log("ok");
+  `;
+  const out = execFileSync(process.execPath, ["--input-type=module", "-e", script], { encoding: "utf8" });
+  assert.match(out, /ok/);
+});

@@ -1,3 +1,25 @@
+# 1.6.18
+
+## 修复 issue #19：从 Web GUI 点应用时不换包
+
+复现链：面板跑在非桌面 surface 时，`desktopAsarStillSealed()` 返回 false（`sealedAsarHandoff()` 先看 surface），于是 `scheduleApplyRestart()` 走了普通重启；helper 没拿到 asar 参数，日志里只有 quit/relaunch，归档原地不动，面板只能一直提示。「补丁写了 68 条」是真的，但 Electron 永远加载旧归档。
+
+- 新增 `sealedDesktopHandoffAnySurface()`：忽略当前 surface，直接找桌面安装的密封归档。
+- 新增 `desktop.runningDesktopPid(exe)`：用 `ps` 精确匹配官方可执行路径，拿到桌面宿主 pid。
+- `scheduleApplyRestart()` 在「当前看不到归档、但桌面还在跑」时，改为 `swap-foreign`：以桌面 pid 为 `waitPid` 调 `scheduleAsarSwapRestart()`，桌面退出后改名再拉起。
+- 桌面没在跑时返回 `needsDesktopApply`，面板会明确说「补丁已写入，但无法换包；请打开桌面版再点一次应用」，不再假装成功。
+- 决策抽成纯函数 `planApplyRestartAction()`，新增 4 组用例（sealed / cross-surface / manual / plain）。
+
+## 合并 PR #23：`process.noDeprecation` 只读时会抛
+
+`diskFs()` 无条件 `process.noDeprecation = true`；当宿主已带 `--no-deprecation` 时该属性是只读的，ESM 严格模式下赋值抛 `TypeError`，CLI 与面板的 apply 全部在 `gatherState()` 就死。已按 PR 加保护，并补一条用 `Object.defineProperty` 模拟只读属性的回归。
+
+## 测试
+
+```
+npm test / test:ui / test:electron / check:client / check:docs / smoke 全过
+```
+
 # 1.6.17
 
 ## 回退按钮可关
