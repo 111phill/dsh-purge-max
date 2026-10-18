@@ -159,7 +159,7 @@ purge-community apply|revert|uninstall|edit   # 原版能力
 | macOS · DSH Desktop **0.2.1-rc.1 / rc.2** | 已回归：83 条锚点、面板、CLI、自检 27 层全绿 |
 | 其他 DSH 版本 | 允许应用，标"未验证"；先跑 `selfcheck` / `diagnose` |
 | 宿主组件版本不一致 | 只报告，不阻止写入 |
-| Windows 11 · Desktop **0.2.1-rc.2** | 真实官方运行时的安装、备份、回滚通过；界面/宿主补丁尚未全量验收 |
+| Windows 11 · Desktop **0.2.1-rc.2** | 真实运行时的安装、回滚、宿主交接、原生设置与重载自检通过；[验收范围](docs/releases/1.6.9.md) |
 | Web profile | 维护回归保留，未做完整端到端验收 |
 
 Web / Headless 的备份列表、更新结果和当前实例定位说明见 [维护定位](docs/WEB-MAINTENANCE.md)。这些维护回归不代表所有补丁已完成 Web 端到端验收。

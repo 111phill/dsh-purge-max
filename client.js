@@ -11539,12 +11539,12 @@ function PurgifySection({ page = "status", onStatus } = {}) {
           "div",
           { className: "dshpp-hero-state" },
           h("i", {
-            className: "dshpp-dot " + (!located ? "is-warn" : patchBusy ? "" : tally.pending ? "is-warn" : "is-ok")
+            className: "dshpp-dot " + (!located ? "is-warn" : patchBusy ? "" : s?.asar_still_sealed || tally.pending ? "is-warn" : "is-ok")
           }),
           h(
             "b",
             null,
-            !located ? sealedReady ? "\u5BBF\u4E3B\u8FD8\u6CA1\u89E3\u5F00\uFF1A\u70B9\u300C\u5E94\u7528\u300D" : "\u672A\u5B9A\u4F4D\u5230\u5BBF\u4E3B\uFF1A\u70B9\u300C\u5E94\u7528\u300D\u91CD\u8BD5" : tally.pending ? `\u8FD8\u6709 ${tally.pending} \u6761\u5F85\u5E94\u7528` : `${applied}/${total} \u6761\u8865\u4E01\u5DF2\u751F\u6548`
+            !located ? sealedReady ? "\u5BBF\u4E3B\u8FD8\u6CA1\u89E3\u5F00\uFF1A\u70B9\u300C\u5E94\u7528\u300D" : "\u672A\u5B9A\u4F4D\u5230\u5BBF\u4E3B\uFF1A\u70B9\u300C\u5E94\u7528\u300D\u91CD\u8BD5" : s?.asar_still_sealed ? `${applied}/${total} \u6761\u78C1\u76D8\u8865\u4E01\uFF08\u9000\u51FA\u91CD\u5F00\u540E\u52A0\u8F7D\uFF09` : tally.pending ? `\u8FD8\u6709 ${tally.pending} \u6761\u5F85\u5E94\u7528` : `${applied}/${total} \u6761\u8865\u4E01\u5DF2\u751F\u6548`
           ),
           h(
             "span",

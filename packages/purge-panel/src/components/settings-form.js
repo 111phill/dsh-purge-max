@@ -846,7 +846,7 @@ export function PurgifySection({ page = "status", onStatus } = {}) {
                 ? "is-warn"
                 : patchBusy
                   ? ""
-                  : tally.pending
+                  : s?.asar_still_sealed || tally.pending
                     ? "is-warn"
                     : "is-ok"),
           }),
@@ -857,9 +857,11 @@ export function PurgifySection({ page = "status", onStatus } = {}) {
               ? sealedReady
                 ? "宿主还没解开：点「应用」"
                 : "未定位到宿主：点「应用」重试"
-              : tally.pending
-                ? `还有 ${tally.pending} 条待应用`
-                : `${applied}/${total} 条补丁已生效`,
+              : s?.asar_still_sealed
+                ? `${applied}/${total} 条磁盘补丁（退出重开后加载）`
+                : tally.pending
+                  ? `还有 ${tally.pending} 条待应用`
+                  : `${applied}/${total} 条补丁已生效`,
           ),
           h(
             "span",
