@@ -9,7 +9,7 @@
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.6.10** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
+当前版本 **1.6.11** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
 
 </div>
 
@@ -32,15 +32,11 @@ sh /tmp/purge-install.sh
 curl -fsSL https://raw.githubusercontent.com/kingcharleslzy-ai/dsh-purge/master/scripts/install.sh | sh
 ```
 
-### 1.6.10 修复重点
+### 1.6.11 修复重点
 
-1.6.9 已转为预发布；请直接使用 1.6.10。
-
-- **解包后仍能更新**：修复 Windows runtime junction 的目标路径；安装前自动检查，错误链接留备份，不删除运行时内容。
-
-- **Windows 换包交接**：助手等待完整退出，显示真实状态与失败原因，保留原归档；不再定时退出后台，不杀进程、不自动重开（issue #10、PR #11）。
-- **插件设置冲突**：现代宿主保留原生设置接口，清理已注入的旧兼容层，避免其他插件设置页重复注册或读错数据（issue #9）。
-- **可靠备份**：修复 Windows 备份句柄未关闭的问题；备份失败停止写入宿主。已有提示词、规则及配置保留。
+- **命令冲突不会拖垮插件。** 已有 `/rewind` 等同名命令由原插件继续提供，Purge 自动使用 `/purge-rewind` 等备用命令；状态、维护、提示词与工具仍正常注册。解决 [#12](https://github.com/kingcharleslzy-ai/dsh-purge/issues/12)。
+- **自检说清楚证据。** 显式配置、宿主推导、无法确认分开显示；优先核对运行中实例，不再将“未配置默认预设”直接报为故障。解决 [#15](https://github.com/kingcharleslzy-ai/dsh-purge/issues/15)。
+- 保留原有功能、设置、提示词、规则和更新偏好；仍不自动重启。Windows 换包、原生设置与安装修复均保留。[本版验收](docs/releases/1.6.11.md)。
 
 ### Windows 11 · PowerShell
 
@@ -56,7 +52,7 @@ Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/kingcharles
 | 用途 | macOS 参数/环境变量 | Windows 参数 |
 | --- | --- | --- |
 | 只下载校验，不安装 | `--dry-run` | `-DryRun` |
-| 固定版本 | `--version=1.6.10` | `-Version 1.6.10` |
+| 固定版本 | `--version=1.6.11` | `-Version 1.6.11` |
 | 选择 profile | `--profile=desktop` | `-Profile desktop` |
 | 自定义数据目录 | `DSH_HOME=/path/to/home` | `-DshHome 'C:\path\home'` |
 | 自定义应用路径 | `DSH_APP='/path/DSH.app'` | `-DshExe 'C:\path\DeepSeek Harness.exe'` |
@@ -75,11 +71,11 @@ Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/kingcharles
 
 ## 为什么用它，而不是原版
 
-| | 原版 1.1.71 | 本分支 1.6.10 |
+| | 原版 1.1.71 | 本分支 1.6.11 |
 | --- | --- | --- |
 | 宿主适配 | 只到 0.1.7 / 0.2.0，上游已停更 | **0.2.1-rc.2 逐条回归，0 漂移** |
 | 补丁 | 82 条，锚点随新版失效后静默跳过 | **83 条**（新增 `ask_user_question` 不阻塞），带**逐条状态与漂移诊断** |
-| 装完怎么确认 | 没有 | **`selfcheck` 27 层逐层给证据（ok/待应用/失败三态）+ `probe` 证明注入真的到模型** |
+| 装完怎么确认 | 没有 | **`selfcheck` 27 层逐层给证据（已确认/待应用/宿主推导/未确认/失败）+ `probe` 证明注入真的到模型** |
 | 面板 | 会话上方悬浮按钮 + 独立小窗 | **左侧栏整页**：顶部一句话状态 + 放大的「应用」，其余折叠；说明收进 `?` |
 | 更新 | 指向已停更的上游，分支/覆盖式安装 | 本仓库校验过的发行包（SHA256），保留通道/tag/pin 与多安装位置 |
 | 预设 | 无 | 自带「无限制模式」：**standard 超集**（工具面一样），只换执行优先人设 |

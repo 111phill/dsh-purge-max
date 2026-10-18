@@ -10,11 +10,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const problems = [];
 const ok = (label) => console.log("  ✓ " + label);
 
-const tarballs = fs
-  .readdirSync(root)
-  .filter((f) => f.startsWith("dsh-purge-community-") && f.endsWith(".tgz"))
-  .sort();
-const tgz = process.env.SMOKE_TGZ || (tarballs.length ? path.join(root, tarballs[tarballs.length - 1]) : "");
+const sourceManifest = JSON.parse(fs.readFileSync(path.join(root,"package.json"),"utf8"));
+const tgz = process.env.SMOKE_TGZ || path.join(root, `${sourceManifest.name}-${sourceManifest.version}.tgz`);
 if (!tgz || !fs.existsSync(tgz)) {
   console.error("✗ 找不到 tgz；先跑 npm pack");
   process.exit(1);
@@ -25,6 +22,11 @@ try {
   execFileSync("tar", ["-xzf", tgz, "-C", tmp]);
   const pkgDir = path.join(tmp, "package");
   const pkg = JSON.parse(fs.readFileSync(path.join(pkgDir, "package.json"), "utf8"));
+
+  if (pkg.name !== sourceManifest.name || pkg.version !== sourceManifest.version) throw Error("Packed artifact does not match current manifest");
+
+  // Install the packed artifact's declared dependencies, not source-tree node_modules.
+  execFileSync(process.platform === "win32" ? "npm.cmd" : "npm", ["install", "--ignore-scripts", "--legacy-peer-deps", "--omit=dev", "--no-audit", "--no-fund"], {cwd:pkgDir,stdio:"pipe",timeout:120000});
 
   // 1) 导出映射指向的文件都存在
   for (const [key, target] of Object.entries(pkg.exports || {})) {

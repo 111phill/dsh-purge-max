@@ -20,7 +20,7 @@ const backup = (id) => ({
 });
 const reply = (body, status = 200) =>
   new Response(JSON.stringify(body), { status });
-function harness(transport) {
+function harness(transport, component = "CommunityMaintenance") {
   const calls = [],
     context = {
       module: { exports: {} },
@@ -44,7 +44,7 @@ function harness(transport) {
     };
   context.exports = context.module.exports;
   vm.runInNewContext(bundle, context);
-  return { Component: context.module.exports.CommunityMaintenance, calls };
+  return { Component: context.module.exports[component], calls };
 }
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 const text = (tree) => JSON.stringify(tree.toJSON());
@@ -269,5 +269,50 @@ test("update switches save separate preferences without invoking install or rest
       .props.onMouseEnter();
   });
   assert(text(tree).includes("不会自动重启 DSH"));
+  await unmount(tree);
+});
+
+test("selfcheck inferred and unknown values show warning labels and explanation instead of red or all-green", async () => {
+  const h = harness(
+    ({ url }) =>
+      reply(
+        url.endsWith("/boost")
+          ? { enabled: true }
+          : {
+              state: "unknown",
+              layers: [
+                {
+                  title: "当前 profile 的权限选择",
+                  kind: "config",
+                  state: "inferred",
+                  ok: false,
+                  applied: 0,
+                  total: 1,
+                  broken: [],
+                  note: "未显式固定，宿主推导已生效",
+                },
+                {
+                  title: "宿主运行方式",
+                  kind: "layout",
+                  state: "unknown",
+                  ok: false,
+                  applied: 0,
+                  total: 1,
+                  broken: [],
+                  note: "当前进程未定位宿主",
+                },
+              ],
+            },
+      ),
+    "StatusExtras",
+  );
+  const tree = await mount(h);
+  const rendered = text(tree);
+  assert(rendered.includes("2 层需确认"));
+  assert(rendered.includes("宿主推导"));
+  assert(rendered.includes("未确认"));
+  assert(!rendered.includes("层未生效"));
+  assert(!rendered.includes("全部在位"));
+  assert(!rendered.includes("is-bad"));
   await unmount(tree);
 });

@@ -10129,6 +10129,9 @@ function StatusExtras() {
     (l) => l.state === "broken" || !l.state && !l.ok
   );
   const pendingLayers = layers.filter((l) => l.state === "pending");
+  const uncertain = layers.filter(
+    (l) => ["inferred", "unknown"].includes(l.state)
+  );
   const pendingPatches = pendingLayers.reduce(
     (n, l) => n + (l.pending?.length || 0),
     0
@@ -10144,13 +10147,13 @@ function StatusExtras() {
         "span",
         { className: "dshpp-line-main" },
         h("i", {
-          className: "dshpp-dot " + (check ? failed.length ? "is-bad" : pendingLayers.length ? "is-warn" : "is-ok" : "")
+          className: "dshpp-dot " + (check ? failed.length ? "is-bad" : pendingLayers.length || uncertain.length ? "is-warn" : "is-ok" : "")
         }),
         "\u7834\u7532\u81EA\u68C0",
         h(
           "b",
           null,
-          check ? failed.length ? `${failed.length} \u5C42\u672A\u751F\u6548` : pendingLayers.length ? `${pendingPatches} \u6761\u5F85\u5E94\u7528` : `${total} \u5C42\u5168\u90E8\u5728\u4F4D` : "\u68C0\u6D4B\u4E2D\u2026"
+          check ? failed.length ? `${failed.length} \u5C42\u672A\u751F\u6548` : pendingLayers.length ? `${pendingPatches} \u6761\u5F85\u5E94\u7528` : uncertain.length ? `${uncertain.length} \u5C42\u9700\u786E\u8BA4` : `${total} \u5C42\u5168\u90E8\u5728\u4F4D` : "\u68C0\u6D4B\u4E2D\u2026"
         )
       ),
       h(
@@ -10165,17 +10168,18 @@ function StatusExtras() {
               "div",
               {
                 key: layer.title,
-                className: "dshpp-check" + (layer.state === "pending" ? " is-warn" : layer.ok ? "" : " is-bad")
+                className: "dshpp-check" + (["pending", "inferred", "unknown"].includes(layer.state) ? " is-warn" : layer.ok ? "" : " is-bad")
               },
               h("i", {
-                className: "dshpp-dot " + (layer.state === "pending" ? "is-warn" : layer.ok ? "is-ok" : "is-bad")
+                className: "dshpp-dot " + (["pending", "inferred", "unknown"].includes(layer.state) ? "is-warn" : layer.ok ? "is-ok" : "is-bad")
               }),
               h("span", { className: "dshpp-check-name" }, layer.title),
               h(
                 "span",
                 { className: "dshpp-check-val" },
-                layer.applicable === false ? "\u4E0D\u9002\u7528" : layer.state === "pending" ? `\u5F85\u5E94\u7528 #${(layer.pending || []).join("/#")}` : `${layer.applied}/${layer.required ?? layer.total}`
-              )
+                layer.applicable === false ? "\u4E0D\u9002\u7528" : layer.state === "pending" ? `\u5F85\u5E94\u7528 #${(layer.pending || []).join("/#")}` : layer.state === "inferred" ? "\u5BBF\u4E3B\u63A8\u5BFC" : layer.state === "unknown" ? "\u672A\u786E\u8BA4" : `${layer.applied}/${layer.required ?? layer.total}`
+              ),
+              layer.note ? h(HelpTip, { title: layer.title }, layer.note) : null
             )
           ) : h("div", { className: "dshpp-muted" }, "\u68C0\u6D4B\u4E2D\u2026")
         )
@@ -12811,7 +12815,7 @@ function SettingsRoot(props = {}) {
       h(
         "span",
         { className: "dshpp-native-badge" },
-        (true ? "\u793E\u533A\u7248 " : "\u72EC\u7ACB\u754C\u9762 ") + "1.6.10"
+        (true ? "\u793E\u533A\u7248 " : "\u72EC\u7ACB\u754C\u9762 ") + "1.6.11"
       )
     ),
     h(CompatibilityNote, { status: backendStatus }),
@@ -12966,7 +12970,7 @@ function StatusStrip({ info }) {
       "span",
       { className: "dshpp-strip-item" },
       "\u63D2\u4EF6 ",
-      h("b", null, info?.plugin_version || "1.6.10")
+      h("b", null, info?.plugin_version || "1.6.11")
     )
   );
 }
@@ -12988,11 +12992,11 @@ function VersionNotice({ info }) {
     );
   }
   const backend = info?.plugin_version;
-  if (!backend || backend === "1.6.10") return null;
+  if (!backend || backend === "1.6.11") return null;
   return h(
     "p",
     { className: "dshpp-warn", role: "status" },
-    `\u5B98\u65B9\u7248\u672C ${backend}\uFF1B\u754C\u9762 ${"1.6.10"}\u3002\u4E24\u8005\u4E0D\u4E00\u81F4\u65F6\u8BBE\u7F6E\u53EF\u80FD\u4E0D\u751F\u6548\uFF0C\u8BF7\u66F4\u65B0\u5230\u540C\u4E00\u7248\u672C\u540E\u91CD\u542F DSH\u3002`
+    `\u5B98\u65B9\u7248\u672C ${backend}\uFF1B\u754C\u9762 ${"1.6.11"}\u3002\u4E24\u8005\u4E0D\u4E00\u81F4\u65F6\u8BBE\u7F6E\u53EF\u80FD\u4E0D\u751F\u6548\uFF0C\u8BF7\u66F4\u65B0\u5230\u540C\u4E00\u7248\u672C\u540E\u91CD\u542F DSH\u3002`
   );
 }
 function PurgePage() {
@@ -13049,7 +13053,7 @@ function PurgePage() {
           true ? h(
             "span",
             { className: "dshpp-page-ver" },
-            "\u793E\u533A\u7248 1.6.10"
+            "\u793E\u533A\u7248 1.6.11"
           ) : null
         )
       )

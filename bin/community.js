@@ -138,6 +138,7 @@ if (LEGACY[op]) {
     else result = { enabled: readBoost(), hint: "purge-community boost on|off" };
   } else if (op === "selfcheck" || op === "check-bypass") {
     const report = await selfCheck(aiBase || "");
+    process.exitCode = report.state === "broken" ? 1 : 0;
     if (rawArgs.includes("--json")) result = report;
     else {
       const lines = [
@@ -146,7 +147,7 @@ if (LEGACY[op]) {
         "",
       ];
       for (const layer of report.layers) {
-        const mark = layer.state === "pending" ? "⏳" : layer.ok ? "✓" : "✗";
+        const mark = ["pending", "inferred", "unknown"].includes(layer.state) ? "⏳" : layer.ok ? "✓" : "✗";
         const tail = layer.note
           || (layer.broken.length ? JSON.stringify(layer.broken) : "")
           || (layer.pending && layer.pending.length ? `待应用 #${layer.pending.join("/#")}` : "");
@@ -159,7 +160,9 @@ if (LEGACY[op]) {
           ? `结论：有 ${pendingCount} 条补丁待应用 —— 点一次「应用」，然后退出重开 DSH 即可。`
           : report.state === "broken"
             ? "结论：有层真的没生效（✗），见上面。"
-            : "结论：所有层都在位。",
+            : ["unknown", "inferred"].includes(report.state)
+              ? "结论：未发现已确认故障，但存在推导值或未确认项，见逐层说明。"
+              : "结论：所有层都在位。",
       );
       if (rawArgs.includes("--text")) {
         console.log(lines.join("\n"));

@@ -56,6 +56,9 @@ export function StatusExtras() {
     (l) => l.state === "broken" || (!l.state && !l.ok),
   );
   const pendingLayers = layers.filter((l) => l.state === "pending");
+  const uncertain = layers.filter((l) =>
+    ["inferred", "unknown"].includes(l.state),
+  );
   const pendingPatches = pendingLayers.reduce(
     (n, l) => n + (l.pending?.length || 0),
     0,
@@ -76,7 +79,7 @@ export function StatusExtras() {
             (check
               ? failed.length
                 ? "is-bad"
-                : pendingLayers.length
+                : pendingLayers.length || uncertain.length
                   ? "is-warn"
                   : "is-ok"
               : ""),
@@ -90,7 +93,9 @@ export function StatusExtras() {
               ? `${failed.length} 层未生效`
               : pendingLayers.length
                 ? `${pendingPatches} 条待应用`
-                : `${total} 层全部在位`
+                : uncertain.length
+                  ? `${uncertain.length} 层需确认`
+                  : `${total} 层全部在位`
             : "检测中…",
         ),
       ),
@@ -109,7 +114,7 @@ export function StatusExtras() {
                     key: layer.title,
                     className:
                       "dshpp-check" +
-                      (layer.state === "pending"
+                      (["pending", "inferred", "unknown"].includes(layer.state)
                         ? " is-warn"
                         : layer.ok
                           ? ""
@@ -118,7 +123,7 @@ export function StatusExtras() {
                   h("i", {
                     className:
                       "dshpp-dot " +
-                      (layer.state === "pending"
+                      (["pending", "inferred", "unknown"].includes(layer.state)
                         ? "is-warn"
                         : layer.ok
                           ? "is-ok"
@@ -132,8 +137,15 @@ export function StatusExtras() {
                       ? "不适用"
                       : layer.state === "pending"
                         ? `待应用 #${(layer.pending || []).join("/#")}`
-                        : `${layer.applied}/${layer.required ?? layer.total}`,
+                        : layer.state === "inferred"
+                          ? "宿主推导"
+                          : layer.state === "unknown"
+                            ? "未确认"
+                            : `${layer.applied}/${layer.required ?? layer.total}`,
                   ),
+                  layer.note
+                    ? h(HelpTip, { title: layer.title }, layer.note)
+                    : null,
                 ),
               )
             : h("div", { className: "dshpp-muted" }, "检测中…"),
