@@ -8,7 +8,7 @@ import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { spawn, spawnSync } from 'node:child_process';
 import { WINDOWS_ASAR_HANDOFF_PS1 as script, scheduleWindowsAsarHandoff, readWindowsAsarHandoff } from '../lib/windows-asar-handoff.js';
-const temp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'purge handoff 中文 '));
+const temp = () => fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'purge handoff 中文 ')));
 const powershell=process.env.PURGE_TEST_POWERSHELL || 'powershell.exe';
 const wait = ms => new Promise(r => setTimeout(r, ms));
 async function until(fn, ms=12000) { const end=Date.now()+ms; while(Date.now()<end) { if(fn())return; await wait(100); } throw Error('handoff timeout'); }
@@ -43,12 +43,14 @@ test('synchronous helper launch failure is recorded without changing the archive
 
 test('real Windows PowerShell: wait for process, preserve archive, complete without restarting',{skip:process.platform!=='win32'},async()=>{
   const f=fixture();const exe=path.join(f.root,'holder.exe');fs.copyFileSync(process.execPath,exe);
-  const holder=spawn(exe,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});
+  const ready=path.join(f.root,'holder-ready');
+  const holder=spawn(exe,['-e',"require('node:fs').writeFileSync(process.argv[1],'ready');setInterval(()=>{},1000)",ready],{stdio:'ignore'});
   const ps=path.join(f.root,'handoff.ps1');fs.writeFileSync(ps,script);const state=f.asar+'.purge-handoff.json';let helper;
   try {
+    await until(()=>fs.existsSync(ready));
     helper=spawn(powershell,['-NoProfile','-File',ps,'-ExePath',exe,'-AsarPath',f.asar,'-StatePath',state,'-Token','test','-TimeoutSeconds','10','-PollMilliseconds','100'],{stdio:'pipe'});
     let stderr='';helper.stderr.on('data',b=>stderr+=b);
-    await until(()=>readWindowsAsarHandoff(f.asar)?.phase==='waiting_for_quit');
+    await until(()=>readWindowsAsarHandoff(f.asar)?.phase==='waiting_for_quit').catch(e=>{throw Error(e.message+' '+JSON.stringify(readWindowsAsarHandoff(f.asar))+' '+stderr)});
     assert.ok(fs.existsSync(f.asar));assert.equal(holder.exitCode,null);
     holder.kill();await until(()=>readWindowsAsarHandoff(f.asar)?.phase==='complete');
     assert.equal(fs.existsSync(f.asar),false);assert.equal(fs.readFileSync(f.asar+'.purge-test.bak','utf8'),'original archive');assert.equal(stderr,'');
@@ -74,9 +76,9 @@ test('real Windows PowerShell: locked archive retries, timeout and changed archi
   locker.kill();helper.kill();await wait(300);
   // Keep a known executable alive so we can replace the archive between ready
   // and quit, simulating an official update during the handoff window.
-  const exe=path.join(f.root,'holder.exe');fs.copyFileSync(process.execPath,exe);const holder=spawn(exe,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});
+  const exe=path.join(f.root,'holder.exe');fs.copyFileSync(process.execPath,exe);const holderReady=path.join(f.root,'holder-ready');const holder=spawn(exe,['-e',"require('node:fs').writeFileSync(process.argv[1],'ready');setInterval(()=>{},1000)",holderReady],{stdio:'ignore'});
   fs.rmSync(state);helper=spawn(powershell,['-NoProfile','-File',ps,'-ExePath',exe,'-AsarPath',f.asar,'-StatePath',state,'-Token','changed','-TimeoutSeconds','10','-PollMilliseconds','100'],{stdio:'ignore'});
-  try {await until(()=>readWindowsAsarHandoff(f.asar)?.phase==='waiting_for_quit');fs.writeFileSync(f.asar,'new official archive');holder.kill();await until(()=>readWindowsAsarHandoff(f.asar)?.phase==='failed');assert.match(readWindowsAsarHandoff(f.asar).detail,/Archive changed/);assert.equal(fs.readFileSync(f.asar,'utf8'),'new official archive');}
+  try {await until(()=>fs.existsSync(holderReady));await until(()=>readWindowsAsarHandoff(f.asar)?.phase==='waiting_for_quit');fs.writeFileSync(f.asar,'new official archive');holder.kill();await until(()=>readWindowsAsarHandoff(f.asar)?.phase==='failed');assert.match(readWindowsAsarHandoff(f.asar).detail,/Archive changed/);assert.equal(fs.readFileSync(f.asar,'utf8'),'new official archive');}
   finally{holder.kill();}
  }finally{locker.kill();helper?.kill();await wait(300);fs.rmSync(f.root,{recursive:true,force:true});}
 });
