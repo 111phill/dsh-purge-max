@@ -4,7 +4,6 @@ import fs from "node:fs";
 import { spawnSync } from "node:child_process";
 import { Maintenance, compatibility, ROOT, PACKAGE } from "../lib/community.js";
 import { findDshHome, findAiBase, patchDrift } from "../lib/core.js";
-import { selfCheck, resolveHost } from "../lib/selfcheck.js";
 import { currentHost } from "../lib/instance.js";
 import { readOverrides, writeOverride, clearOverride } from "../lib/anchors.js";
 import { logAudit, readAudit } from "../lib/audit.js";
@@ -36,7 +35,7 @@ if (LEGACY[op]) {
     result = { ok: true, entries: readAudit({ limit: Number.isFinite(n) ? n : 20, home }) };
   } else if (op === "reanchor") {
     const sub = argument || "list";
-    const host = aiBase || resolveHost("");
+    const host = aiBase || currentHost();
     const drift = await patchDrift(host);
     const rows = [...drift.drifted, ...drift.optionalDrift];
     const byId = (id) => rows.find((r) => r.id === Number(id));
@@ -137,6 +136,8 @@ if (LEGACY[op]) {
     if (argument === "on" || argument === "off") result = { enabled: writeBoost(argument === "on") };
     else result = { enabled: readBoost(), hint: "purge-community boost on|off" };
   } else if (op === "selfcheck" || op === "check-bypass") {
+    // The extracted installer runs migrate before runtime dependencies are installed.
+    const { selfCheck } = await import("../lib/selfcheck.js");
     const report = await selfCheck(aiBase || "");
     process.exitCode = report.state === "broken" ? 1 : 0;
     if (rawArgs.includes("--json")) result = report;
