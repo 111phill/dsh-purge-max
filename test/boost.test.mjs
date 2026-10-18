@@ -8,14 +8,18 @@ import path from "node:path";
 import { BOOST_TEXT, readBoost, writeBoost } from "../lib/boost.js";
 import { readTuning, writeTuning } from "../lib/tuning.js";
 
-test("boost switch round-trips, defaults on, and stores privately", () => {
+test("boost switch round-trips with POSIX-private mode where supported", (t) => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "purge-boost-"));
   try {
     assert.equal(readBoost(home), true, "boost is on by default");
     assert.equal(writeBoost(true, home), true);
     const file = path.join(home, "dsh-purge", "tuning.json");
     assert(fs.existsSync(file));
-    assert.equal(fs.statSync(file).mode & 0o777, 0o600, "state file must be private");
+    if (process.platform === "win32") {
+      t.diagnostic("Windows permissions use NTFS ACLs; stat.mode does not prove private access");
+    } else {
+      assert.equal(fs.statSync(file).mode & 0o777, 0o600, "state file must be private");
+    }
     assert.equal(readBoost(home), true);
     assert.equal(writeBoost(false, home), false);
     assert.equal(readBoost(home), false);

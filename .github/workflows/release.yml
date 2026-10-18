@@ -54,7 +54,7 @@ jobs:
         with:
           node-version: 22
       - run: npm ci --ignore-scripts --legacy-peer-deps
-      - run: node --test test/install-registry.test.mjs test/bootstrap-install.test.mjs test/community.test.mjs test/asar-swap-fallback.test.mjs test/settings-api.test.mjs test/host-backup.test.mjs test/runtime-layout.test.mjs
+      - run: npm test
       - name: Windows PowerShell 5.1 installer wrapper
         if: runner.os == 'Windows'
         shell: powershell
