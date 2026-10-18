@@ -14,7 +14,7 @@ function fixture(t){
  fs.mkdirSync(path.join(pack,'package/bin'),{recursive:true});
  fs.writeFileSync(path.join(pack,'package/package.json'),JSON.stringify({name:'dsh-purge-community',version,repository:{url:'git+https://github.com/kingcharleslzy-ai/dsh-purge.git'}}));
  fs.writeFileSync(path.join(pack,'package/bin/community.js'),`require('node:fs').writeFileSync(process.env.DSH_HOME+'/called.json',JSON.stringify({args:process.argv.slice(2),env:process.env.DSH_PROFILE,cli:process.env.PURGE_DSH_CLI}));`);
- const file=path.join(tmp,filename);execFileSync('tar',['-czf',file,'-C',pack,'package']);const bytes=fs.readFileSync(file);
+ const file=path.join(tmp,filename);const tar=process.platform==='win32'?path.join(process.env.SystemRoot,'System32/tar.exe'):'tar';execFileSync(tar,['-czf',filename,'-C','pack','package'],{cwd:tmp});const bytes=fs.readFileSync(file);
  const sum=createHash('sha256').update(bytes).digest('hex');
  const request=async url=>new Response(url.includes('releases/latest')?JSON.stringify({tag_name:'v'+version}):url.endsWith('.tgz')?bytes:`${sum}  ${filename}\n${sum}  dsh-purge-community.tgz\n`);
  return {tmp,home,profileDir:profile,bytes,sum,request,cli:path.join(tmp,'fake-cli.js')};

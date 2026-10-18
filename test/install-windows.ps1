@@ -45,6 +45,7 @@ try {
     Assert $failed 'missing executable was accepted'
     Assert ($env:PATH -eq $initialPath) 'global PATH was changed'
     Write-Host 'Windows wrapper: arguments, Unicode/space paths, exit status, download failure, env/PATH preservation passed.'
+    $global:LASTEXITCODE = 0
 } finally {
     $env:DSH_HOME = $initialHome
     $env:ELECTRON_RUN_AS_NODE = $initialElectron

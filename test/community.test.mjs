@@ -155,7 +155,8 @@ test("backup is complete, private, verifiable and does not include credentials o
     fs.writeFileSync(path.join(f.home, ".credentials.yaml"), "SECRET");
     const b = await f.manager.backup();
     assert(f.manager.verify(b.id));
-    assert.equal(fs.statSync(b.folder).mode & 0o777, 0o700);
+    // Windows uses inherited ACLs, not POSIX mode bits.
+    if (process.platform !== "win32") assert.equal(fs.statSync(b.folder).mode & 0o777, 0o700);
     assert.equal(
       fs.existsSync(path.join(b.folder, ".credentials.yaml")),
       false,
@@ -337,7 +338,7 @@ test("release checksum failure stops before installation", async () => {
   }
 });
 
-test("Desktop POSIX launcher without executable permission runs through sh without changing app permissions", async () => {
+test("Desktop POSIX launcher without executable permission runs through sh without changing app permissions", { skip: process.platform === "win32" }, async () => {
   const { installWithDsh } = await import("../lib/community.js"),
     f = setup(),
     previous = process.env.PURGE_DSH_CLI;

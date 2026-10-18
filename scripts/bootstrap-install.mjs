@@ -74,9 +74,10 @@ export async function bootstrapInstall(options = {}) {
     const file = path.join(tmp, filename);
     fs.writeFileSync(file, archive, { mode: 0o600 });
     const tar = platform === "win32" ? path.join(process.env.SystemRoot || "C:\\Windows", "System32", "tar.exe") : "tar";
-    const listing = await run(tar, ["-tzf", file], { timeout: 30000, maxBuffer: 4 * 1024 * 1024, windowsHide: true });
+    // cwd is passed as Unicode by CreateProcess; legacy tar builds mangle Unicode argv.
+    const listing = await run(tar, ["-tzf", filename], { cwd: tmp, timeout: 30000, maxBuffer: 4 * 1024 * 1024, windowsHide: true });
     if (!listing.stdout.trim() || listing.stdout.trim().split(/\r?\n/).some(name => !/^package\//.test(name) || name.includes("\\") || name.split("/").some(part => part === ".."))) throw Error("Invalid archive paths");
-    await run(tar, ["-xzf", file, "-C", tmp], { timeout: 30000, windowsHide: true });
+    await run(tar, ["-xzf", filename], { cwd: tmp, timeout: 30000, windowsHide: true });
     const manifest = JSON.parse(fs.readFileSync(path.join(tmp, "package/package.json"), "utf8"));
     if (manifest.name !== "dsh-purge-community" || manifest.version !== version || manifest.repository?.url !== `git+https://github.com/${repo}.git`) throw Error("Release package identity mismatch");
     const result = await run(executable, [path.join(tmp, "package/bin/community.js"), "migrate", file], {

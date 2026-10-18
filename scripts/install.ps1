@@ -35,6 +35,7 @@ $runtime = Find-DshExecutable
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('purge-bootstrap-' + [guid]::NewGuid().ToString('N'))
 $names = @('ELECTRON_RUN_AS_NODE', 'DSH_HOME')
 $previous = @{}
+$previousProtocol = [Net.ServicePointManager]::SecurityProtocol
 foreach ($name in $names) { $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
 try {
     [void](New-Item -ItemType Directory -Path $temporary)
@@ -49,6 +50,7 @@ try {
     & $runtime @arguments
     if ($LASTEXITCODE -ne 0) { throw "Installer failed (exit $LASTEXITCODE). Keep the reported backup; do not clear lockfiles or disable verification." }
 } finally {
+    [Net.ServicePointManager]::SecurityProtocol = $previousProtocol
     foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $previous[$name], 'Process') }
     if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Recurse -Force }
 }
