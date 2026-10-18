@@ -171,6 +171,9 @@ if (LEGACY[op]) {
       }
       result = { ok: report.ok, text: lines.join("\n"), summary: report.summary };
     }
+  } else if (op === "host-status") {
+    const { hostLayoutEvidence } = await import("../lib/host-layout.js");
+    result = hostLayoutEvidence(aiBase);
   } else if (op === "diagnose") {
     const target = aiBase || findAiBase();
     const drift = await patchDrift(target);
@@ -194,7 +197,7 @@ if (LEGACY[op]) {
     });
   } else
     throw Error(
-      "用法：purge-community status | diagnose | selfcheck [--json] | boost on|off | probe [new] | audit [--limit n] | preset [status|install] | backup [prune|usage] | rollback <备份ID> | migrate <tgz> | apply | revert | uninstall | edit",
+      "用法：purge-community status | host-status | diagnose | selfcheck [--json] | boost on|off | probe [new] | audit [--limit n] | preset [status|install] | backup [prune|usage] | rollback <备份ID> | migrate <tgz> | apply | revert | uninstall | edit",
     );
   console.log(JSON.stringify(result, null, 2));
 } catch (e) {

@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.13** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
+> 当前版本：**1.6.14** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -51,6 +51,7 @@ selfcheck 全绿 = 可以开工
 | --- | --- | --- |
 | `purge-community status` | 宿主路径、补丁计数 | 0 |
 | `purge-community selfcheck [--json\|--text]` | 27 层逐层证据 | **broken → 1**，pending/ok → 0 |
+| `purge-community host-status` | 只读磁盘布局与当前服务入口证据，不退出/换包/重启 | 0，须检查 state |
 | `purge-community diagnose [--json]` | 锚点漂移诊断（含行号 + 片段） | 0 |
 | `purge-community reanchor list\|show\|apply <id> [--index n] [--lines a-b] [--yes]\|clear <id>` | 半自动重锚：把新锚点钉成本地覆盖 | 0 |
 | `purge-community probe [new]` | 生成/查看运行时探针 | 0 |
@@ -130,7 +131,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.13 |
+| 插件 | `dsh-purge-community` 1.6.14 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
@@ -210,3 +211,14 @@ DSH 0.2.1 的 `tool-subagent` 不再接受 `toolFilter`。不能只删除它：�
 普通测试之外，用实际 Desktop Electron 运行 `test/desktop-presets.mjs`（`ELECTRON_RUN_AS_NODE=1`，`PURGE_TEST_HOST` 指向宿主的 `node_modules/@deepseek-ai`）。它在隔离目录复现旧错误、加载迁移后的父/子预设、创建空白 Agent 并核对真实工具可见性，不调用 LLM，不重启用户应用。可用 `PURGE_TEST_PRESET` 指定本机旧文件目录做私有验收，不能把该目录内容或用户提示词加入测试夹具。
 
 回滚代码会恢复旧版注册行为，原始用户文件本来就未改写；它也会恢复旧版在新宿主上的加载问题。不可为了回滚覆盖用户之后修改的提示词或设置。备份损坏或不可写时停止迁移，不绕开备份。
+
+
+## 19. CLI 执行权限与运行入口证据（1.6.14）
+
+issue #20：重写已有文件必须保留普通 rwx 权限；0600 私有配置不能变成0644，0755 启动器不能丢执行位。原子写入与复制共用 `lib/atomic-files.js`，临时文件名唯一，写入、权限恢复或重命名失败时清理临时文件并抛错。CLI 修复必须先完成备份；已存在备份不覆盖。仅对已识别的官方 shell 启动器修复旧版丢失的执行位，按现有读取权限增加对应执行权限，不扩大读取/写入权限，不改任意用户脚本。
+
+issue #19：`purge-community host-status` 输出 `disk.archive_exists` / `disk.unpacked_exists` 与 `process.entry_layout` / `source` / `matches_target`。它只读目标安装；不会扫描其他设备、换包、退出或重启。state 为 `unknown_runtime` / `different_instance` / `unreadable` 时不得写成“已加载”或“未加载”。`archive_entry` / `unpacked_entry` 也只证明启动入口，不能证明随后改动的每个模块都重载。命令退出0仅代表报告生成成功，调用方必须读取state。完整命令行、环境变量、令牌不进入报告。
+
+在独立 CLI 调用时，没有宿主服务启动参数通常显示 unknown_runtime，这属于预期；可先明确 DSH_BASE 或 PURGE_DSH_CLI 选择目标安装，再对照正在运行服务的状态接口 `host_layout`。不要拿 CLI 自己的 PID 当成桌面服务 PID。
+
+本版在隔离目录复现 Web surface 不进入 Desktop handoff 的分支，与 #19 报告相符，但未证明报告者完整触发路径，也未改变换包调度。该 issue 保持开放；回复只附脱敏状态，不索取整份配置、提示词或私密日志。不得通过本次修复删除、关闭或更改既有功能。
