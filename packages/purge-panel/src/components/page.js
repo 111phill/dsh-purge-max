@@ -108,13 +108,23 @@ export function LayoutNotice({ info }) {
   if (!info || (!info.asar_still_sealed && !info.host_layout)) return null;
   const sealed = info.asar_still_sealed === true;
   const note =
-    info.host_layout?.note || "目标磁盘仍有 app.asar；当前进程加载来源尚未确认。";
+    info.host_layout?.note ||
+    "目标磁盘仍有 app.asar；当前进程加载来源尚未确认。";
   const handoff = info.asar_handoff
     ? ` 换包状态：${{ starting: "助手启动中（尚未确认就绪）", ready: "助手已就绪", waiting_for_quit: "等待从系统托盘完整退出", waiting_for_unlock: "等待归档解锁", moving: "正在保留原归档", complete: "换包完成，请手动打开 DSH", already_unsealed: "归档已移走，请手动打开 DSH", failed: "失败，请查看诊断并按恢复文档操作", expired: "等待超时，请重新应用或按恢复文档操作", helper_stopped: "助手意外结束，请重新应用或按恢复文档操作" }[info.asar_handoff.phase] || info.asar_handoff.phase}。`
     : "";
-  const diskNote = info.host_layout?.disk.archive_exists === true ? " 目标磁盘仍有 app.asar。" : "";
+  const diskNote =
+    info.host_layout?.disk.archive_exists === true
+      ? " 目标磁盘仍有 app.asar。"
+      : "";
   if (sealed) {
-    return h("p", { className: "dshpp-warn", role: "status" }, note, diskNote, handoff);
+    return h(
+      "p",
+      { className: "dshpp-warn", role: "status" },
+      note,
+      diskNote,
+      handoff,
+    );
   }
   // 换包正常时只留一行确认，说明折进 details：它讲的是"入口不代表已重载"，
   // 属于常驻解释，不该每次都占一行注意力。
