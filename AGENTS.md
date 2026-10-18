@@ -222,3 +222,17 @@ issue #19：`purge-community host-status` 输出 `disk.archive_exists` / `disk.u
 在独立 CLI 调用时，没有宿主服务启动参数通常显示 unknown_runtime，这属于预期；可先明确 DSH_BASE 或 PURGE_DSH_CLI 选择目标安装，再对照正在运行服务的状态接口 `host_layout`。不要拿 CLI 自己的 PID 当成桌面服务 PID。
 
 1.6.18 起根因已定位并修复：`sealedAsarHandoff()` 先看 surface，Web GUI 触发应用时返回 null，导致走普通重启、归档不动。现在 `sealedDesktopHandoffAnySurface()` + `runningDesktopPid()` 让跨 surface 也能等桌面退出后换包；桌面没运行则返回 `needsDesktopApply`，不假装成功。决策由 `planApplyRestartAction()` 覆盖（sealed / cross-surface / manual / plain）。#19 以「1.6.18 修复」关闭，报告者复测后如有残留可重开。
+
+## 20. 交互语义：等待回答与插话（1.6.25 / 1.6.26）
+
+**等待回答（#89，1.6.25 起）**：`ask_user_question` 不再被硬压成 1 秒。现在只把 `-1`（无限等）收成 300 秒，模型传多少就等多少，不传则按原版默认 120 秒。旧安装里若还留着 `const timeout = 1; // [dsh-purge] ask_user_question never blocks a turn`，补丁带 `forbid` 标记，会判为未应用并在下次「应用」时**精确替换**；匹配不到保持原样并报 `pattern_not_found`。
+
+**插话（#90，1.6.26 起）**：真正会拒绝插话的是 `api-session-controller` 的守卫：
+
+```js
+if (request.action.kind === "steer" && (target !== "next-turn" || agent.status !== "running")) throw ...
+```
+
+`agent.steer()` 本身在空闲时不会抛错（`send()` 入 `next-step`，下一回合 `claim()` 取走）。旧版 #85/#86 改的是守卫**之后**的分支，对这条错误路径无效，已删除。#90 把守卫改成**降级为 followup**，可用时保持原生插队；同时带迁移，把宿主里旧的 `[dsh-purge-85]` / `[dsh-purge-86]` 改写还原成原生两行。
+
+验证：生成中 Ctrl+Enter 应当**当前回合内**被消费；空闲时点插话应直接入队、不报错。宿主可用 `grep -c "dsh-purge-85\|dsh-purge-86" <controller>/lib/index.js` 应为 0。
