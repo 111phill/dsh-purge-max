@@ -1,3 +1,13 @@
+# 1.6.15
+
+## 逐条处理上游 issue
+
+- 修复 #118：依赖写成 `file:<tgz>` 时，更新计划可能把 tar 包路径当安装目录，`path.join(dest,"lib")` 变成 `<tgz>/lib` → `ENOTDIR`，且每次重试都卡死在同一处。`overlayFromZip()` 现在先过滤目标，非目录跳过并在结果里回报 `skipped`，一次坏目标不再拖垮整次更新。新增单测覆盖。
+- 复核 #127（Windows `.bak` 全量 EPERM）：`hostFs.closeSync` 已存在并走 `diskFs()`，备份描述符正常关闭；本版未再改动。
+- 复核 #114（`unknown prompt variable {{cwd}}`）：只影响 0.2.1-alpha.2；rc.1/rc.2 已注册该变量，本机 rc.2 长期运行无此报错；未改动。
+- #121（Ctrl+Enter 插话静默失效）：这是本分支的**有意取舍**——补丁 #85/#86 把 UI 的 steer 统一改为 next-turn，用来消掉「紧接着发第二条被拒」的竞态，代价是 Ctrl+Enter 变成排队发送。要恢复原生插话，把 `lib/core.js` 里 #85/#86 设为 `disabled` 后重新应用；两种行为不能同时要。
+- #19（apply 后普通重启未换包）：仍开放，本版未改换包/重启流程。换包需要**完整退出应用**（菜单退出 / ⌘Q），关窗口不算；`purge-community host-status` 可只读确认当前进程加载的是归档还是解包目录。
+
 # 1.6.14
 
 ## 安装权限与诊断维护

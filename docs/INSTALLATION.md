@@ -1,6 +1,6 @@
 # 安装、升级与故障排查
 
-当前版本 **1.6.14**。面向用户与协助安装的 Agent。支持的安装器环境：macOS Desktop；Windows 11 的 PowerShell 5.1/7。完整 Windows 宿主补丁及界面验收与安装器测试分开，不能因安装通过就宣称全部功能正常。
+当前版本 **1.6.15**。面向用户与协助安装的 Agent。支持的安装器环境：macOS Desktop；Windows 11 的 PowerShell 5.1/7。完整 Windows 宿主补丁及界面验收与安装器测试分开，不能因安装通过就宣称全部功能正常。
 
 ## 安装前
 
@@ -11,9 +11,9 @@
 
 ## 命令
 
-macOS：下载 README 中的 `scripts/install.sh`，`sh /tmp/purge-install.sh --dry-run` 只校验，去掉 `--dry-run` 才安装。可以设置 `DSH_APP`、`DSH_HOME`、`PURGE_VERSION`，传入 `--version=1.6.14`、`--profile=desktop`。
+macOS：下载 README 中的 `scripts/install.sh`，`sh /tmp/purge-install.sh --dry-run` 只校验，去掉 `--dry-run` 才安装。可以设置 `DSH_APP`、`DSH_HOME`、`PURGE_VERSION`，传入 `--version=1.6.15`、`--profile=desktop`。
 
-Windows：下载 README 中的 `scripts/install.ps1`，`& "$env:TEMP\purge-install.ps1" -DryRun` 只校验。正式安装去掉 `-DryRun`。支持 `-DshExe 'C:\path\DeepSeek Harness.exe' -DshHome 'C:\path\home' -Profile desktop -Version 1.6.14`。应用路径不唯一会停止。默认先读取运行进程、卸载注册表中的安装位置，再检查常见目录；只读注册表，不写 PATH。
+Windows：下载 README 中的 `scripts/install.ps1`，`& "$env:TEMP\purge-install.ps1" -DryRun` 只校验。正式安装去掉 `-DryRun`。支持 `-DshExe 'C:\path\DeepSeek Harness.exe' -DshHome 'C:\path\home' -Profile desktop -Version 1.6.15`。应用路径不唯一会停止。默认先读取运行进程、卸载注册表中的安装位置，再检查常见目录；只读注册表，不写 PATH。
 
 若 PowerShell 执行策略阻止，先审阅脚本，再用独立进程 `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\purge-install.ps1"`；不需要 `Set-ExecutionPolicy` 修改全局/持久策略。不用 `iex` 执行返回内容。
 

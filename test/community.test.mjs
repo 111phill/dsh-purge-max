@@ -12,6 +12,7 @@ import {
   PACKAGE,
 } from "../lib/community.js";
 import { atomicCopyFileSync } from "../lib/core.js";
+import { filterDirs } from "../lib/update-install.js";
 function setup() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "purge-community-")),
     profile = path.join(home, "profiles/desktop"),
@@ -444,4 +445,21 @@ test('native installer stages a fresh source for its own rollback link and resto
   let absent=false;await assert.rejects(installWithDsh(f.candidate,f.manager,{execute:async(_cmd,args)=>{absent=!fs.existsSync(link);if(args.includes('remove'))return{stdout:''};assert.notEqual(args.at(-1),f.candidate);assert(fs.existsSync(args.at(-1)));throw Error('install failed');}}),/install failed/);
   assert.equal(absent,true);assert.equal(fs.realpathSync(link),fs.realpathSync(target));assert.equal(fs.readFileSync(path.join(target,'client.js'),'utf8'),'original client');
  }finally{if(old===undefined)delete process.env.PURGE_DSH_CLI;else process.env.PURGE_DSH_CLI=old;f.close();}
+});
+
+test("overlay targets that are files are skipped instead of aborting the update", () => {
+  // issue #118：file:<tgz> 依赖会把 tar 包路径当成安装目录
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "purge-dirs-"));
+  try {
+    const realDir = path.join(dir, "pkg");
+    fs.mkdirSync(realDir);
+    const tar = path.join(dir, "pkg.tgz");
+    fs.writeFileSync(tar, "x");
+    const missing = path.join(dir, "not-yet");
+    const { kept, skipped } = filterDirs([realDir, tar, missing]);
+    assert.deepEqual(kept.sort(), [realDir, missing].sort());
+    assert.deepEqual(skipped, [tar]);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
