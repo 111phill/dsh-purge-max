@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.26** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
+> 当前版本：**1.6.27** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -131,7 +131,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.26 |
+| 插件 | `dsh-purge-community` 1.6.27 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
@@ -227,12 +227,10 @@ issue #19：`purge-community host-status` 输出 `disk.archive_exists` / `disk.u
 
 **等待回答（#89，1.6.25 起）**：`ask_user_question` 不再被硬压成 1 秒。现在只把 `-1`（无限等）收成 300 秒，模型传多少就等多少，不传则按原版默认 120 秒。旧安装里若还留着 `const timeout = 1; // [dsh-purge] ask_user_question never blocks a turn`，补丁带 `forbid` 标记，会判为未应用并在下次「应用」时**精确替换**；匹配不到保持原样并报 `pattern_not_found`。
 
-**插话（#90，1.6.26 起）**：真正会拒绝插话的是 `api-session-controller` 的守卫：
+**插话（#90，1.6.27 起）**：恢复 DSH 原生消息投递，迁移原版 1.1.69/1.1.71 与 fork 旧 #85/#86/#90。直接发送按 mode 区分 steer/queue；队列插话只转换仍在 next-turn 且正在运行的消息。已经在 next-step 的消息不移回下一轮；空闲时不重排队列；已经被消费的消息不重建。保留原生错误码，前端按既有协议对重复/过期请求收敛。
 
-```js
-if (request.action.kind === "steer" && (target !== "next-turn" || agent.status !== "running")) throw ...
-```
+1.6.26 的降级为 followup 会误撤回成功插话并打乱顺序，本版撤销该兜底。旧版迁移同时覆盖 controller 与 agent-loop，不只检查单个标记。未知改写保持原文件，报告 pattern_not_found；不要删用户参数或强写宿主来消除报错。
 
-`agent.steer()` 本身在空闲时不会抛错（`send()` 入 `next-step`，下一回合 `claim()` 取走）。旧版 #85/#86 改的是守卫**之后**的分支，对这条错误路径无效，已删除。#90 把守卫改成**降级为 followup**，可用时保持原生插队；同时带迁移，把宿主里旧的 `[dsh-purge-85]` / `[dsh-purge-86]` 改写还原成原生两行。
+安装、应用和加载是三个不同阶段。安装不自动应用或重启；应用会备份并写磁盘，当前进程不热重载这些模块。用户方便时手动退出并重开后再确认真实界面。排查 #25 请提供 DSH/插件版本、系统、直接发送还是队列插话、单次还是重复点击、当前是否正在生成；不要索取整份配置、提示词、令牌或会话日志。
 
-验证：生成中 Ctrl+Enter 应当**当前回合内**被消费；空闲时点插话应直接入队、不报错。宿主可用 `grep -c "dsh-purge-85\|dsh-purge-86" <controller>/lib/index.js` 应为 0。
+验证：`npm test` 包含真实方法运行、延迟投影重复请求、消息消费、队列顺序与旧版迁移测试。可设置 `PURGE_TEST_HOST` 指向本机只读 `@deepseek-ai` 目录，运行 `node --test test/steering-runtime.test.mjs` 对实际安装方法验收。该测试使用内存服务，不等于完整桌面或真实模型验收。详见 [插话维护说明](docs/steer-notes.md)。

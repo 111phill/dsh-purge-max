@@ -1,55 +1,38 @@
-# steer / 插话：现状与复现计划
+# 插话投递与升级验收（1.6.27）
 
-> 未改动代码。补丁 #85/#86 仍按原样生效。本文件记录静态核查结果与下一步的复现设计。
+## 这次修了什么
 
-## 1. 现状（补丁做了什么）
+DSH 的 `next-step` 表示当前轮下一步消费；`next-turn` 表示后续轮次。插话不会中断已经发出的模型请求，而是在下一步边界被消费。
 
-| 补丁 | 位置 | 改动 |
-| --- | --- | --- |
-| #85 | `api-session-controller` `prompt()` | 原版 `if (request.mode === "steer") agent.steer(message); else agent.followup(message);` → 一律 `followup` |
-| #86 | `api-session-controller` `updateQueue()` `case "steer"` | 原版 `agent.steer(message)` → `agent.followup(message)` |
+上游 1.1.69 改了公共 `steer()`，1.1.71 只恢复底层而仍将 UI 队列插话改为 followup（上游 #121）。本 fork 1.6.26 恢复 UI 分支，但新增的降级逻辑把两种状态混为一谈：消息已经在 next-step，或者 agent 不再 running。两者都被删除并重新追加到 next-turn。
 
-结果：Ctrl+Enter（插话）与队列里的 steer 都变成"下一轮投递"。
+因此：首次插话成功后，重复请求会撤回该投递；空闲队列 [a,b] 对 a 插话会变成 [b,a]。前端依赖过期请求无操作收敛，且可能使用尚未更新的队列投影，因此不能把这些情况统一转换成 followup。
 
-## 2. 静态核查（原始宿主源码，取自 `.dshpurge.bak`）
+1.6.27 只恢复原生守卫、prompt(mode) 分流、队列 case 和公共 steer。重复/过期请求保留原生错误码与前端处理，消息不被重建或重排。原生中止回合后的发送处理保留。等待回答、其他补丁及用户提示词不在本次改动范围。
 
-`dsh-agent-loop/lib/index.js`：
+## 精确迁移与状态
 
-```js
-send(message, target, wakeup) {
-  const wakingAfterAbort = wakeup && this.phase.kind !== "idle" && this.phase.abort.signal.aborted;
-  const resolvedTarget = wakingAfterAbort ? "next-turn" : target;
-  this.inbox.splice(resolvedTarget, Infinity, 0, [message]);
-  if (wakeup) this.wakeDriver(wakingAfterAbort);
-}
-steer(input) { this.send(input, "next-step", true); }
-```
+#90 覆盖 controller 和 agent-loop：
 
-结论：**`steer()` 在 idle 时不会抛错**，它把消息塞进 `next-step` 并唤醒 driver。所以"空闲调用 steer 被拒"这个根因假设（补丁注释里那句"二轮立刻发被拒根因"）在 agent-loop 层不成立。
+- 原生文件：确认完整所需分支后视为已完成，不写入。
+- 旧 #85、队列 #86、1.1.69 公共 steer、1.1.71 恢复注释、1.6.26 #90：只逆向替换已识别片段。
+- 旧版本混合残留：必须整份目标文件可以确认恢复，才写入。
+- 不认识的改写：不部分写入，strictFiles 报 pattern_not_found；先诊断，不覆盖用户内容。
 
-## 3. 两个仍可能的失效点
+迁移后的文件带无行为的 #90 注释，避免通用宿主升级检测把已恢复的文件误当新原件、覆盖已有备份。重复应用不追加内容。插件回滚与宿主还原是不同动作；使用现有备份流程，核对目标与哈希，保留用户之后修改的设置。不要用整份旧 profile 覆盖当前配置。
 
-1. **消息滞留**：回合结束条件是 `turnEnds && this.inbox.nextStep.length === 0`（`index.js:1008/1015`）。如果 steer 恰好在最后一次 `step/end` 之后、break 判定之前到达，消息留在 `next-step`，而下一回合只消费 `next-turn` → 表现为"发了没反应"。
-2. **客户端层拒绝**：`mode: "steer"` 可能在 UI/网关层就被拦（例如 agent 状态非 running 时不允许插话），与 agent-loop 无关。
+## 测试
 
-两者都不是"agent.steer 抛错"，需要运行时证据区分。
+- `test/steer-migration.test.mjs`：原生、1.1.69、1.1.71、旧 fork、1.6.26、混合状态；LF/CRLF、重复应用、未知改写。
+- `test/steering-runtime.test.mjs`：执行 DSH 0.2.1-rc.2 实际 controller、inbox、send 与 UI steerQueue 方法；内存服务和投影用于模拟重复快捷键、延迟刷新、回合状态切换、已 claim、FIFO、编辑与删除。
+- `test/steering-files.test.mjs`：在临时宿主目录进行实际备份、写入、再次应用与还原；用户配置哨兵保持不变。
 
-## 4. 复现设计（下一步实施）
+旧实现作为负对照，必须能复现故障；新实现必须通过相同场景。夹具仅含公开宿主方法，没有个人会话、地址、提示词或令牌。来源与文件 SHA256 在夹具中记录。
 
-用 `test/desktop-presets.mjs` 相同的方式起真实 Agent（Loader + 预设 + 空 Agent），但模型用**可控 stub**（不调 LLM，按脚本产出固定步骤）：
+可用 `PURGE_TEST_HOST=/path/to/node_modules/@deepseek-ai node --test test/steering-runtime.test.mjs` 只读加载本机方法，在内存中迁移后执行。不会启动或重启 DSH，也不调用模型。这是函数和协议级运行测试，不冒充完整桌面/模型验收。
 
-- 场景 A：agent idle 时 `prompt(mode="steer")` ×2（间隔 50ms）→ 断言两条都进入 `inbox.nextTurn` 或都被消费；
-- 场景 B：agent running（stub 第一步故意 sleep 300ms）时 `prompt(mode="steer")` → 断言进入 `nextStep` 且在当前回合被消费；
-- 场景 C：在最后一步 `step/end` 后 10ms 投递 steer → 断言不滞留；
-- 场景 D：`updateQueue` 的 `case "steer"`（队列里点"插话"）→ 断言进入 `nextStep`。
+## 给 #25 的确认清单
 
-每条都记录 `session` 事件序列（`turn/start`、`step/start`、`message` 投递、`turn/end`），失败时打印序列而不是只报 true/false。
+需要报告者提供系统、DSH 版本、插件版本，确认安装后是否已应用并手动重开。区分输入框直接插话、队列按钮、空输入框快捷键；说明单次或连续操作，agent 是否仍在生成。若单次操作仍失败，需要最短普通任务复现步骤或脱敏错误码，不需要整份配置/日志。
 
-## 5. 验收标准
-
-- 消息不丢：投递后必定出现在 `inbox` 或 session 事件里；
-- 不重复：同一请求只消费一次；
-- 插话及时：场景 B 的 steer 在当前回合内被消费，不跨回合；
-- 排队正确：`mode:"followup"` 即使 agent running 也必须留在 `nextTurn`。
-
-通过后，再把 #85/#86 还原成原生写法（或按复现结论做最小修正），并跑同一套测试回归。
+本版修复已确认的回归；报告者尚未给出上述信息前，不把 #25 的所有可能原因标为已解决。

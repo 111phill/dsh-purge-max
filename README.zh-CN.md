@@ -9,11 +9,15 @@
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.6.26** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
+当前版本 **1.6.27** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
 
 </div>
 
 ---
+
+## 1.6.27：插话回归修复
+
+修复重复插话被重新排队、空闲插话打乱顺序，并补齐旧版本迁移。保留原生交互与现有设置；不自动应用或重启。[修复与验证范围](docs/steer-notes.md) · [#25](https://github.com/kingcharleslzy-ai/dsh-purge/issues/25)
 
 ## 安装与迁移
 
