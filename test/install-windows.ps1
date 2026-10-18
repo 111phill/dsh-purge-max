@@ -22,10 +22,10 @@ function Invoke-WebRequest {
 try {
     $env:DSH_HOME = 'original-home'
     $env:ELECTRON_RUN_AS_NODE = 'original-electron'
-    & $target -DshExe $node -DshHome $fixtureHome -Profile web -Version 1.6.6 -DryRun
+    & $target -DshExe $node -DshHome $fixtureHome -Profile web -Version 1.6.7 -DryRun
     $called = Get-Content -LiteralPath (Join-Path $fixtureHome 'called.json') -Raw | ConvertFrom-Json
     Assert ($called.args -contains '--profile=web') 'profile was lost'
-    Assert ($called.args -contains '--version=1.6.6') 'version was lost'
+    Assert ($called.args -contains '--version=1.6.7') 'version was lost'
     Assert ($called.args -contains '--dry-run') 'dry-run was lost'
     Assert ($called.electron -eq '1') 'runtime mode not set'
     Assert ($env:DSH_HOME -eq 'original-home') 'home not restored'

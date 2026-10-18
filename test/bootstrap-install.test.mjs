@@ -6,7 +6,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {bootstrapInstall,verifyChecksum,desktopCli} from '../scripts/bootstrap-install.mjs';
-const version='1.6.6',filename=`dsh-purge-community-${version}.tgz`;
+const version='1.6.7',filename=`dsh-purge-community-${version}.tgz`;
 function fixture(t){
  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'purge 空格 '));t.after(()=>fs.rmSync(tmp,{recursive:true,force:true}));
  const home=path.join(tmp,'home'), profile=path.join(home,'profiles','desktop'),pack=path.join(tmp,'pack');
@@ -54,4 +54,10 @@ test('runtime discovery stays in selected Desktop, sealed/unsealed, macOS and Wi
  const macExe=path.join(f.tmp,'DSH.app/Contents/MacOS/DeepSeek Harness'),macCli=path.join(f.tmp,'DSH.app/Contents/Resources/app/dsh/node_modules/@deepseek-ai/dsh-desktop-host/lib/cli.js');
  fs.mkdirSync(path.dirname(macCli),{recursive:true});fs.writeFileSync(macCli,'');assert.equal(desktopCli(macExe,'darwin'),macCli);
  assert.throws(()=>desktopCli(path.join(f.tmp,'other/DSH.exe'),'win32'),/Cannot find/);
+});
+
+test('direct CLI invocation through a symlink still executes and rejects unknown arguments', {skip:process.platform==='win32'}, t=>{
+ const f=fixture(t),link=path.join(f.tmp,'installer-link.mjs');
+ fs.symlinkSync(path.resolve('scripts/bootstrap-install.mjs'),link);
+ assert.throws(()=>execFileSync(process.execPath,[link,'--invalid-argument'],{encoding:'utf8',stdio:'pipe'}),error=>error.status===1 && error.stderr.includes('Unknown argument: --invalid-argument'));
 });

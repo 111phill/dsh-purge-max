@@ -9,7 +9,7 @@
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.6.6** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
+当前版本 **1.6.7** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
 
 </div>
 
@@ -44,7 +44,7 @@ Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/kingcharles
 | 用途 | macOS 参数/环境变量 | Windows 参数 |
 | --- | --- | --- |
 | 只下载校验，不安装 | `--dry-run` | `-DryRun` |
-| 固定版本 | `--version=1.6.6` | `-Version 1.6.6` |
+| 固定版本 | `--version=1.6.7` | `-Version 1.6.7` |
 | 选择 profile | `--profile=desktop` | `-Profile desktop` |
 | 自定义数据目录 | `DSH_HOME=/path/to/home` | `-DshHome 'C:\path\home'` |
 | 自定义应用路径 | `DSH_APP='/path/DSH.app'` | `-DshExe 'C:\path\DeepSeek Harness.exe'` |
@@ -63,7 +63,7 @@ Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/kingcharles
 
 ## 为什么用它，而不是原版
 
-| | 原版 1.1.71 | 本分支 1.6.6 |
+| | 原版 1.1.71 | 本分支 1.6.7 |
 | --- | --- | --- |
 | 宿主适配 | 只到 0.1.7 / 0.2.0，上游已停更 | **0.2.1-rc.2 逐条回归，0 漂移** |
 | 补丁 | 82 条，锚点随新版失效后静默跳过 | **83 条**（新增 `ask_user_question` 不阻塞），带**逐条状态与漂移诊断** |

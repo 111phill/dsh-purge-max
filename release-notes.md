@@ -1,12 +1,17 @@
-# 1.6.6
+# 1.6.7
 
+- 修复 macOS 临时目录路径别名导致独立 bootstrap 入口静默跳过的问题；使用真实文件路径判断入口，并加入 symlink 启动回归。
 - 修复 [issue #7](https://github.com/kingcharleslzy-ai/dsh-purge/issues/7) 的独立安装恢复路径：公开镜像缺少 `@dsh-ops/bash-win32-x64` 指定版本元数据时，验证 npm 官方元数据后只对该 scope 重试一次。保留全部 pnpm 校验，不改变全局源、不切换私有源、不重试真实完整性/信任/发布时间错误。
 - 新增 Windows PowerShell 5.1 / 7 安装入口，自动定位唯一 Desktop（可显式指定），使用应用运行时，不要求全局 Node/pnpm；参数、空格/中文路径、失败退出与进程环境恢复纳入测试。
 - macOS / Windows 共用下载、大小边界、SHA256、包身份核对与备份迁移；修复校验清单含稳定别名但未下载该别名时的误报。
 - 同步 README、中文副本、英文指南、AGENTS 与维护说明；明确市场首次安装由 DSH 执行，需选择 npm 官方源或使用独立安装器，不声称插件能接管加载前的宿主流程。
 - 安装前备份，保留现有提示词、规则、更新偏好及其他插件；不自动重启、不自动应用宿主补丁。完整 Windows 宿主补丁/界面兼容仍需独立验收。
 
-验证：89 项功能回归、7 项面板测试、Linux/macOS/Windows 安装器、PowerShell 5.1/7 入口及 Mac 真实 DSH 隔离迁移/回滚通过。详见 [验收记录](docs/releases/1.6.6.md)。
+验证：90 项功能回归、7 项面板测试、Linux/macOS/Windows 安装器、PowerShell 5.1/7 入口及 Mac 真实 DSH 隔离迁移/回滚通过。详见 [验收记录](docs/releases/1.6.7.md)。
+
+# 1.6.6
+
+安装器修复初版，已由 1.6.7 取代。下载入口验收补出了 macOS 临时目录别名问题，请使用 1.6.7。
 
 # 1.6.5
 
