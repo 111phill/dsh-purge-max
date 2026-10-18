@@ -1,3 +1,11 @@
+# 1.6.24
+
+## 三处收尾
+
+- **面板与自检分母统一**：selfcheck 的 `patch` 现在返回 `{applied, total, all, na}`，`total` 只算本机适用的（当前 76），`all` 是 81，`na` 是 5。面板头部同时显示 `73/76 · 5 条本机不适用`。
+- **审计写入失败不再静默**：`logAudit` 写不进去时向 stderr 打一次 `[dsh-purge] 审计写入失败：…`，不再只返回 false。
+- **文档数字对齐**：AGENTS §5 症状表与 `docs/preset-test.md` 的 75/83 改为 73/76（全量 81）。
+
 # 1.6.23
 
 ## 修 Windows 路径：注入契约测试用了 URL.pathname

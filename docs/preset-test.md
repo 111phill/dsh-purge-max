@@ -9,7 +9,7 @@
 ## 0. 预备（1 分钟）
 
 ```sh
-purge-community selfcheck --text      # 期望：宿主补丁 75/83，结论「所有层都在位」
+purge-community selfcheck --text      # 期望：宿主补丁 73/76（全量 81），结论「所有层都在位」
 purge-community preset status         # 期望：installed: true
 purge-community audit --limit 5       # 能看到最近动作
 ```

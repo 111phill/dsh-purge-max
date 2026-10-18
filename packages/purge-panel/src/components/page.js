@@ -87,11 +87,12 @@ function StatusStrip({ info }) {
         "b",
         null,
         `${info?.patches_applied ?? "?"}/${info?.patches_total ?? "?"}`,
+        info?.patches_na > 0 ? ` · ${info.patches_na} 条本机不适用` : "",
       ),
       h(
         HelpTip,
         { title: "宿主补丁" },
-        "实际写进 DSH 宿主代码的补丁条数。待应用表示锚点还在、还没写入；没对上表示宿主源码已变，需要重新定位锚点。",
+        `实际写进 DSH 宿主代码的补丁条数（分母只算本机适用的）。全部补丁 ${info?.patches_total_all ?? "?"} 条，其中 ${info?.patches_na ?? 0} 条目标插件/预设未安装；待应用表示锚点还在、还没写入；没对上表示宿主源码已变，需要重新定位锚点。`,
       ),
     ),
     h(
