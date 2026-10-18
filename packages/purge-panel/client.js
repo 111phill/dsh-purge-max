@@ -10129,6 +10129,9 @@ function StatusExtras() {
     (l) => l.state === "broken" || !l.state && !l.ok
   );
   const pendingLayers = layers.filter((l) => l.state === "pending");
+  const uncertain = layers.filter(
+    (l) => ["inferred", "unknown"].includes(l.state)
+  );
   const pendingPatches = pendingLayers.reduce(
     (n, l) => n + (l.pending?.length || 0),
     0
@@ -10144,13 +10147,13 @@ function StatusExtras() {
         "span",
         { className: "dshpp-line-main" },
         h("i", {
-          className: "dshpp-dot " + (check ? failed.length ? "is-bad" : pendingLayers.length ? "is-warn" : "is-ok" : "")
+          className: "dshpp-dot " + (check ? failed.length ? "is-bad" : pendingLayers.length || uncertain.length ? "is-warn" : "is-ok" : "")
         }),
         "\u7834\u7532\u81EA\u68C0",
         h(
           "b",
           null,
-          check ? failed.length ? `${failed.length} \u5C42\u672A\u751F\u6548` : pendingLayers.length ? `${pendingPatches} \u6761\u5F85\u5E94\u7528` : `${total} \u5C42\u5168\u90E8\u5728\u4F4D` : "\u68C0\u6D4B\u4E2D\u2026"
+          check ? failed.length ? `${failed.length} \u5C42\u672A\u751F\u6548` : pendingLayers.length ? `${pendingPatches} \u6761\u5F85\u5E94\u7528` : uncertain.length ? `${uncertain.length} \u5C42\u9700\u786E\u8BA4` : `${total} \u5C42\u5168\u90E8\u5728\u4F4D` : "\u68C0\u6D4B\u4E2D\u2026"
         )
       ),
       h(
@@ -10165,17 +10168,18 @@ function StatusExtras() {
               "div",
               {
                 key: layer.title,
-                className: "dshpp-check" + (layer.state === "pending" ? " is-warn" : layer.ok ? "" : " is-bad")
+                className: "dshpp-check" + (["pending", "inferred", "unknown"].includes(layer.state) ? " is-warn" : layer.ok ? "" : " is-bad")
               },
               h("i", {
-                className: "dshpp-dot " + (layer.state === "pending" ? "is-warn" : layer.ok ? "is-ok" : "is-bad")
+                className: "dshpp-dot " + (["pending", "inferred", "unknown"].includes(layer.state) ? "is-warn" : layer.ok ? "is-ok" : "is-bad")
               }),
               h("span", { className: "dshpp-check-name" }, layer.title),
               h(
                 "span",
                 { className: "dshpp-check-val" },
-                layer.applicable === false ? "\u4E0D\u9002\u7528" : layer.state === "pending" ? `\u5F85\u5E94\u7528 #${(layer.pending || []).join("/#")}` : `${layer.applied}/${layer.required ?? layer.total}`
-              )
+                layer.applicable === false ? "\u4E0D\u9002\u7528" : layer.state === "pending" ? `\u5F85\u5E94\u7528 #${(layer.pending || []).join("/#")}` : layer.state === "inferred" ? "\u5BBF\u4E3B\u63A8\u5BFC" : layer.state === "unknown" ? "\u672A\u786E\u8BA4" : `${layer.applied}/${layer.required ?? layer.total}`
+              ),
+              layer.note ? h(HelpTip, { title: layer.title }, layer.note) : null
             )
           ) : h("div", { className: "dshpp-muted" }, "\u68C0\u6D4B\u4E2D\u2026")
         )

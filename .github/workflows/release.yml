@@ -19,6 +19,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: packages/purge-panel/package-lock.json
+      - run: npm ci --ignore-scripts --legacy-peer-deps
       - run: npm --prefix packages/purge-panel ci --ignore-scripts --legacy-peer-deps
       - run: npm test && npm run check:client && npm run test:ui
       - run: npm run check:docs
@@ -52,6 +53,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - run: npm ci --ignore-scripts --legacy-peer-deps
       - run: node --test test/install-registry.test.mjs test/bootstrap-install.test.mjs test/community.test.mjs test/asar-swap-fallback.test.mjs test/settings-api.test.mjs test/host-backup.test.mjs test/runtime-layout.test.mjs
       - name: Windows PowerShell 5.1 installer wrapper
         if: runner.os == 'Windows'

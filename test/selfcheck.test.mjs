@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { selfCheck, rollupLayers, BYPASS_LAYERS } from "../lib/selfcheck.js";
 
 function fakeHome() {
@@ -51,11 +52,13 @@ test("runtime inject and profile policy are detected from the real files", async
     fs.writeFileSync(
       path.join(f.profile, "cordis.patch.yml"),
       [
-        "presets:",
-        "  danger-full-access:",
-        "    sandbox: danger-full-access",
-        "    approval: never",
-        "defaultPreset: danger-full-access",
+        "- id: permission-presets",
+        "  config:",
+        "    presets:",
+        "      danger-full-access:",
+        "        sandbox: danger-full-access",
+        "        approval: never",
+        "    defaultPreset: danger-full-access",
         "",
       ].join("\n"),
     );
@@ -96,4 +99,30 @@ test("pending patches are not reported as broken layers", () => {
   const na = absent.find((l) => l.ids.includes(24));
   assert.equal(na.state, "ok");
   assert(na.note.includes("不适用"));
+});
+
+
+test("missing host information is unknown, never a red patch failure or an all-green report", () => {
+  const layers = rollupLayers({}, false);
+  assert(layers.every(l => l.state === "unknown" && !l.ok && l.broken.length === 0));
+});
+
+test("standalone JSON and text distinguish uncertainty from a confirmed policy mismatch in exit codes", () => {
+  const f = fakeHome();
+  const env = {...process.env,DSH_HOME:f.home,DSH_PROFILE:"desktop"};
+  delete env.DSH_BASE;delete env.PURGE_DSH_CLI;delete env.PURGE_PROFILE_DIR;
+  fs.writeFileSync(path.join(f.home,"prompt-inject.md"),"fixture");
+  try {
+    for (const format of ["--json","--text"]) {
+      const unknown=spawnSync(process.execPath,["bin/community.js","selfcheck",format],{env,encoding:"utf8"});
+      assert.equal(unknown.status,0,unknown.stderr);
+      assert(!unknown.stdout.includes("所有层都在位"));
+      if(format==="--json")assert.equal(JSON.parse(unknown.stdout).state,"unknown");
+    }
+    fs.writeFileSync(path.join(f.profile,"cordis.patch.yml"),"- id: permission\n  config:\n    defaultPreset: workspace-write\n    presets:\n      workspace-write:\n        sandbox: workspace-write\n        approval: ask\n");
+    for (const format of ["--json","--text"]) {
+      const mismatch=spawnSync(process.execPath,["bin/community.js","selfcheck",format],{env,encoding:"utf8"});
+      assert.equal(mismatch.status,1,mismatch.stderr);
+    }
+  } finally {f.close();}
 });
