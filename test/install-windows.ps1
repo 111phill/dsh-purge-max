@@ -11,12 +11,12 @@ $initialElectron = $env:ELECTRON_RUN_AS_NODE
 $initialPath = $env:PATH
 $initialProtocol = [Net.ServicePointManager]::SecurityProtocol
 function Assert([bool]$condition, [string]$message) { if (-not $condition) { throw $message } }
-$script:downloadFail = $false
-$script:exitCode = 0
+$global:purgeFixtureDownloadFail = $false
+$global:purgeFixtureExitCode = 0
 function Invoke-WebRequest {
     param([switch]$UseBasicParsing, $TimeoutSec, $Uri, $OutFile)
-    if ($script:downloadFail) { throw 'fixture download unavailable' }
-    $javascript = 'import fs from "node:fs";fs.writeFileSync(process.env.DSH_HOME+"/called.json",JSON.stringify({args:process.argv.slice(2),electron:process.env.ELECTRON_RUN_AS_NODE}));process.exit(' + $script:exitCode + ');'
+    if ($global:purgeFixtureDownloadFail) { throw 'fixture download unavailable' }
+    $javascript = 'import fs from "node:fs";fs.writeFileSync(process.env.DSH_HOME+"/called.json",JSON.stringify({args:process.argv.slice(2),electron:process.env.ELECTRON_RUN_AS_NODE}));process.exit(' + $global:purgeFixtureExitCode + ');'
     [IO.File]::WriteAllText($OutFile, $javascript)
 }
 try {
@@ -30,12 +30,12 @@ try {
     Assert ($called.electron -eq '1') 'runtime mode not set'
     Assert ($env:DSH_HOME -eq 'original-home') 'home not restored'
     Assert ($env:ELECTRON_RUN_AS_NODE -eq 'original-electron') 'electron env not restored'
-    $script:exitCode = 17
+    $global:purgeFixtureExitCode = 17
     $failed = $false
     try { & $target -DshExe $node -DshHome $fixtureHome } catch { $failed = $true }
     Assert $failed 'nonzero process exit was ignored'
     Assert ($env:DSH_HOME -eq 'original-home') 'failure changed home'
-    $script:downloadFail = $true
+    $global:purgeFixtureDownloadFail = $true
     $failed = $false
     try { & $target -DshExe $node -DshHome $fixtureHome } catch { $failed = $true }
     Assert $failed 'download failure was ignored'
