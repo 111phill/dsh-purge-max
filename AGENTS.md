@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.8** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
+> 当前版本：**1.6.9** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -130,7 +130,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.8 |
+| 插件 | `dsh-purge-community` 1.6.9 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
@@ -149,7 +149,7 @@ purge-community probe new
 
 Electron 的 app.asar 本体必须用 `diskFs()` 读取；不要把普通 Node 自检通过当作 Electron 运行时通过。`npm run test:electron` 在临时目录内运行真实 Electron 测试，不改动安装或用户设置。
 
-## 12. 安装 / 更新失败：Agent 必读（1.6.8）
+## 12. 安装 / 更新失败：Agent 必读（1.6.9）
 
 1. 读取 DSH 版本、实际 Desktop 可执行文件、`DSH_HOME`、目标 profile。不要猜测另一台设备的路径。首次安装要求 profile 已初始化；Windows 用 `scripts/install.ps1`，macOS 用 `scripts/install.sh`，细节见 [安装指南](docs/INSTALLATION.md)。Web/Headless 继续使用当前实例的 CLI 与发行包迁移，不能套 Desktop 自动发现。
 2. 默认先 `--dry-run`（PowerShell `-DryRun`）确认来源与 SHA256，再按用户授权安装。更新/迁移前安装器自动快照；不要为了安装去改提示词、权限、更新偏好或其他插件。安装、宿主补丁应用与手动重启是三个独立动作。不要安装后自动 apply/restart。
@@ -159,10 +159,19 @@ Electron 的 app.asar 本体必须用 `diskFs()` 读取；不要把普通 Node �
 6. 失败时查看返回的 backup_id，确认 package.json/锁文件/安装状态。需要恢复时走 `rollback <id>`，保留当前用户内容。不能把失败说成安装成功；不能自动重启。公开 issue 只附脱敏错误，不上传配置、凭证、提示词或完整备份。
 7. 版本核对以 package.json / release-notes 为准。README.md 与 README.zh-CN.md 必须一致，维护文档不能再停在 1.2.0/1.3.0。安装器测试与完整 Windows DSH 界面/宿主补丁验收分开记录，不混为“全部 Windows 功能已验证”。
 
-## 13. Windows Electron 安装验收（1.6.8）
+## 13. Windows Electron 安装验收（1.6.9）
 
 Windows Desktop 的 exe 是 GUI 子系统。PowerShell 的 `& exe ...` 可能在子进程结束前返回，不能用它后面的 `$LASTEXITCODE` 推断已完成。安装器必须等待明确的进程对象、检查其真实 ExitCode、收集 UTF-8 输出后再清理 bootstrap。回归必须同时覆盖普通 Node 控制台进程与真正 GUI 子系统进程；只用 node.exe 模拟 Desktop 不够。
 
 `desktop` profile 由 Electron 应用初始化；普通 `--profile desktop --dump-config` 会报 managed exclusively，不能因此判断程序坏了，也不能手造“已接受协议/已登录”的记录。隔离实测明确设置 DSH_HOME 与独立 user-data-dir，不碰默认用户目录，不自动应用宿主补丁。界面/登录/完整补丁能力与安装、备份、回滚分别记录；遇到协议或登录确认交给用户决定。
 
 PowerShell 5.1 读取 UTF-8 JSON/文档应使用 `Get-Content -Raw -Encoding UTF8`，不要把默认 ANSI 解码造成的中文乱码误判为安装包损坏。
+
+## 14. Windows 换包与设置接口（1.6.9）
+
+- issue #10 / PR #11：Windows 密封宿主的「应用」只写磁盘补丁并启动等待助手，**不定时退出 host、不杀 Electron、不自动重开**。提醒用户从系统托盘完整退出，确认换包完成后手动打开。不要把关闭窗口当成退出，也不要自行执行旧版重启脚本。
+- `/dsh-purge/status` 的 `asar_handoff.phase`：`starting` 只是启动请求；`ready` / `waiting_for_quit` 才证明助手运行过；`complete` 才表示保留原归档并完成换包。`failed` / `expired` / `helper_stopped` 要读取 `resources/app.asar.purge-handoff.json` 及同名 `.log` 排查，不把 `.rename-pending` 当成功。状态与日志只包含换包诊断，不要上传用户配置。
+- 归档备份为 `app.asar.purge-<token>.bak`，独立于 profile 快照；不覆盖已有备份。等待期间归档被官方更新替换会停止，必须重新应用新宿主。离线修复/恢复见维护文档。
+- 助手启动异常时还要看 `.json.broker.log`、`.json.launch.log` 和 `.json.launch.log.error`。Windows Electron 的 detached PowerShell 可静默退出；不能改回直接 detached spawn，也不能把 broker 退出码 0 当作助手已就绪。设置 `PURGE_ELECTRON_EXEC` 后运行 `node --test test/windows-electron-handoff.test.mjs` 验证真实 Electron 的父进程退出后交接。
+- issue #9：原生存在 `describe` / `replace` 的宿主不能注入 legacy `register`，否则特性探测型插件会读错存储。升级会逆向移除 #42 的精确旧模板，保留两处设置通知；未知改版停止并诊断，不能整份覆盖 settings 源码或迁移/清空用户 settings 文档。缺少现代 API 的老宿主保留原兼容接口。
+- 应用前逐文件备份有任一错误，停止写入，不能声称可回滚。Windows 实测必须验证打开的备份描述符已关闭、应用/还原字节一致；普通 Node/Linux 通过不足以证明 Windows 文件句柄正常。

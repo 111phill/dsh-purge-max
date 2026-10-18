@@ -11,4 +11,8 @@
 
 | [OGHong](https://github.com/OGHong) | [issue #5](https://github.com/kingcharleslzy-ai/dsh-purge/issues/5)：定位 Electron ASAR 文件系统导致的自检双向误判，提供最小修复与运行证据。 |
 
+| [Wangxiaolu0716](https://github.com/Wangxiaolu0716) | [PR #11](https://github.com/kingcharleslzy-ai/dsh-purge/pull/11)：Windows 归档换包失败后的等待恢复方案与复现。 |
+| [wtfsb19](https://github.com/wtfsb19) | [issue #10](https://github.com/kingcharleslzy-ai/dsh-purge/issues/10)：Windows 生命周期故障分析、对照实测与验证边界。 |
+| [MingShi350](https://github.com/MingShi350) | [issue #9](https://github.com/kingcharleslzy-ai/dsh-purge/issues/9)：现代设置接口与 legacy shim 冲突的定位和验证。 |
+
 第三方代码来源另见 [NOTICE.md](NOTICE.md)。欢迎通过 issue 提供复现与验证反馈，或通过 PR 贡献代码。

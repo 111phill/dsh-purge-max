@@ -427,3 +427,21 @@ test("atomicCopyFileSync copies atomically and cleans up on failure", async () =
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('successful CLI exit cannot claim a mismatching installed version is updated',async()=>{
+ const f=setup();try{
+  const pkg=path.join(f.profile,'node_modules',PACKAGE,'package.json');fs.writeFileSync(pkg,JSON.stringify({name:PACKAGE,version:'0.0.1'}));
+  await assert.rejects(f.manager.install(f.candidate),/Installed plugin mismatch/);assert(f.manager.list().length>0);assert.equal(fs.readFileSync(path.join(f.home,'prompt-inject.md'),'utf8'),'PRIVATE USER PROMPT');
+ }finally{f.close();}
+});
+
+test('native installer stages a fresh source for its own rollback link and restores the link on failure',async()=>{
+ const {installWithDsh}=await import('../lib/community.js');const f=setup();const old=process.env.PURGE_DSH_CLI;
+ try{
+  const cli=path.join(f.home,'cli.js');fs.writeFileSync(cli,'');process.env.PURGE_DSH_CLI=cli;
+  const link=path.join(f.profile,'node_modules',PACKAGE),target=path.join(f.manager.base,'restored','known',PACKAGE);
+  fs.mkdirSync(path.dirname(target),{recursive:true});fs.renameSync(link,target);fs.symlinkSync(target,link,process.platform==='win32'?'junction':'dir');
+  let absent=false;await assert.rejects(installWithDsh(f.candidate,f.manager,{execute:async(_cmd,args)=>{absent=!fs.existsSync(link);if(args.includes('remove'))return{stdout:''};assert.notEqual(args.at(-1),f.candidate);assert(fs.existsSync(args.at(-1)));throw Error('install failed');}}),/install failed/);
+  assert.equal(absent,true);assert.equal(fs.realpathSync(link),fs.realpathSync(target));assert.equal(fs.readFileSync(path.join(target,'client.js'),'utf8'),'original client');
+ }finally{if(old===undefined)delete process.env.PURGE_DSH_CLI;else process.env.PURGE_DSH_CLI=old;f.close();}
+});

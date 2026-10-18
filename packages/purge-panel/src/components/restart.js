@@ -117,6 +117,13 @@ export function restartDsh(setNotice, setBusy, t, surface) {
     .then((r) => r.json())
     .then((d) => {
       if (!d.ok) throw new Error(d.error || "restart failed");
+      if (d.manualQuit) {
+        clearTimeout(watch);
+        restartOnce = false;
+        setBusy(false);
+        setNotice({ kind: "ok", text: d.note || t("restart.manualQuit") });
+        return;
+      }
       const next = (d && d.surface) || surf;
       const full = next === "desktop" || (d && d.fullApp) || desktop;
       if (full && d.already) {

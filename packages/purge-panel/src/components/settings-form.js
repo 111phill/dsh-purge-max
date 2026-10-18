@@ -458,6 +458,15 @@ export function PurgifySection({ page = "status", onStatus } = {}) {
               return;
             }
             if (action === "apply") {
+              if (d.manualQuit) {
+                setNotice({
+                  kind: "ok",
+                  text: "补丁已写入磁盘，当前进程尚未加载。换包助手等待你从系统托盘完整退出；完成后请手动打开 DSH，不会自动重启。",
+                });
+                setAskRestart(false);
+                loadAll();
+                return;
+              }
               setNotice({ kind: "ok", text: tr("ok.done") });
               loadAll();
               if (d.restarting || d.needs_full_quit) {

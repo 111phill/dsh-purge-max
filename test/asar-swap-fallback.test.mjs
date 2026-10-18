@@ -1,26 +1,82 @@
-// asar swap 失败后的兜底：不能只写 rename-pending 就走，得继续等空闲再换包。
-// 背景：官方桌面版点「重启」时壳会在几秒内把进程拉回来，app.asar 被重新占用，
-// 80 次 Move-Item 全部失败 → 旧逻辑写个 lock 就退出，lock 没有消费者，
-// 用户看到报错、补丁仍旧没生效。
-import { test } from "node:test";
-import assert from "node:assert/strict";
-import fs from "node:fs";
+// PR #11 recovery, strengthened to assert the lifecycle and execute the real PS
+// helper on Windows. A pending marker alone is never considered success.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { EventEmitter } from 'node:events';
+import { spawn, spawnSync } from 'node:child_process';
+import { WINDOWS_ASAR_HANDOFF_PS1 as script, scheduleWindowsAsarHandoff, readWindowsAsarHandoff } from '../lib/windows-asar-handoff.js';
+const temp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'purge handoff 中文 '));
+const powershell=process.env.PURGE_TEST_POWERSHELL || 'powershell.exe';
+const wait = ms => new Promise(r => setTimeout(r, ms));
+async function until(fn, ms=12000) { const end=Date.now()+ms; while(Date.now()<end) { if(fn())return; await wait(100); } throw Error('handoff timeout'); }
+function fixture() { const root=temp(); fs.mkdirSync(path.join(root,'app'));fs.writeFileSync(path.join(root,'app/package.json'),'{}');const asar=path.join(root,'app.asar');fs.writeFileSync(asar,'original archive');return {root,asar}; }
 
-const source = fs.readFileSync(new URL("../lib/desktop.js", import.meta.url), "utf8");
-const swapScript = source.slice(
-  source.indexOf("const ASAR_SWAP_PS1 = ["),
-  source.indexOf("const ASAR_RENAME_WHEN_IDLE_PS1 = ["),
-);
+test('Windows handoff requests manual quit without exit, kill, or relaunch', () => {
+  assert.doesNotMatch(script, /Stop-Process|Start-Process|taskkill|Remove-Item.*\$backup/);
+  const f=fixture();const child=new EventEmitter();child.unref=()=>{};let args;
+  try {
+    const result=scheduleWindowsAsarHandoff({exe:'test.exe',asar:f.asar},{spawn:(...a)=>{args=a;return child;}});
+    assert.equal(result.manualQuit,true);assert.equal(result.restarting,false);assert.equal(result.handoff.phase,'starting');
+    assert.equal(args[0],'powershell.exe'); assert.equal(fs.readFileSync(f.asar,'utf8'),'original archive');
+    assert.equal(args[2].detached,false);assert.equal(args[2].windowsHide,true);
+    child.emit('error',Error('spawn blocked'));assert.equal(readWindowsAsarHandoff(f.asar).phase,'failed');
+    assert.equal(fs.readFileSync(f.asar,'utf8'),'original archive');
+  } finally {fs.rmSync(f.root,{recursive:true,force:true});}
+});
 
-test("ASAR_SWAP_PS1 换包失败后进入常驻等待分支", () => {
-  assert.ok(swapScript, "找不到 ASAR_SWAP_PS1");
-  const failed = swapScript.indexOf("} else {");
-  assert.ok(failed > 0, "找不到失败分支");
-  const tail = swapScript.slice(failed);
-  assert.match(tail, /Set-Content -LiteralPath \$lock/, "失败分支要先落 rename-pending 标记");
-  assert.match(tail, /while \(\(Get-Date\) -lt \$idleDeadline/, "失败分支要常驻等待，不能直接退出");
-  assert.match(tail, /Test-Path -LiteralPath \$AsarPath/, "等待条件要盯 asar 是否还在");
-  assert.match(tail, /Move-Item -LiteralPath \$AsarPath -Destination \$bak/, "等到空闲后要真的换包");
-  assert.match(tail, /Remove-Item -LiteralPath \$lock/, "换包成功要清掉 lock");
-  assert.match(tail, /Start-Process -FilePath \$ExePath/, "换包成功后要自己把客户端拉起来");
+test('stale legacy pending marker does not suppress a new worker',()=>{
+  const f=fixture();try {fs.writeFileSync(f.asar+'.rename-pending','stale');const child=new EventEmitter();child.unref=()=>{};let called=0;scheduleWindowsAsarHandoff({exe:'test.exe',asar:f.asar},{spawn:()=>{called++;return child;}});assert.equal(called,1);
+  fs.writeFileSync(f.asar+'.purge-handoff.json',JSON.stringify({phase:'waiting_for_quit',pid:2147483647,updated_at:'2000-01-01'}));assert.equal(readWindowsAsarHandoff(f.asar).phase,'helper_stopped');
+  }finally{fs.rmSync(f.root,{recursive:true,force:true});}
+});
+
+test('synchronous helper launch failure is recorded without changing the archive',()=>{
+ const f=fixture();try {
+  assert.throws(()=>scheduleWindowsAsarHandoff({exe:'test.exe',asar:f.asar},{spawn:()=>{throw Error('launch denied');}}),/launch denied/);
+  assert.equal(readWindowsAsarHandoff(f.asar).phase,'failed');
+  assert.equal(fs.readFileSync(f.asar,'utf8'),'original archive');
+ }finally{fs.rmSync(f.root,{recursive:true,force:true});}
+});
+
+test('real Windows PowerShell: wait for process, preserve archive, complete without restarting',{skip:process.platform!=='win32'},async()=>{
+  const f=fixture();const exe=path.join(f.root,'holder.exe');fs.copyFileSync(process.execPath,exe);
+  const holder=spawn(exe,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});
+  const ps=path.join(f.root,'handoff.ps1');fs.writeFileSync(ps,script);const state=f.asar+'.purge-handoff.json';let helper;
+  try {
+    helper=spawn(powershell,['-NoProfile','-File',ps,'-ExePath',exe,'-AsarPath',f.asar,'-StatePath',state,'-Token','test','-TimeoutSeconds','10','-PollMilliseconds','100'],{stdio:'pipe'});
+    let stderr='';helper.stderr.on('data',b=>stderr+=b);
+    await until(()=>readWindowsAsarHandoff(f.asar)?.phase==='waiting_for_quit');
+    assert.ok(fs.existsSync(f.asar));assert.equal(holder.exitCode,null);
+    holder.kill();await until(()=>readWindowsAsarHandoff(f.asar)?.phase==='complete');
+    assert.equal(fs.existsSync(f.asar),false);assert.equal(fs.readFileSync(f.asar+'.purge-test.bak','utf8'),'original archive');assert.equal(stderr,'');
+  }finally {holder.kill();helper?.kill();await wait(200);fs.rmSync(f.root,{recursive:true,force:true});}
+});
+
+test('real Windows PowerShell: missing unpacked app fails visibly, leaves original',{skip:process.platform!=='win32'},()=>{
+ const f=fixture();try{fs.rmSync(path.join(f.root,'app'),{recursive:true});const ps=path.join(f.root,'handoff.ps1');fs.writeFileSync(ps,script);const r=spawnSync(powershell,['-NoProfile','-File',ps,'-ExePath',path.join(f.root,'missing.exe'),'-AsarPath',f.asar,'-StatePath',f.asar+'.purge-handoff.json','-Token','missing'],{encoding:'utf8'});assert.equal(r.status,1);assert.equal(readWindowsAsarHandoff(f.asar).phase,'failed');assert.equal(fs.readFileSync(f.asar,'utf8'),'original archive');}finally{fs.rmSync(f.root,{recursive:true,force:true});}
+});
+
+
+test('real Windows PowerShell: locked archive retries, timeout and changed archive remain visible',{skip:process.platform!=='win32'},async()=>{
+ const f=fixture();const ps=path.join(f.root,'handoff.ps1');fs.writeFileSync(ps,script);
+ const state=f.asar+'.purge-handoff.json';const ready=path.join(f.root,'locker-ready');
+ const quote=s=>"'"+s.replaceAll("'","''")+"'";
+ const lockerScript=`$f=[IO.File]::Open(${quote(f.asar)},[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read);[IO.File]::WriteAllText(${quote(ready)},'ready');Start-Sleep -Seconds 30`;
+ const locker=spawn(powershell,['-NoProfile','-EncodedCommand',Buffer.from(lockerScript,'utf16le').toString('base64')],{stdio:'ignore'});
+ let helper;
+ try {
+  await until(()=>fs.existsSync(ready));
+  helper=spawn(powershell,['-NoProfile','-File',ps,'-ExePath',path.join(f.root,'none.exe'),'-AsarPath',f.asar,'-StatePath',state,'-Token','locked','-TimeoutSeconds','1','-PollMilliseconds','100'],{stdio:'ignore'});
+  await until(()=>readWindowsAsarHandoff(f.asar)?.phase==='expired');assert.equal(fs.readFileSync(f.asar,'utf8'),'original archive');assert.match(fs.readFileSync(state+'.log','utf8'),/waiting_for_unlock/);
+  locker.kill();helper.kill();await wait(300);
+  // Keep a known executable alive so we can replace the archive between ready
+  // and quit, simulating an official update during the handoff window.
+  const exe=path.join(f.root,'holder.exe');fs.copyFileSync(process.execPath,exe);const holder=spawn(exe,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});
+  fs.rmSync(state);helper=spawn(powershell,['-NoProfile','-File',ps,'-ExePath',exe,'-AsarPath',f.asar,'-StatePath',state,'-Token','changed','-TimeoutSeconds','10','-PollMilliseconds','100'],{stdio:'ignore'});
+  try {await until(()=>readWindowsAsarHandoff(f.asar)?.phase==='waiting_for_quit');fs.writeFileSync(f.asar,'new official archive');holder.kill();await until(()=>readWindowsAsarHandoff(f.asar)?.phase==='failed');assert.match(readWindowsAsarHandoff(f.asar).detail,/Archive changed/);assert.equal(fs.readFileSync(f.asar,'utf8'),'new official archive');}
+  finally{holder.kill();}
+ }finally{locker.kill();helper?.kill();await wait(300);fs.rmSync(f.root,{recursive:true,force:true});}
 });

@@ -1,6 +1,8 @@
 // First-run user notice, ported from YuJunZhiXue/dsh-purge 1.1.71 (MIT).
 // Original block: client.js 1.1.71 lines 7698-7703 (WELCOME_KEY /
 // readWelcomeAck / writeWelcomeAck) and 7846-7903 (WelcomeNotice).
+import * as rd from "react-dom";
+import WELCOME_CSS from "../styles/welcome.css";
 import { h, useState } from "../shared/react.js";
 import { useT } from "../shared/locale.js";
 
@@ -29,31 +31,24 @@ export function WelcomeNotice(props = {}) {
   if (!open) return null;
   // Branding-only difference: the community build points at its own repository.
   const repo = props.repo || t("welcome.repo");
-  return h(
+  const node = h(
     "div",
-    { className: "dshp-auth-mask", role: "dialog", "aria-modal": "true" },
+    {
+      className: "dshpp-welcome-mask",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-labelledby": "dshpp-welcome-title",
+    },
+    h("style", null, WELCOME_CSS),
     h(
       "div",
-      { className: "dshp-auth-modal", style: { width: "min(560px,100%)" } },
-      h("h2", null, t("welcome.title")),
+      { className: "dshpp-welcome-card" },
+      h("h2", { id: "dshpp-welcome-title" }, t("welcome.title")),
+      h("div", { className: "dshpp-welcome-lead" }, t("welcome.lead")),
+      h("div", { className: "dshpp-welcome-warn" }, t("welcome.warn")),
       h(
         "div",
-        {
-          className: "muted",
-          style: {
-            color: "var(--dsw-alias-label-secondary,#999)",
-            fontSize: 12,
-          },
-        },
-        t("welcome.lead"),
-      ),
-      h("div", { className: "dshp-auth-warn" }, t("welcome.warn")),
-      h(
-        "div",
-        {
-          className: "dshp-auth-legal",
-          style: { height: "auto", maxHeight: 280 },
-        },
+        { className: "dshpp-welcome-legal" },
         h("p", null, t("welcome.body")),
         h(
           "p",
@@ -64,10 +59,6 @@ export function WelcomeNotice(props = {}) {
               href: repo,
               target: "_blank",
               rel: "noopener noreferrer",
-              style: {
-                color: "var(--dsw-alias-label-brand, #8fbf9a)",
-                wordBreak: "break-all",
-              },
             },
             repo,
           ),
@@ -79,10 +70,10 @@ export function WelcomeNotice(props = {}) {
       ),
       h(
         "div",
-        { className: "dshp-auth-checks" },
+        { className: "dshpp-welcome-checks" },
         h(
           "label",
-          null,
+          { className: "dshpp-welcome-check" },
           h("input", {
             type: "checkbox",
             checked: checked,
@@ -93,7 +84,7 @@ export function WelcomeNotice(props = {}) {
       ),
       h(
         "div",
-        { className: "dshp-auth-ops" },
+        { className: "dshpp-welcome-ops" },
         h(
           "button",
           {
@@ -111,4 +102,8 @@ export function WelcomeNotice(props = {}) {
       ),
     ),
   );
+  // Escape overlay-seat clipping/transforms without relying on another page.
+  if (rd?.createPortal && typeof document !== "undefined" && document.body)
+    return rd.createPortal(node, document.body);
+  return node;
 }

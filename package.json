@@ -1,6 +1,6 @@
 {
   "name": "dsh-purge-community",
-  "version": "1.6.8",
+  "version": "1.6.9",
   "description": "Purge Community：独立维护的 DSH 插件，原生设置、宿主诊断、独立更新检查与安装、本机备份和回滚。",
   "type": "module",
   "main": "lib/index.js",
@@ -41,7 +41,7 @@
   "scripts": {
     "embed-prompt": "node scripts/embed-default-prompt.mjs",
     "build:client": "node packages/purge-panel/scripts/build.mjs --community",
-    "test": "node --test test/install-registry.test.mjs test/bootstrap-install.test.mjs test/community.test.mjs test/patch-anchors.test.mjs test/selfcheck.test.mjs test/asar-swap-fallback.test.mjs test/boost.test.mjs test/prompt-sections.test.mjs test/presets.test.mjs test/anchors.test.mjs test/audit.test.mjs test/instance.test.mjs test/update-policy.test.mjs test/market.test.mjs",
+    "test": "node --test test/install-registry.test.mjs test/bootstrap-install.test.mjs test/community.test.mjs test/patch-anchors.test.mjs test/selfcheck.test.mjs test/asar-swap-fallback.test.mjs test/windows-electron-handoff.test.mjs test/settings-api.test.mjs test/host-backup.test.mjs test/boost.test.mjs test/prompt-sections.test.mjs test/presets.test.mjs test/anchors.test.mjs test/audit.test.mjs test/instance.test.mjs test/update-policy.test.mjs test/market.test.mjs",
     "test:ui": "node packages/purge-panel/test/community.cjs",
     "check:client": "node packages/purge-panel/scripts/build.mjs --community --check",
     "diagnose": "node bin/community.js diagnose",

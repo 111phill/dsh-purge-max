@@ -10703,6 +10703,13 @@ function restartDsh(setNotice, setBusy, t, surface) {
     body: "{}"
   }).then((r) => r.json()).then((d) => {
     if (!d.ok) throw new Error(d.error || "restart failed");
+    if (d.manualQuit) {
+      clearTimeout(watch);
+      restartOnce = false;
+      setBusy(false);
+      setNotice({ kind: "ok", text: d.note || t("restart.manualQuit") });
+      return;
+    }
     const next = d && d.surface || surf;
     const full = next === "desktop" || d && d.fullApp || desktop;
     if (full && d.already) {
@@ -11201,6 +11208,15 @@ function PurgifySection({ page = "status", onStatus } = {}) {
             return;
           }
           if (action === "apply") {
+            if (d.manualQuit) {
+              setNotice({
+                kind: "ok",
+                text: "\u8865\u4E01\u5DF2\u5199\u5165\u78C1\u76D8\uFF0C\u5F53\u524D\u8FDB\u7A0B\u5C1A\u672A\u52A0\u8F7D\u3002\u6362\u5305\u52A9\u624B\u7B49\u5F85\u4F60\u4ECE\u7CFB\u7EDF\u6258\u76D8\u5B8C\u6574\u9000\u51FA\uFF1B\u5B8C\u6210\u540E\u8BF7\u624B\u52A8\u6253\u5F00 DSH\uFF0C\u4E0D\u4F1A\u81EA\u52A8\u91CD\u542F\u3002"
+              });
+              setAskRestart(false);
+              loadAll();
+              return;
+            }
             setNotice({ kind: "ok", text: tr("ok.done") });
             loadAll();
             if (d.restarting || d.needs_full_quit) {
@@ -12795,7 +12811,7 @@ function SettingsRoot(props = {}) {
       h(
         "span",
         { className: "dshpp-native-badge" },
-        (true ? "\u793E\u533A\u7248 " : "\u72EC\u7ACB\u754C\u9762 ") + "1.6.8"
+        (true ? "\u793E\u533A\u7248 " : "\u72EC\u7ACB\u754C\u9762 ") + "1.6.9"
       )
     ),
     h(CompatibilityNote, { status: backendStatus }),
@@ -12934,7 +12950,7 @@ function StatusStrip({ info }) {
     h(
       "span",
       { className: "dshpp-strip-item" },
-      "\u5BBF\u4E3B\u8865\u4E01 ",
+      info?.asar_still_sealed ? "\u78C1\u76D8\u8865\u4E01\uFF08\u5F53\u524D\u672A\u52A0\u8F7D\uFF09 " : "\u5BBF\u4E3B\u8865\u4E01 ",
       h(
         "b",
         null,
@@ -12950,7 +12966,7 @@ function StatusStrip({ info }) {
       "span",
       { className: "dshpp-strip-item" },
       "\u63D2\u4EF6 ",
-      h("b", null, info?.plugin_version || "1.6.8")
+      h("b", null, info?.plugin_version || "1.6.9")
     )
   );
 }
@@ -12959,7 +12975,8 @@ function LayoutNotice({ info }) {
   return h(
     "p",
     { className: "dshpp-warn", role: "status" },
-    "DSH \u5BBF\u4E3B\u4ECD\u5C01\u5728 app.asar \u91CC\uFF08\u901A\u5E38\u662F\u521A\u66F4\u65B0\u8FC7\uFF09\uFF1A\u5F53\u524D\u8DD1\u7684\u5BBF\u4E3B\u6CA1\u6709\u8865\u4E01\u3002\u70B9\u4E0B\u9762\u7684\u300C\u5E94\u7528\u300D\u4F1A\u89E3\u5F00 app.asar \u5E76\u5199\u5165\u8865\u4E01\uFF0C\u7136\u540E\u624B\u52A8\u9000\u51FA\u91CD\u5F00\u4E00\u6B21\u5373\u53EF\u3002"
+    "\u5F53\u524D\u8FDB\u7A0B\u4ECD\u52A0\u8F7D app.asar\uFF0C\u78C1\u76D8\u8865\u4E01\u8BA1\u6570\u4E0D\u4EE3\u8868\u5DF2\u52A0\u8F7D\u3002",
+    info.asar_handoff ? ` \u6362\u5305\u72B6\u6001\uFF1A${{ starting: "\u52A9\u624B\u542F\u52A8\u4E2D\uFF08\u5C1A\u672A\u786E\u8BA4\u5C31\u7EEA\uFF09", ready: "\u52A9\u624B\u5DF2\u5C31\u7EEA", waiting_for_quit: "\u7B49\u5F85\u4ECE\u7CFB\u7EDF\u6258\u76D8\u5B8C\u6574\u9000\u51FA", waiting_for_unlock: "\u7B49\u5F85\u5F52\u6863\u89E3\u9501", moving: "\u6B63\u5728\u4FDD\u7559\u539F\u5F52\u6863", complete: "\u6362\u5305\u5B8C\u6210\uFF0C\u8BF7\u624B\u52A8\u6253\u5F00 DSH", already_unsealed: "\u5F52\u6863\u5DF2\u79FB\u8D70\uFF0C\u8BF7\u624B\u52A8\u6253\u5F00 DSH", failed: "\u5931\u8D25\uFF0C\u8BF7\u67E5\u770B\u8BCA\u65AD\u5E76\u6309\u6062\u590D\u6587\u6863\u64CD\u4F5C", expired: "\u7B49\u5F85\u8D85\u65F6\uFF0C\u8BF7\u91CD\u65B0\u5E94\u7528\u6216\u6309\u6062\u590D\u6587\u6863\u64CD\u4F5C", helper_stopped: "\u52A9\u624B\u610F\u5916\u7ED3\u675F\uFF0C\u8BF7\u91CD\u65B0\u5E94\u7528\u6216\u6309\u6062\u590D\u6587\u6863\u64CD\u4F5C" }[info.asar_handoff.phase] || info.asar_handoff.phase}\u3002` : " \u70B9\u300C\u5E94\u7528\u300D\u5199\u5165\u8865\u4E01\uFF1BWindows \u4F1A\u663E\u793A\u6362\u5305\u52A9\u624B\u72B6\u6001\u3002\u5B8C\u6574\u9000\u51FA\u540E\uFF0C\u786E\u8BA4\u5F52\u6863\u5DF2\u4FDD\u7559\u518D\u624B\u52A8\u6253\u5F00\u3002"
   );
 }
 function VersionNotice({ info }) {
@@ -12971,11 +12988,11 @@ function VersionNotice({ info }) {
     );
   }
   const backend = info?.plugin_version;
-  if (!backend || backend === "1.6.8") return null;
+  if (!backend || backend === "1.6.9") return null;
   return h(
     "p",
     { className: "dshpp-warn", role: "status" },
-    `\u5B98\u65B9\u7248\u672C ${backend}\uFF1B\u754C\u9762 ${"1.6.8"}\u3002\u4E24\u8005\u4E0D\u4E00\u81F4\u65F6\u8BBE\u7F6E\u53EF\u80FD\u4E0D\u751F\u6548\uFF0C\u8BF7\u66F4\u65B0\u5230\u540C\u4E00\u7248\u672C\u540E\u91CD\u542F DSH\u3002`
+    `\u5B98\u65B9\u7248\u672C ${backend}\uFF1B\u754C\u9762 ${"1.6.9"}\u3002\u4E24\u8005\u4E0D\u4E00\u81F4\u65F6\u8BBE\u7F6E\u53EF\u80FD\u4E0D\u751F\u6548\uFF0C\u8BF7\u66F4\u65B0\u5230\u540C\u4E00\u7248\u672C\u540E\u91CD\u542F DSH\u3002`
   );
 }
 function PurgePage() {
@@ -12999,6 +13016,19 @@ function PurgePage() {
   useEffect(() => {
     if (tab === "status") loadInfo();
   }, [tab]);
+  useEffect(() => {
+    const phase = info?.asar_handoff?.phase;
+    if (![
+      "starting",
+      "ready",
+      "waiting_for_quit",
+      "waiting_for_unlock",
+      "moving"
+    ].includes(phase))
+      return;
+    const timer = setInterval(loadInfo, 2e3);
+    return () => clearInterval(timer);
+  }, [info?.asar_handoff?.phase]);
   const active = TABS.find((row) => row[0] === tab) || TABS[0];
   return h(
     "div",
@@ -13019,7 +13049,7 @@ function PurgePage() {
           true ? h(
             "span",
             { className: "dshpp-page-ver" },
-            "\u793E\u533A\u7248 1.6.8"
+            "\u793E\u533A\u7248 1.6.9"
           ) : null
         )
       )
@@ -13816,6 +13846,12 @@ function installRewindUi(ctx) {
 }
 
 // src/components/welcome.js
+var rd3 = __toESM(require("react-dom"), 1);
+
+// src/styles/welcome.css
+var welcome_default = "/* The first-run dialog is rendered before any settings page. It must own its\n   styles and cannot depend on the optional drill vendor stylesheet. */\n.dshpp-welcome-mask {\n  position: fixed;\n  inset: 0;\n  z-index: 2147483000;\n  display: grid;\n  place-items: center;\n  padding: 24px;\n  overflow: auto;\n  box-sizing: border-box;\n  background: rgb(0 0 0 / 35%);\n  color: var(--dsw-alias-label-primary, #171717);\n  font-family: inherit;\n  font-size: 14px;\n  line-height: 1.6;\n  text-align: left;\n}\n.dshpp-welcome-card {\n  width: min(600px, 100%);\n  max-height: calc(100dvh - 48px);\n  overflow: auto;\n  box-sizing: border-box;\n  padding: 24px;\n  border: 1px solid var(--dsw-alias-border-l1, #ddd);\n  border-radius: 16px;\n  background: var(--dsw-alias-bg-layer-1, #fff);\n  box-shadow: 0 16px 64px rgb(0 0 0 / 18%);\n}\n.dshpp-welcome-card h2 {\n  margin: 0 0 6px;\n  font: inherit;\n  font-size: 20px;\n  font-weight: 600;\n}\n.dshpp-welcome-card h3 {\n  margin: 16px 0 6px;\n  font: inherit;\n  font-weight: 600;\n}\n.dshpp-welcome-lead {\n  color: var(--dsw-alias-label-secondary, #666);\n}\n.dshpp-welcome-warn {\n  margin: 16px 0;\n  padding: 12px;\n  border-radius: 8px;\n  background: var(--dsw-alias-bg-layer-2, #f5f5f5);\n}\n.dshpp-welcome-legal p {\n  margin: 10px 0;\n}\n.dshpp-welcome-legal a {\n  color: var(--dsw-alias-label-brand, #436ee8);\n  overflow-wrap: anywhere;\n}\n.dshpp-welcome-check {\n  display: flex;\n  align-items: flex-start;\n  gap: 10px;\n  margin-top: 20px;\n  cursor: pointer;\n}\n.dshpp-welcome-check input {\n  flex: 0 0 auto;\n  width: 16px;\n  height: 16px;\n  margin: 4px 0 0;\n  accent-color: var(--dsw-alias-label-brand, #436ee8);\n}\n.dshpp-welcome-ops {\n  display: flex;\n  justify-content: flex-end;\n  margin-top: 20px;\n}\n.dshpp-welcome-ops button {\n  min-height: 36px;\n  padding: 8px 16px;\n  border: 0;\n  border-radius: 8px;\n  background: var(--dsw-alias-label-primary, #171717);\n  color: var(--dsw-alias-bg-base, #fff);\n  font: inherit;\n  cursor: pointer;\n}\n.dshpp-welcome-ops button:disabled {\n  opacity: 0.4;\n  cursor: default;\n}\n.dshpp-welcome-ops button:focus-visible,\n.dshpp-welcome-check input:focus-visible {\n  outline: 2px solid var(--dsw-alias-label-brand, #436ee8);\n  outline-offset: 3px;\n}\n@media (max-height: 600px) {\n  .dshpp-welcome-mask {\n    padding: 12px;\n  }\n  .dshpp-welcome-card {\n    max-height: calc(100dvh - 24px);\n    padding: 18px;\n  }\n}\n";
+
+// src/components/welcome.js
 var WELCOME_KEY = "dsh-purge-user-notice-v1";
 function readWelcomeAck() {
   try {
@@ -13836,31 +13872,24 @@ function WelcomeNotice(props = {}) {
   const [checked, setChecked] = useState(false);
   if (!open) return null;
   const repo = props.repo || t("welcome.repo");
-  return h(
+  const node = h(
     "div",
-    { className: "dshp-auth-mask", role: "dialog", "aria-modal": "true" },
+    {
+      className: "dshpp-welcome-mask",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-labelledby": "dshpp-welcome-title"
+    },
+    h("style", null, welcome_default),
     h(
       "div",
-      { className: "dshp-auth-modal", style: { width: "min(560px,100%)" } },
-      h("h2", null, t("welcome.title")),
+      { className: "dshpp-welcome-card" },
+      h("h2", { id: "dshpp-welcome-title" }, t("welcome.title")),
+      h("div", { className: "dshpp-welcome-lead" }, t("welcome.lead")),
+      h("div", { className: "dshpp-welcome-warn" }, t("welcome.warn")),
       h(
         "div",
-        {
-          className: "muted",
-          style: {
-            color: "var(--dsw-alias-label-secondary,#999)",
-            fontSize: 12
-          }
-        },
-        t("welcome.lead")
-      ),
-      h("div", { className: "dshp-auth-warn" }, t("welcome.warn")),
-      h(
-        "div",
-        {
-          className: "dshp-auth-legal",
-          style: { height: "auto", maxHeight: 280 }
-        },
+        { className: "dshpp-welcome-legal" },
         h("p", null, t("welcome.body")),
         h(
           "p",
@@ -13870,11 +13899,7 @@ function WelcomeNotice(props = {}) {
             {
               href: repo,
               target: "_blank",
-              rel: "noopener noreferrer",
-              style: {
-                color: "var(--dsw-alias-label-brand, #8fbf9a)",
-                wordBreak: "break-all"
-              }
+              rel: "noopener noreferrer"
             },
             repo
           )
@@ -13886,10 +13911,10 @@ function WelcomeNotice(props = {}) {
       ),
       h(
         "div",
-        { className: "dshp-auth-checks" },
+        { className: "dshpp-welcome-checks" },
         h(
           "label",
-          null,
+          { className: "dshpp-welcome-check" },
           h("input", {
             type: "checkbox",
             checked,
@@ -13900,7 +13925,7 @@ function WelcomeNotice(props = {}) {
       ),
       h(
         "div",
-        { className: "dshp-auth-ops" },
+        { className: "dshpp-welcome-ops" },
         h(
           "button",
           {
@@ -13918,6 +13943,9 @@ function WelcomeNotice(props = {}) {
       )
     )
   );
+  if (rd3?.createPortal && typeof document !== "undefined" && document.body)
+    return rd3.createPortal(node, document.body);
+  return node;
 }
 
 // src/state/redteam-mode.js
