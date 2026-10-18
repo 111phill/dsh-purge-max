@@ -207,10 +207,15 @@
         modelSelectionSettings: true
         backgroundMode: continuable
         # 子智能体是角色执行者（信息收集/资产梳理/漏洞发现/漏洞利用/内网渗透），**必须是叶子节点**：
-        # 靠提示词劝"不要再往下委派"是软的——模型完全可以无视。这里直接把委派工具从子会话的
-        # 工具目录里摘掉，子智能体连看都看不到 subagent / subagent_fork / workflow / ralph。
+        # 由 presets-plugin 将以下旧策略转换为原生子预设；父会话仍有完整工具。
+        # 子会话排除 subagent_fork / workflow / ralph；spawn 自身保留，由 maxDepth 限制。
         # maxDepth 同时收成 1 作为二道保险（默认 3 层太深，会白吃并发预算与上下文）。
         maxDepth: 1
+        toolFilter:
+          deny:
+            - subagent_fork
+            - workflow
+            - ralph
 
     # Fork omits model selection so provider/model stay equal to the parent and
     # the inherited history remains eligible for KV Cache reuse. This preset
