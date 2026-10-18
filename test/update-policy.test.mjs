@@ -103,3 +103,36 @@ test("all updater results suppress automatic restart and client reload requests"
   const result = rememberUpdate({ ok: true, restartAfter: true, reloadClient: true, needRestart: true });
   assert.equal(result.restartAfter, false); assert.equal(result.reloadClient, false); assert.equal(result.needRestart, true);
 });
+
+test("an uninstalled file: dependency is reported as skipped, not silently ignored", async () => {
+  // issue #118 的真实症状：profile 里有 file:<tgz> 依赖但没落地时，
+  // 旧 planUpdates() 直接 continue，面板看起来"更新成功但什么都没变"。
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "purge-plan-"));
+  const prev = process.env.DSH_HOME;
+  try {
+    const profile = path.join(home, "profiles/desktop");
+    fs.mkdirSync(path.join(profile, "node_modules"), { recursive: true });
+    fs.writeFileSync(path.join(home, "x.tgz"), "x");
+    fs.writeFileSync(
+      path.join(profile, "package.json"),
+      JSON.stringify({
+        name: "profile",
+        private: true,
+        dependencies: { "dsh-purge-community": `file:${path.join(home, "x.tgz")}` },
+        dsh: { profile: { bundles: ["dsh-purge-community"] } },
+      }),
+    );
+    process.env.DSH_HOME = home;
+    const { planUpdates } = await import("../lib/update.js");
+    const plan = planUpdates();
+    assert(Array.isArray(plan.skipped), "plan exposes skipped sites");
+    const hit = plan.skipped.find((s) => s.package === "dsh-purge-community");
+    assert(hit, "the file: dependency is surfaced");
+    assert.match(hit.reason, /没有安装目录/);
+    assert(hit.spec.startsWith("file:"), "the offending spec is included");
+  } finally {
+    if (prev === undefined) delete process.env.DSH_HOME;
+    else process.env.DSH_HOME = prev;
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});

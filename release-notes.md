@@ -1,4 +1,33 @@
-# 1.6.15
+# 1.6.16
+
+## 更正 1.6.15 的说法，补上真正失效的一环
+
+1.6.15 的 release notes 写「修复 #118」——**这个说法不准确**，本版更正。
+
+实测结论（本机隔离复现）：
+
+- issue 描述的机制是真的：`path.join('<x>.tgz', 'lib')` 再 `rm/cp` 必然 `ENOTDIR`；
+- 但在 1.6.14 的代码里，这条路径**走不到**：`detectInstallSites()` 遇到未安装的 `file:` 依赖返回 `dir: ""`，`planUpdates()` 直接 `continue`，tgz 从来不会成为覆盖目标。所以 1.6.15 加的过滤只是保险，不是修复。
+
+真正会伤到用户的是**静默跳过**：profile 里写着 `file:/path/x.tgz` 但没装成功时，更新计划里没有这个站点，界面照常走完，用户看到「更新完成」却什么都没变。
+
+本版：
+
+- `planUpdates()` 返回 `skipped`，每项带 `package` / `profile` / `spec` / `kind` / `reason`；`planReport()` 暴露为 `skippedSites`。面板与报告能直接说明「依赖是本地包但当前 profile 里没有安装目录」。
+- `overlayFromZip()` 继续过滤非目录目标（保险保留，防止将来规划器回退）。
+- 新增回归：`test/update-policy.test.mjs` 里用临时 profile 断言 `file:` 依赖必须出现在 `skipped` 而不是消失。
+
+## 本版测试
+
+```
+npm test              125 通过 / 0 失败（130 项，含子测试）
+npm run test:ui       面板三套 PASS
+npm run test:electron 真实 Electron 44.7.0：selfCheck ok、sealed 分支 broken 符合预期、全局 no-asar 未被改动
+npm run check:client  已提交 bundle 与源码一致
+npm run check:docs    文档版本一致
+npm run smoke         发行包解包可导入、预设解析、CLI 可用、无宿主安全降级
+```
+
 
 ## 逐条处理上游 issue
 
