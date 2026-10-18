@@ -31,8 +31,17 @@ test("sync and async replacement preserve executable/private modes and rollback 
     }
     // Independent concurrent replacements cannot share a temporary filename.
     const file = path.join(root, "parallel");
-    await Promise.all(Array.from({ length: 20 }, (_, i) => writers.atomicWriteFile(file, String(i))));
-    assert.match(fs.readFileSync(file, "utf8"), /^\d+$/);
+    const results = await Promise.allSettled(Array.from({ length: 20 }, (_, i) => writers.atomicWriteFile(file, String(i))));
+    // Windows may deny concurrent rename against an occupied destination.
+    // The atomic API reports that failure; it does not promise retry/queuing.
+    // Wait for every attempt before checking cleanup, including rejected ones.
+    assert(results.some(r => r.status === "fulfilled"));
+    for (const result of results) if (result.status === "rejected") {
+      assert.equal(process.platform, "win32");
+      assert(["EPERM", "EACCES", "EBUSY"].includes(result.reason.code));
+    }
+    const final = fs.readFileSync(file, "utf8");
+    assert(results.some((r, i) => r.status === "fulfilled" && final === String(i)));
     assert.equal(fs.readdirSync(root).filter(n => n.endsWith(".tmp")).length, 0);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
