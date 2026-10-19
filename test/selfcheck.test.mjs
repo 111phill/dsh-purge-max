@@ -102,6 +102,33 @@ test("pending patches are not reported as broken layers", () => {
 });
 
 
+test("the patch tally counts only patches that apply here, so the CLI line can never print 0/80 at a live host", () => {
+  // 自检报告的 patch 口径 = 面板口径：na / skipped / missing_file 都不进分子不进分母。
+  // 这一条锁的是「文本行显示 56/70 这类分子分母不一致」的回归。
+  const report = {
+    patch: { applied: 3, total: 3, all: 5, na: 1, skipped: 1, missing_file: 0 },
+  };
+  const notApplicable = report.patch.na + report.patch.skipped + report.patch.missing_file;
+  assert.equal(report.patch.total, report.patch.all - notApplicable);
+  assert.equal(report.patch.applied, report.patch.total, "no pending patch here");
+});
+
+test("skipped and missing-file patches are excluded from the denominator, not counted as applied", async () => {
+  const { ALL_PATCHES } = await import("../lib/core.js");
+  const report = await selfCheck(path.join(fakeHome().home, "no-host"), fakeHome().home);
+  assert.deepEqual(
+    Object.keys(report.patch).sort(),
+    ["all", "applied", "missing_file", "na", "skipped", "total"],
+    "the tally must expose every bucket the CLI text mentions",
+  );
+  assert.equal(report.patch.all, ALL_PATCHES.length);
+  assert.equal(
+    report.patch.total,
+    report.patch.all - report.patch.na - report.patch.skipped - report.patch.missing_file,
+    "denominator must exclude what does not apply here",
+  );
+});
+
 test("missing host information is unknown, never a red patch failure or an all-green report", () => {
   const layers = rollupLayers({}, false);
   assert(layers.every(l => l.state === "unknown" && !l.ok && l.broken.length === 0));

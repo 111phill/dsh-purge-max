@@ -148,13 +148,17 @@ if (LEGACY[op]) {
   } else if (op === "selfcheck" || op === "check-bypass") {
     // The extracted installer runs migrate before runtime dependencies are installed.
     const { selfCheck } = await import("../lib/selfcheck.js");
-    const report = await selfCheck(aiBase || "");
+    // 从 CLI 直接跑（node bin/community.js）时 argv 指向插件自身，currentHost() 认不出宿主；
+    // selfCheck 允许传空 aiBase 走自己的解析，这里把 DSH_HOME 一起传下去，避免用默认值再猜一次。
+    const report = await selfCheck(aiBase || "", process.env.DSH_HOME || findDshHome());
     process.exitCode = report.state === "broken" ? 1 : 0;
     if (rawArgs.includes("--json")) result = report;
     else {
+      const notApplicable = (report.patch.na || 0) + (report.patch.skipped || 0) + (report.patch.missing_file || 0);
+      const naNote = notApplicable ? `（另 ${notApplicable} 条本机不适用：目标插件/预设未装或已自定义跳过）` : "";
       const lines = [
         `Purge 破甲自检 · ${report.host || "(未定位宿主)"}`,
-        `  DSH ${report.host_version} · ${report.level} · 宿主补丁 ${report.patch.applied}/${report.patch.total}`,
+        `  DSH ${report.host_version} · ${report.level} · 宿主补丁 ${report.patch.applied}/${report.patch.total}${naNote}`,
         "",
       ];
       for (const layer of report.layers) {

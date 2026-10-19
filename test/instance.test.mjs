@@ -156,6 +156,34 @@ test("ambiguous, missing or conflicting profiles fail explicitly instead of choo
     f.close();
   }
 });
+test("a nested single-package host root resolves to the component directory that actually holds the agent", () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "purge-nested-host-")));
+  try {
+    // 单包布局：@deepseek-ai/dsh/node_modules/@deepseek-ai/{dsh-agent-loop,…}
+    const outer = path.join(root, "@deepseek-ai");
+    const nested = path.join(outer, "dsh", "node_modules", "@deepseek-ai");
+    for (const pkg of ["dsh-agent-loop", "dsh-system-prompt", "dsh-agent-instructions"]) {
+      fs.mkdirSync(path.join(nested, pkg, "lib"), { recursive: true });
+      fs.writeFileSync(path.join(nested, pkg, "package.json"), JSON.stringify({ name: `@deepseek-ai/${pkg}`, version: "0.2.1-rc.2" }));
+    }
+    fs.mkdirSync(path.join(outer, "dsh", "lib"), { recursive: true });
+    fs.writeFileSync(path.join(outer, "dsh", "package.json"), JSON.stringify({ name: "@deepseek-ai/dsh", version: "0.2.1-rc.2", bin: { dsh: "lib/bin.mjs" } }));
+    fs.writeFileSync(path.join(outer, "dsh", "lib", "bin.mjs"), "");
+
+    // 指到外层、指到 dsh 包、指到组件根，三种写法都要落到组件根。
+    for (const given of [outer, path.join(outer, "dsh"), nested]) {
+      assert.equal(currentHost({ options: undefined, aiBase: given, env: {}, argv: [] }), nested, `aiBase=${given}`);
+      assert.equal(currentHost({ env: { DSH_BASE: given }, argv: [] }), nested, `DSH_BASE=${given}`);
+    }
+    // 从 dsh 自己的 CLI 启动（argv）时返回 dsh 包所在的 @deepseek-ai 外层：
+    // 这是 resolveDshCli 拼 dsh/<bin> 的基准，改成组件根会让 npmCli 找不到 bin。
+    assert.equal(currentHost({ env: {}, argv: ["node", path.join(outer, "dsh", "lib", "bin.mjs")] }), outer);
+    // 指到不相干目录时不许「顺手找到」别的安装。
+    assert.equal(currentHost({ env: { DSH_BASE: path.join(root, "elsewhere") }, argv: [] }), path.join(root, "elsewhere"));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 test("Web CLI uses its own npm package metadata even when another Desktop is installed", () => {
   const f = fixture();
   try {
