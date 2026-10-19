@@ -1,6 +1,6 @@
 # 维护、迁移与恢复
 
-当前版本 **1.6.28**。包名 `dsh-purge-community`，来源仅本仓库正式 GitHub Releases；保留内部 Cordis ID `dsh-purge`、HTTP `/dsh-purge/*` 及用户数据目录。主安装步骤与镜像故障决策树统一见 [安装指南](INSTALLATION.md)；[AGENTS.md](../AGENTS.md) 是 Agent 操作说明。
+当前版本 **1.6.29**。包名 `dsh-purge-community`，来源仅本仓库正式 GitHub Releases；保留内部 Cordis ID `dsh-purge`、HTTP `/dsh-purge/*` 及用户数据目录。主安装步骤与镜像故障决策树统一见 [安装指南](INSTALLATION.md)；[AGENTS.md](../AGENTS.md) 是 Agent 操作说明。
 
 ## 兼容与操作边界
 
@@ -79,3 +79,7 @@ profile 不存在/有多个且未明确选择时停止。Web/Headless 只用当�
 [#19](https://github.com/kingcharleslzy-ai/dsh-purge/issues/19) 保持排查中。使用 `purge-community host-status` 或状态接口 `host_layout`，分别核对磁盘布局和当前服务入口。磁盘存在 app.asar 不足以证明当前服务从归档加载；归档已移走也不足以证明旧进程已经重载。Web/CLI 路径与 Desktop 路径不同，应保留并对照具体实例证据；不要直接移走归档、覆盖旧备份或反复重启来“消红”。
 
 本次只调整通用文件操作、CLI错误上报和只读诊断；未更改宿主补丁、换包助手、提示词或权限策略。完整验证见 [1.6.26](releases/1.6.26.md)。
+
+## 1.6.29：回滚与网络
+
+面板回滚通过归档安装并校验新进程加载，失败恢复本轮前的依赖图。更新代理只作用于插件请求，不修改系统；token 仅发往 GitHub API。环境变量需由实际宿主进程继承。旧版本损坏 link 可用校验后的新版发行包通过独立入口恢复；不要删用户设置或全局缓存。限制及实测方法见 [维护说明](maintenance-issues-34-35.md)。

@@ -25,7 +25,7 @@ The script finds DSH Desktop, downloads the latest verified release, checks SHA2
 
 Then fully quit and reopen DSH, open **Purge** in the left rail, press **Apply**, and quit/reopen once more.
 
-**Current version 1.6.28 — qualified against DSH Desktop 0.2.1-rc.2 (and rc.1).**
+**Current version 1.6.29 — qualified against DSH Desktop 0.2.1-rc.2 (and rc.1).**
 
 1.6.14 fixes #20: atomic replacement preserves executable/private rwx permissions and CLI backup failures stop replacement. Read-only `host-status` separates disk layout from process entry evidence. #19 remains open: its complete restart/handoff path is not fixed in this release. Existing features, settings and presets are retained; no automatic restart. See [acceptance scope](releases/1.6.14.md).
 
@@ -86,3 +86,7 @@ A conflicting slash command remains owned by its original plugin; Purge uses a p
 ### 1.6.28 maintenance release
 
 Partial multi-profile updates remain retryable. Legacy upstream ZIP archives are pinned to a commit and verified file by file against GitHub’s Git tree before installation; normal release TGZ checksums remain enforced. Diagnostics now distinguish unknown status from success, and rollback preserves dependencies and executable permissions. Existing settings and prompt policies remain unchanged; no automatic restart. See [maintenance review and validation limits](maintenance-issues-27-30.md). Issue #30 remains an investigation, not a claimed model-quality fix.
+
+### 1.6.29 maintenance
+
+Panel rollback now installs a verified snapshot archive, checks dependencies and imports the entry in a fresh process, and restores the pre-operation dependency graph on failure. Both plugin updater paths share token/proxy handling and visible fallback diagnostics. No OS proxy changes or automatic DSH restart. See [maintenance details](maintenance-issues-34-35.md).
