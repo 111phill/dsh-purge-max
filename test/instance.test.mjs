@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { resolveProfile, currentHost, resolveDshCli } from "../lib/instance.js";
+import { resolveProfile, currentHost, resolveDshCli, normalizeHostBase } from "../lib/instance.js";
 import {
   Maintenance,
   defaultProfile,
   installWithDsh,
 } from "../lib/community.js";
-import { selfCheck, hostLayoutLayer } from "../lib/selfcheck.js";
+import { selfCheck, hostLayoutLayer, resolveHost } from "../lib/selfcheck.js";
 function fixture() {
   const root = fs.realpathSync(
     fs.mkdtempSync(path.join(os.tmpdir(), "purge-instance-")),
@@ -172,8 +172,8 @@ test("a nested single-package host root resolves to the component directory that
 
     // 指到外层、指到 dsh 包、指到组件根，三种写法都要落到组件根。
     for (const given of [outer, path.join(outer, "dsh"), nested]) {
-      assert.equal(currentHost({ options: undefined, aiBase: given, env: {}, argv: [] }), nested, `aiBase=${given}`);
-      assert.equal(currentHost({ env: { DSH_BASE: given }, argv: [] }), nested, `DSH_BASE=${given}`);
+      assert.equal(resolveHost(given, { env: {}, argv: [] }), nested, `aiBase=${given}`);
+      assert.equal(resolveHost("", { env: { DSH_BASE: given }, argv: [] }), nested, `DSH_BASE=${given}`);
     }
     // 从 dsh 自己的 CLI 启动（argv）时返回 dsh 包所在的 @deepseek-ai 外层：
     // 这是 resolveDshCli 拼 dsh/<bin> 的基准，改成组件根会让 npmCli 找不到 bin。
@@ -459,4 +459,53 @@ test("the read-only property comes from the flag, not the Node version", async (
     env: { ...process.env, NODE_OPTIONS: "" },
   });
   assert.equal(without.trim().split("\n").pop(), "undefined");
+});
+
+// Regression: diagnostics must not change the package root used by installation.
+test("nested host discovery preserves CLI installation and normalizes diagnostics for every entry", async () => {
+  const f = fixture();
+  try {
+    f.profile("web");
+    const pkg = path.join(f.npm, "dsh");
+    const nested = path.join(pkg, "node_modules/@deepseek-ai");
+    for (const name of ["dsh-agent-loop", "dsh-system-prompt", "dsh-agent-instructions"]) {
+      fs.mkdirSync(path.join(nested, name, "lib"), {recursive:true});
+      fs.writeFileSync(path.join(nested,name,"package.json"), JSON.stringify({name:`@deepseek-ai/${name}`,version:"0.2.1-rc.2"}));
+    }
+    const entries = [
+      ...[f.npm,pkg,nested].map(aiBase=>({aiBase,env:{},argv:[]})),
+      ...[f.npm,pkg,nested].map(base=>({env:{DSH_BASE:base},argv:[]})),
+      {env:{PURGE_DSH_CLI:f.cli},argv:[]},
+      {env:{},argv:["node",f.cli]},
+    ];
+    for (const entry of entries) {
+      assert.equal(resolveHost(entry.aiBase || "",entry),nested);
+      assert.equal(resolveDshCli({...entry,resourcesPath:f.resources}).cli,f.cli);
+      let inspected;
+      const report=await selfCheck(entry.aiBase || "",f.home,{...entry,coreModule:{ALL_PATCHES:[],patchStatus:async host=>{inspected=host;return {};}}});
+      assert.equal(inspected,nested);
+      assert.equal(report.level,"qualified");
+    }
+    // Exercise the actual installWithDsh subprocess, not only its path helper.
+    const manager=new Maintenance({home:f.home,profile:path.join(f.home,"profiles/web"),aiBase:nested});
+    await installWithDsh("/fixture.tgz",manager,{env:{},argv:[],resourcesPath:f.resources});
+    assert.equal(JSON.parse(fs.readFileSync(path.join(f.home,"invocation.json"))).profile,"web");
+  } finally { f.close(); }
+});
+
+test("selfcheck never falls back to another install when startup target is absent or invalid", () => {
+  assert.equal(resolveHost("",{env:{},argv:[]}),"");
+  assert.equal(resolveHost("",{env:{PURGE_DSH_CLI:"/not-a-real-instance/dsh.js"},argv:[]}),"");
+});
+
+test("component discovery is bounded and never searches parents or other installations", () => {
+  const requested = path.resolve("isolated-target");
+  const probes = [];
+  const reader = {
+    realpathSync: p => p,
+    statSync(p) { probes.push(p); throw Object.assign(Error("absent"),{code:"ENOENT"}); },
+  };
+  assert.equal(normalizeHostBase(requested,reader),requested);
+  assert.equal(probes.length,9);
+  assert(probes.every(p => p.startsWith(requested + path.sep)));
 });

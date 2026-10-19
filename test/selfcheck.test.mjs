@@ -26,7 +26,7 @@ test("an empty home reports the layers as missing instead of pretending they are
     const report = await selfCheck(path.join(f.home, "no-host"), f.home);
     assert.equal(report.ok, false);
     assert.equal(report.host_version, "unknown");
-    assert.equal(report.layers.length, BYPASS_LAYERS.length + 3); // + runtime / config / layout
+    assert.equal(report.layers.filter(l => l.title !== "其他必需目标文件").length, BYPASS_LAYERS.length + 3); // + runtime / config / layout
     const runtime = report.layers.find((l) => l.kind === "runtime");
     assert.equal(runtime.ok, false, "empty inject must not pass");
     const config = report.layers.find((l) => l.kind === "config");
@@ -102,33 +102,6 @@ test("pending patches are not reported as broken layers", () => {
 });
 
 
-test("the patch tally counts only patches that apply here, so the CLI line can never print 0/80 at a live host", () => {
-  // 自检报告的 patch 口径 = 面板口径：na / skipped / missing_file 都不进分子不进分母。
-  // 这一条锁的是「文本行显示 56/70 这类分子分母不一致」的回归。
-  const report = {
-    patch: { applied: 3, total: 3, all: 5, na: 1, skipped: 1, missing_file: 0 },
-  };
-  const notApplicable = report.patch.na + report.patch.skipped + report.patch.missing_file;
-  assert.equal(report.patch.total, report.patch.all - notApplicable);
-  assert.equal(report.patch.applied, report.patch.total, "no pending patch here");
-});
-
-test("skipped and missing-file patches are excluded from the denominator, not counted as applied", async () => {
-  const { ALL_PATCHES } = await import("../lib/core.js");
-  const report = await selfCheck(path.join(fakeHome().home, "no-host"), fakeHome().home);
-  assert.deepEqual(
-    Object.keys(report.patch).sort(),
-    ["all", "applied", "missing_file", "na", "skipped", "total"],
-    "the tally must expose every bucket the CLI text mentions",
-  );
-  assert.equal(report.patch.all, ALL_PATCHES.length);
-  assert.equal(
-    report.patch.total,
-    report.patch.all - report.patch.na - report.patch.skipped - report.patch.missing_file,
-    "denominator must exclude what does not apply here",
-  );
-});
-
 test("missing host information is unknown, never a red patch failure or an all-green report", () => {
   const layers = rollupLayers({}, false);
   assert(layers.every(l => l.state === "unknown" && !l.ok && l.broken.length === 0));
@@ -152,4 +125,39 @@ test("standalone JSON and text distinguish uncertainty from a confirmed policy m
       assert.equal(mismatch.status,1,mismatch.stderr);
     }
   } finally {f.close();}
+});
+
+test("real selfCheck tally keeps missing required files visible and excludes only proven exceptions",async()=>{
+  const f=fakeHome();
+  const {ALL_PATCHES}=await import("../lib/core.js");
+  try {
+    const states=Object.fromEntries(ALL_PATCHES.map(p=>[p.id,"applied"]));
+    const selected=ALL_PATCHES.find(p=>p.settleWhenAbsent);
+    states[15]="missing_file";
+    states[16]="skipped"; // An unmatched anchor is not proof that the target is optional.
+    states[17]="pending";
+    states[24]="na";
+    states[selected.id]="skipped";
+    const report=await selfCheck(path.join(f.home,"host"),f.home,{env:{},argv:[],coreModule:{ALL_PATCHES,patchStatus:async()=>states}});
+    assert.equal(report.patch.missing_file,1);
+    assert.equal(report.patch.total,ALL_PATCHES.length-2);
+    assert.equal(report.patch.applied,ALL_PATCHES.length-5);
+    assert.equal(report.patch.not_applicable,2);
+    assert.equal(report.state,"broken");
+    assert(report.layers.some(l=>l.broken.some(b=>b.id===15)));
+    assert(report.layers.some(l=>l.broken.some(b=>b.id===16)));
+    assert(report.layers.some(l=>l.pending.includes(17)));
+    assert(!report.layers.some(l=>l.broken.some(b=>b.id===selected.id)));
+    const na=Object.fromEntries(ALL_PATCHES.map(p=>[p.id,"na"]));
+    const empty=await selfCheck(path.join(f.home,"host"),f.home,{env:{},argv:[],coreModule:{ALL_PATCHES,patchStatus:async()=>na}});
+    assert.equal(empty.patch.total,0);
+    assert.equal(empty.patch.not_applicable,ALL_PATCHES.length);
+  } finally {f.close();}
+});
+
+test("absent optional targets, disabled checks and unknown states retain distinct counts", async()=>{
+  const {tallyPatchStatus}=await import("../lib/selfcheck.js");
+  const patches=[{id:1},{id:2,optional:true},{id:3},{id:4},{id:5,settleWhenAbsent:true}];
+  assert.deepEqual(tallyPatchStatus({1:"missing_file",2:"missing_file",3:"off",5:"skipped"},patches),
+    {applied:0,total:2,all:5,na:0,skipped:1,missing_file:2,off:1,not_applicable:3});
 });
