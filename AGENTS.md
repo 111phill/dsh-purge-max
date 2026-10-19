@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.28** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
+> 当前版本：**1.6.29** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -131,7 +131,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.28 |
+| 插件 | `dsh-purge-community` 1.6.29 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
@@ -242,3 +242,11 @@ issue #19：`purge-community host-status` 输出 `disk.archive_exists` / `disk.u
 上游 ZIP 固定完整 commit SHA，并对全部文件校验 Git blob 摘要；GitHub API 不可用／清单不完整则停止，不能跳过校验。正式 TGZ 的 SHA256SUMS 校验保持不变。诊断返回 unknown 时保留未知状态，不能称为全绿，也不要自动重装。
 
 审查与测试边界见 [更新维护说明](docs/maintenance-issues-27-30.md)。普通任务能力反馈需独立复现，不能用安装器测试通过代替模型质量对照。
+
+## 22. 面板回滚与更新网络（1.6.29）
+
+#34：回滚必须走 `.tgz` 安装，禁止对快照裸目录执行 add；后者会产生缺依赖的 link。安装命令退出 0 不足以成功，需在新进程检查依赖和插件入口。失败时恢复本次操作前的依赖图和清单，保留当前用户设置；发生并发修改则停止覆盖并提供恢复目录。不要拿旧更新器的目录回滚测试代替面板 Maintenance.rollback 的真实 CLI 测试。
+
+#35：插件内所有更新请求共用 update-http。Token 从宿主的 GITHUB_TOKEN / GH_TOKEN 读取，仅发往 api.github.com，跨域不转发；代理优先 PURGE_HTTPS_PROXY，再 HTTPS_PROXY/HTTP_PROXY（支持小写），否则只读 Windows 静态系统代理；尊重 NO_PROXY。不改全局代理、不关证书校验、不改 Claude/SSH 网络。PAC/SOCKS 不支持时应明确提示；没有 token 仍可匿名，不要强迫用户提供密钥。不要把 token 或代理凭证写进公开 issue。
+
+错误区分额度耗尽、认证、资源不可用和网络超时；缓存/Atom 降级必须展示原因。环境设置需要由启动 DSH 的进程继承；不要为更新环境而擅自重启。独立 bootstrap 自包含下载器不属于插件内这层，不能声称所有入口都已继承。详见 [维护说明](docs/maintenance-issues-34-35.md)。

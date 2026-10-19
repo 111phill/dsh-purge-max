@@ -408,7 +408,9 @@ export function CommunityMaintenance() {
         setReleases(r.versions.filter((v) => v.asset));
         setRelease(r.versions.find((v) => v.asset)?.ref || "");
         setNotice(
-          r.error
+          r.degraded
+            ? `${r.degraded}；${r.stale ? "当前显示缓存列表，请稍后重试" : "已显示备用列表"}`
+            : r.error
             ? `检查更新失败：${r.error}`
             : r.hasUpdate
               ? `发现新版本 ${r.remoteVersion}`

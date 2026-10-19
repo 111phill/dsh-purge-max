@@ -70,6 +70,7 @@ function setup() {
     profile,
     root,
     aiBase,
+    verifier: async () => {},
     installer: async (file) => {
       installs.push(file);
     },
@@ -299,12 +300,12 @@ test("repeated rollback stages fresh verified code instead of reusing mutable pa
     const b = await f.manager.backup();
     await f.manager.rollback(b.id);
     const first = f.installs.at(-1);
-    fs.writeFileSync(path.join(first, "client.js"), "changed linked code");
+    fs.writeFileSync(first, "changed archive");
     await f.manager.rollback(b.id);
     const second = f.installs.at(-1);
     assert.notEqual(first, second);
     assert.equal(
-      fs.readFileSync(path.join(second, "client.js"), "utf8"),
+      execFileSync("tar", ["-xOzf", second, "package/client.js"], {encoding:"utf8"}),
       "original client",
     );
   } finally {
@@ -328,7 +329,7 @@ test("release checksum failure stops before installation", async () => {
         version: "1.2.0",
         asset: "https://github.com/fixture/asset",
         sums: "https://github.com/fixture/sums",
-      }),
+      }, globalThis.fetch),
       /SHA256/,
     );
     assert.equal(f.installs.length, 0);
@@ -386,9 +387,9 @@ test("large files are stored once and restored byte-for-byte", async () => {
     // 回滚能把内容完整写回
     const before = f.installs.length;
     await f.manager.rollback(a.id);
-    const staged = f.installs.slice(before).find((p) => p.endsWith(PACKAGE));
+    const staged = f.installs.slice(before).find((p) => p.endsWith(PACKAGE + ".tgz"));
     assert(staged, "rollback staged the plugin");
-    assert(fs.readFileSync(path.join(staged, "client.js")).equals(big), "bytes restored");
+    assert(execFileSync("tar", ["-xOzf", staged, "package/client.js"]).equals(big), "bytes restored");
 
     const usage = f.manager.usage();
     assert(usage.objects > 0);
@@ -480,5 +481,44 @@ test('a failed fresh install quarantines partial package and retains user settin
     assert.equal(fs.readFileSync(path.join(f.manager.base, failed[0], 'incomplete.js'),'utf8'), 'partial download');
     assert.equal(fs.readFileSync(path.join(f.profile,'cordis.patch.yml'),'utf8'), 'PRIVATE CURRENT SETTINGS');
     assert.equal(fs.readFileSync(path.join(f.home,'prompt-inject.md'),'utf8'), 'PRIVATE USER PROMPT');
+  } finally { f.close(); }
+});
+
+test('panel rollback restores the full prior graph on installer or entry import failure', async () => {
+  for (const stage of ['install','verify']) {
+    const f = setup();
+    try {
+      fs.writeFileSync(path.join(f.profile,'pnpm-lock.yaml'),'old lock');
+      const snapshot = await f.manager.backup();
+      const manifest = fs.readFileSync(path.join(f.profile,'package.json'));
+      f.manager.installer = async archive => {
+        assert(archive.endsWith('.tgz'));
+        const p = JSON.parse(manifest); p.dependencies[PACKAGE] = 'file:' + archive;
+        fs.writeFileSync(path.join(f.profile,'package.json'),JSON.stringify(p));
+        fs.writeFileSync(path.join(f.profile,'pnpm-lock.yaml'),'mutated lock');
+        fs.writeFileSync(path.join(f.root,'client.js'),'broken code');
+        if(stage === 'install') throw Error('installer failed');
+      };
+      f.manager.verifier = async () => { throw Error('ERR_MODULE_NOT_FOUND'); };
+      await assert.rejects(f.manager.rollback(snapshot.id),/回滚前依赖、安装与清单已恢复/);
+      assert.deepEqual(fs.readFileSync(path.join(f.profile,'package.json')),manifest);
+      assert.equal(fs.readFileSync(path.join(f.profile,'pnpm-lock.yaml'),'utf8'),'old lock');
+      assert.equal(fs.readFileSync(path.join(f.root,'client.js'),'utf8'),'original client');
+      assert.equal(fs.readFileSync(path.join(f.profile,'cordis.patch.yml'),'utf8'),'PRIVATE CURRENT SETTINGS');
+    } finally { f.close(); }
+  }
+});
+
+test('fresh-process verifier rejects a version-correct package with missing dependencies', async () => {
+  const {verifyInstalledPackage} = await import('../lib/rollback-transaction.js');
+  const f=setup();
+  try {
+    const meta={name:PACKAGE,version:'1.2.0',main:'index.js',type:'module',dependencies:{'purge-nonexistent-test-dependency':'1.0.0'}};
+    fs.writeFileSync(path.join(f.root,'package.json'),JSON.stringify(meta));
+    fs.writeFileSync(path.join(f.root,'index.js'),'export const valid=true;');
+    await assert.rejects(verifyInstalledPackage(f.profile,meta),/Cannot find module/);
+    delete meta.dependencies;
+    fs.writeFileSync(path.join(f.root,'package.json'),JSON.stringify(meta));
+    await verifyInstalledPackage(f.profile,meta);
   } finally { f.close(); }
 });

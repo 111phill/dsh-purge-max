@@ -316,3 +316,17 @@ test("selfcheck inferred and unknown values show warning labels and explanation 
   assert(!rendered.includes("is-bad"));
   await unmount(tree);
 });
+
+test('cached releases and failed fallbacks are visible instead of claiming latest', async () => {
+  for (const failed of [false,true]) {
+    const h=harness(c=>c.method==='GET' ? reply({ok:true,backups:[]}) : reply(failed
+      ? {ok:false,error:'API 额度耗尽；Atom 降级失败：代理超时'}
+      : {ok:true,versions:[],hasUpdate:false,stale:true,degraded:'API 额度耗尽，沿用最近一次成功列表'}));
+    const tree=await mount(h);
+    await click(tree,'检查社区版更新');
+    assert(text(tree).includes('额度耗尽'));
+    assert(text(tree).includes(failed ? '代理超时' : '缓存列表'));
+    assert(!text(tree).includes('当前已是最新正式版'));
+    await unmount(tree);
+  }
+});
