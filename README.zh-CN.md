@@ -9,11 +9,15 @@
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.6.29** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
+当前版本 **1.6.30** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
 
 </div>
 
 ---
+
+## 1.6.30：嵌套安装自检与准确诊断
+
+支持 npm 单包嵌套宿主布局，分开识别安装根与组件根，避免自检正常却无法升级或回滚。必需文件缺失、待应用和未知状态如实显示，不再误计为全部成功。只检查指定实例，保留现有配置与功能，不自动重启。[维护与测试说明](docs/maintenance-pr-33.md) · [发行说明](docs/releases/1.6.30.md)
 
 ## 1.6.29：修复面板回滚与更新网络
 
