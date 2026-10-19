@@ -463,3 +463,22 @@ test("overlay targets that are files are skipped instead of aborting the update"
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('a failed fresh install quarantines partial package and retains user settings', async () => {
+  const f = setup();
+  try {
+    fs.rmSync(f.root, { recursive: true });
+    f.manager.installer = async () => {
+      fs.mkdirSync(f.root, { recursive: true });
+      fs.writeFileSync(path.join(f.root, 'incomplete.js'), 'partial download');
+      throw Error('fixture install failed');
+    };
+    await assert.rejects(f.manager.install(f.candidate), /fixture install failed.*半安装目录已隔离/);
+    assert.equal(fs.existsSync(f.root), false);
+    const failed = fs.readdirSync(f.manager.base).filter(x => x.startsWith('failed-install-'));
+    assert.equal(failed.length, 1);
+    assert.equal(fs.readFileSync(path.join(f.manager.base, failed[0], 'incomplete.js'),'utf8'), 'partial download');
+    assert.equal(fs.readFileSync(path.join(f.profile,'cordis.patch.yml'),'utf8'), 'PRIVATE CURRENT SETTINGS');
+    assert.equal(fs.readFileSync(path.join(f.home,'prompt-inject.md'),'utf8'), 'PRIVATE USER PROMPT');
+  } finally { f.close(); }
+});
