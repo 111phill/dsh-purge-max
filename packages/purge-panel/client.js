@@ -10405,7 +10405,7 @@ function CommunityMaintenance() {
         setReleases(r.versions.filter((v) => v.asset));
         setRelease(r.versions.find((v) => v.asset)?.ref || "");
         setNotice(
-          r.error ? `\u68C0\u67E5\u66F4\u65B0\u5931\u8D25\uFF1A${r.error}` : r.hasUpdate ? `\u53D1\u73B0\u65B0\u7248\u672C ${r.remoteVersion}` : "\u5F53\u524D\u5DF2\u662F\u6700\u65B0\u6B63\u5F0F\u7248"
+          r.degraded ? `${r.degraded}\uFF1B${r.stale ? "\u5F53\u524D\u663E\u793A\u7F13\u5B58\u5217\u8868\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5" : "\u5DF2\u663E\u793A\u5907\u7528\u5217\u8868"}` : r.error ? `\u68C0\u67E5\u66F4\u65B0\u5931\u8D25\uFF1A${r.error}` : r.hasUpdate ? `\u53D1\u73B0\u65B0\u7248\u672C ${r.remoteVersion}` : "\u5F53\u524D\u5DF2\u662F\u6700\u65B0\u6B63\u5F0F\u7248"
         );
       } else {
         setNotice(maintenanceNotice(op, r));

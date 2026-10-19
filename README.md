@@ -9,15 +9,17 @@
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.6.28** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
+当前版本 **1.6.29** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
 
 </div>
 
 ---
 
-## 1.6.28：更新、校验与回滚更可靠
+## 1.6.29：修复面板回滚与更新网络
 
-多 profile 更新失败后可继续重试，不再把部分成功当成全部完成；上游 ZIP 固定提交并逐文件验证。自检读不到状态时明确显示未知，修复版本排序、状态戳和回滚依赖丢失。保留现有功能与用户设置，不自动应用或重启。[修复与测试边界](docs/maintenance-issues-27-30.md) · [发行说明](docs/releases/1.6.28.md)
+面板回滚改用安装归档，并在报告成功前验证依赖和插件入口；失败时恢复本轮开始前的安装。社区版与旧更新通道统一网络层，支持 GitHub token、环境代理和 Windows 静态系统代理，限流、降级失败及旧缓存状态明确可见。不改系统代理，不自动重启。[维护与测试说明](docs/maintenance-issues-34-35.md) · [发行说明](docs/releases/1.6.29.md)
+
+> 1.6.28 的目录回滚修复未覆盖面板回滚入口，#34 在本版单独修复。
 
 ## 1.6.27：插话回归修复
 
