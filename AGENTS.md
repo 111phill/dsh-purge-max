@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.27** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
+> 当前版本：**1.6.28** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -131,7 +131,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.27 |
+| 插件 | `dsh-purge-community` 1.6.28 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
@@ -234,3 +234,11 @@ issue #19：`purge-community host-status` 输出 `disk.archive_exists` / `disk.u
 安装、应用和加载是三个不同阶段。安装不自动应用或重启；应用会备份并写磁盘，当前进程不热重载这些模块。用户方便时手动退出并重开后再确认真实界面。排查 #25 请提供 DSH/插件版本、系统、直接发送还是队列插话、单次还是重复点击、当前是否正在生成；不要索取整份配置、提示词、令牌或会话日志。
 
 验证：`npm test` 包含真实方法运行、延迟投影重复请求、消息消费、队列顺序与旧版迁移测试。可设置 `PURGE_TEST_HOST` 指向本机只读 `@deepseek-ai` 目录，运行 `node --test test/steering-runtime.test.mjs` 对实际安装方法验收。该测试使用内存服务，不等于完整桌面或真实模型验收。详见 [插话维护说明](docs/steer-notes.md)。
+
+## 21. 多 profile 更新与源码 ZIP 校验
+
+维护更新时以每个 profile 的实际包版本为准，不能把 `applied: true` 当成全部成功：需同时检查 `ok`、`hasUpdate`、`targets` 和错误。部分安装仍可能需要用户手动重启，但重启不能替代失败目标的重试。不要因此修改用户的更新开关、版本 pin、提示词或权限。
+
+上游 ZIP 固定完整 commit SHA，并对全部文件校验 Git blob 摘要；GitHub API 不可用／清单不完整则停止，不能跳过校验。正式 TGZ 的 SHA256SUMS 校验保持不变。诊断返回 unknown 时保留未知状态，不能称为全绿，也不要自动重装。
+
+审查与测试边界见 [更新维护说明](docs/maintenance-issues-27-30.md)。普通任务能力反馈需独立复现，不能用安装器测试通过代替模型质量对照。

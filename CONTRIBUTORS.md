@@ -13,4 +13,6 @@
 | [wtfsb19](https://github.com/wtfsb19) | [issue #10](https://github.com/kingcharleslzy-ai/dsh-purge/issues/10)：Windows 生命周期故障分析、对照实测与验证边界。 |
 | [MingShi350](https://github.com/MingShi350) | [issue #9](https://github.com/kingcharleslzy-ai/dsh-purge/issues/9)：现代设置接口与 legacy shim 冲突的定位和验证。 |
 
+| [loLollipop / Lollipopdamn](https://github.com/loLollipop) | [PR #27](https://github.com/kingcharleslzy-ai/dsh-purge/pull/27)：诊断误报、版本比较、状态戳、文件占用与回滚路径的修复及回归测试。 |
+
 第三方代码来源另见 [NOTICE.md](NOTICE.md)。欢迎通过 issue 提供复现与验证反馈，或通过 PR 贡献代码。
