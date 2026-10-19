@@ -61,3 +61,12 @@ test('semver ignores build metadata and handles large prerelease numbers',()=>{
   assert.equal(versionIsNewer('1.0.0-rc.1+z','1.0.0-rc.1+a'),false);
   assert.equal(versionIsNewer('1.0.0-rc.9007199254740993','1.0.0-rc.9007199254740992'),true);
 });
+test('failed ZIP verification leaves target untouched, without even a rollback directory swap',async t=>{
+  const {overlayFromZip}=await import('../lib/update-install.js');const home=fixture(t),dest=path.join(home,'install');fs.mkdirSync(dest);fs.writeFileSync(path.join(dest,'package.json'),'original');
+  const before=fs.statSync(dest),rename=fs.renameSync;let swaps=0;
+  try {
+    fs.renameSync=(a,b)=>{if(a===dest||b===dest)swaps++;return rename(a,b);};
+    await assert.rejects(overlayFromZip([dest],'master',{home},{json,fetch:async()=>({arrayBuffer:async()=>zip({'repo/package.json':'tampered'})})}),/校验.*未改写/);
+  }finally{fs.renameSync=rename;}
+  assert.equal(swaps,0);assert.equal(fs.statSync(dest).ino,before.ino);assert.equal(fs.readFileSync(path.join(dest,'package.json'),'utf8'),'original');
+});
