@@ -186,7 +186,9 @@ async function presetReport(text) {
 }
 
 test("#38 shipped default preset with comments and unrelated JS tags needs no work (LF/CRLF)", async()=>{
-  const text=fs.readFileSync(new URL("../presets/unrestricted/agent.cordis.yml",import.meta.url),"utf8");
+  // Windows Git checkouts may already use CRLF. Normalize once before constructing
+  // the two valid fixtures, instead of accidentally making malformed CRCRLF.
+  const text=fs.readFileSync(new URL("../presets/unrestricted/agent.cordis.yml",import.meta.url),"utf8").replace(/\r\n/g,"\n");
   for (const value of [text,text.replace(/\n/g,"\r\n")]) {
     const {actual,report,layer}=await presetReport(value);
     assert.equal(actual[76],"skipped");
@@ -234,6 +236,7 @@ test("#38 malformed, dynamic, inherited or ambiguous persona data stays unknown,
     persona("'hello'").replace("  config:","  <<: {disabled: true}\n  config:"),
     persona("'hello'").replace("    prefix:","    <<: {prefix: inherited}\n    prefix:"),
     "- id: another\n  config: {}\n",
+    persona("'hello'").replace(/\n/g,"\r\r\n"),
   ]) {
     assert.equal(inspectPresetText(text),"unknown",text);
     const {layer}=await presetReport(text);
