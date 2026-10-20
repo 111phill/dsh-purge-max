@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { resolveProfile, currentHost, resolveDshCli, normalizeHostBase, diagnosticHost } from "../lib/instance.js";
 import {
   Maintenance,
@@ -10,6 +11,7 @@ import {
   installWithDsh,
 } from "../lib/community.js";
 import { selfCheck, hostLayoutLayer, resolveHost } from "../lib/selfcheck.js";
+import { patchDrift } from "../lib/core.js";
 function fixture() {
   const root = fs.realpathSync(
     fs.mkdtempSync(path.join(os.tmpdir(), "purge-instance-")),
@@ -71,6 +73,36 @@ test("#40 archive diagnostics select only the same installation's physical targe
     assert.equal(diagnosticHost({env:{},argv:[]}), "", "no global or other-app fallback");
     const reader = {statSync(){throw Object.assign(Error("denied"),{code:"EACCES"});}};
     assert.equal(diagnosticHost({...options,diskReader:reader}), f.desktop, "unreadable preferred target is not skipped");
+  } finally {f.close();}
+});
+
+test("#40 standalone diagnose without a selected instance stays unknown", () => {
+  const f = fixture();
+  try {
+    const env = {...process.env,DSH_HOME:f.home};
+    delete env.DSH_BASE; delete env.PURGE_DSH_CLI;
+    const result = spawnSync(process.execPath, ["bin/community.js","diagnose","--json"], {env,encoding:"utf8"});
+    assert.equal(result.status,0,result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.host,"");
+    assert.equal(report.state,"unknown");
+    assert.equal(report.checked,0);
+    assert.deepEqual(report.missing,[]);
+  } finally {f.close();}
+});
+
+test("#40 drift diagnostics use the selected surface rather than the caller's environment", async () => {
+  const f = fixture();
+  try {
+    const patches = [
+      {id:998,file:"agent-instructions",surfaces:["web"],replacements:[]},
+      {id:999,file:"agent-instructions",surfaces:["desktop"],replacements:[]},
+    ];
+    for (const [surface, expected] of [["desktop",999],["web",998]]) {
+      const report = await patchDrift(f.desktop,patches,{surface,dshHome:f.home});
+      assert.equal(report.checked,1);
+      assert.deepEqual(report.missing.map(row=>row.id),[expected]);
+    }
   } finally {f.close();}
 });
 test("unique web profile is shared by maintenance and diagnostics, without desktop fallback", async () => {
