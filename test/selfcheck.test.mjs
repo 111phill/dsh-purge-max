@@ -7,6 +7,8 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { selfCheck, rollupLayers, BYPASS_LAYERS } from "../lib/selfcheck.js";
+import { inspectPresetText, refinePresetDiagnostic } from "../lib/preset-diagnostic.js";
+import { ALL_PATCHES, patchStatus } from "../lib/core.js";
 
 function fakeHome() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "purge-selfcheck-"));
@@ -160,4 +162,124 @@ test("absent optional targets, disabled checks and unknown states retain distinc
   const patches=[{id:1},{id:2,optional:true},{id:3},{id:4},{id:5,settleWhenAbsent:true}];
   assert.deepEqual(tallyPatchStatus({1:"missing_file",2:"missing_file",3:"off",5:"skipped"},patches),
     {applied:0,total:2,all:5,na:0,skipped:1,missing_file:2,off:1,not_applicable:3});
+});
+
+const persona = (prefix) => `- id: persona\n  name: '@deepseek-ai/dsh-persona'\n  config:\n    prefix: ${prefix}\n`;
+
+async function presetReport(text) {
+  const f = fakeHome();
+  const file = path.join(f.home, ".agent-presets/unrestricted/agent.cordis.yml");
+  const host = path.join(f.home, "host");
+  fs.mkdirSync(path.dirname(file), {recursive:true});
+  fs.mkdirSync(path.join(host, "dsh-agent-loop"), {recursive:true});
+  fs.writeFileSync(path.join(host, "dsh-agent-loop/package.json"), '{"version":"0.2.1-rc.2"}');
+  fs.writeFileSync(file, text);
+  try {
+    const original = fs.readFileSync(file);
+    // Exercise the actual patch engine for #76, not a hardcoded "skipped" fixture.
+    const actual = await patchStatus(host, [ALL_PATCHES.find(p=>p.id===76)], {dshHome:f.home,surface:"web"});
+    const states = {...Object.fromEntries(ALL_PATCHES.map(p=>[p.id,"applied"])),...actual};
+    const report = await selfCheck(host,f.home,{env:{},argv:[],coreModule:{ALL_PATCHES,patchStatus:async()=>states}});
+    assert.deepEqual(fs.readFileSync(file), original, "diagnostics must preserve every preset byte");
+    return {actual,report,layer:report.layers.find(l=>l.ids.includes(76))};
+  } finally {f.close();}
+}
+
+test("#38 shipped default preset with comments and unrelated JS tags needs no work (LF/CRLF)", async()=>{
+  // Windows Git checkouts may already use CRLF. Normalize once before constructing
+  // the two valid fixtures, instead of accidentally making malformed CRCRLF.
+  const text=fs.readFileSync(new URL("../presets/unrestricted/agent.cordis.yml",import.meta.url),"utf8").replace(/\r\n/g,"\n");
+  for (const value of [text,text.replace(/\n/g,"\r\n")]) {
+    const {actual,report,layer}=await presetReport(value);
+    assert.equal(actual[76],"skipped");
+    assert.equal(layer.state,"ok");
+    assert.equal(layer.applied,4);
+    assert.equal(layer.required,4);
+    assert.deepEqual(layer.absent,[76]);
+    assert.match(layer.note,/无需处理/);
+    assert.equal(report.patch.total,ALL_PATCHES.length-1);
+    assert.equal(report.patch.applied,ALL_PATCHES.length-1);
+  }
+});
+
+test("#38 matching work remains pending and an existing applied marker remains applied",async()=>{
+  const pending=await presetReport("- id: persona\n  name: '@deepseek-ai/dsh-persona'\n  config:\n              prefix: You are a helpful software engineer assistant.\n");
+  assert.equal(pending.actual[76],"pending");
+  assert.equal(pending.layer.state,"pending");
+  assert(pending.layer.pending.includes(76));
+  const applied=await presetReport("- id: persona\n  name: '@deepseek-ai/dsh-persona'\n  config:\n              prefix: \"\"\n");
+  assert.equal(applied.actual[76],"applied");
+  assert.equal(applied.layer.applied,5);
+});
+
+test("#38 unmatched identity text stays broken even when YAML indentation or quoting differs",async()=>{
+  for (const prefix of ['"You are a coding agent powered by the example model."',
+    '|\\n      You are a helpful software engineer assistant.'.replace("\\n","\n"),
+    '"You  are a helpful software engineer assistant."']) {
+    const {actual,layer}=await presetReport(persona(prefix));
+    assert.equal(actual[76],"skipped");
+    assert.equal(layer.state,"broken");
+    assert.deepEqual(layer.broken,[{id:76,status:"skipped"}]);
+    assert.equal(layer.required,5);
+  }
+});
+
+test("#38 malformed, dynamic, inherited or ambiguous persona data stays unknown, never green",async()=>{
+  for (const text of [
+    persona("[invalid"), persona("!!js 'doNotExecute()'"), persona("42"),
+    persona("'{{externalPrefix}}'"), persona("'${externalPrefix}'"),
+    persona("*missing"), persona("'hello'")+persona("'second'"),
+    "- id: persona\n  name: '@deepseek-ai/dsh-persona'\n  config: {}\n",
+    persona("'hello'").replace("  config:","  disabled: !!js true\n  config:"),
+    persona("'hello'").replace("  config:","  disabled: true\n  config:"),
+    persona("'hello'").replace("  config:","  config: {}\n  config:"),
+    persona("'hello'").replace("  config:","  <<: {disabled: true}\n  config:"),
+    persona("'hello'").replace("    prefix:","    <<: {prefix: inherited}\n    prefix:"),
+    "- id: another\n  config: {}\n",
+    persona("'hello'").replace(/\n/g,"\r\r\n"),
+  ]) {
+    assert.equal(inspectPresetText(text),"unknown",text);
+    const {layer}=await presetReport(text);
+    assert.equal(layer.state,"unknown",text);
+    assert.equal(layer.required,5);
+  }
+});
+
+test("#38 ignores identity sentences in comments and accepts a literal empty prefix",()=>{
+  assert.equal(inspectPresetText("# You are a helpful software engineer assistant.\n"+persona("'custom persona'")),"not_needed");
+  assert.equal(inspectPresetText(persona('""')),"not_needed");
+});
+
+test("#38 unreadable/missing preset stays unknown; reads only selected home and never evaluates JS",()=>{
+  for(const code of ["ENOENT","EACCES"]) {
+    const status={76:"skipped",16:"missing_file"};
+    const refined=refinePresetDiagnostic(status,"/chosen-home",{readFileSync(file){
+      assert.equal(file,path.join("/chosen-home",".agent-presets/unrestricted/agent.cordis.yml"));
+      throw Object.assign(Error("fixture"),{code});
+    }});
+    assert.equal(refined[76],"unknown");
+    assert.equal(refined[16],"missing_file");
+    assert.equal(status[76],"skipped");
+  }
+  delete globalThis.purgeDiagnosticExecuted;
+  assert.equal(inspectPresetText(persona("!!js globalThis.purgeDiagnosticExecuted = true")),"unknown");
+  assert.equal(globalThis.purgeDiagnosticExecuted,undefined);
+  for(const state of ["pending","applied","missing_file","na","unknown"]) {
+    assert.equal(refinePresetDiagnostic({76:state},"/unused",{readFileSync(){throw Error("must not read");}})[76],state);
+  }
+});
+
+test("#38 does not exempt arbitrary optional skips or required missing files",()=>{
+  const states=Object.fromEntries(ALL_PATCHES.map(p=>[p.id,"applied"]));
+  states[71]="skipped";states[76]="not_needed";states[16]="missing_file";
+  const layers=rollupLayers(states,true);
+  const identity=layers.find(l=>l.ids.includes(76));
+  assert.equal(identity.state,"broken");
+  assert(identity.broken.some(p=>p.id===71));
+  assert.deepEqual(identity.absent,[76]);
+  assert(layers.some(l=>l.broken.some(p=>p.id===16)));
+  states[76]="unknown";
+  const mixed=rollupLayers(states,true).find(l=>l.ids.includes(76));
+  assert.equal(mixed.state,"broken","an uncertain preset must not hide another confirmed failure");
+  assert(mixed.broken.some(p=>p.id===71));
 });

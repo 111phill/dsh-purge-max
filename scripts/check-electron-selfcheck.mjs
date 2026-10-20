@@ -29,10 +29,13 @@ try {
     assert(process.versions.electron, 'must run actual Electron');
     const resources=process.env.PURGE_TEST_RESOURCES, host=resources+'/app/dsh/node_modules/@deepseek-ai', archive=resources+'/app.asar';
     const before=process.noAsar;
+    if (process.env.PURGE_TEST_PHASE === 'sealed') {
     assert.equal(fs.statSync(archive).isFile(),false,'reproduce ASAR virtual-directory behavior');
     assert.equal(disk.statSync(archive).isFile(),true);
     assert.equal(hostLayoutLayer(host).broken[0].status,'sealed');
-    disk.unlinkSync(archive);
+    assert.equal(process.noAsar,before,'no global noAsar mutation');
+    console.log(JSON.stringify({electron:process.versions.electron,sealed:'broken'}));
+    } else {
     // ASAR roots are cached by Electron; use a fresh path for the missing-archive reproduction.
     const missingResources=resources+'/Missing.app/Contents/Resources';
     const missingHost=missingResources+'/app/dsh/node_modules/@deepseek-ai';
@@ -45,11 +48,17 @@ try {
     assert.equal(hostLayoutLayer(host,{statSync(){throw Object.assign(Error('denied'),{code:'EACCES'})}}).broken[0].status,'unreadable');
     assert.equal(process.noAsar,before,'no global noAsar mutation');
     console.log(JSON.stringify({electron:process.versions.electron,sealed:'broken',missing:'ok',selfCheck:'ok',permission:'unreadable',globalNoAsarUnchanged:true}));
+    }
   `;
-  const out = execFileSync(binary, ["--input-type=module", "-e", source], {
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", DSH_HOME: home,
-      PURGE_TEST_MODULE: pathToFileURL(path.join(root, "lib/selfcheck.js")).href, PURGE_TEST_RESOURCES: resources },
-    encoding: "utf8", timeout: 30000,
-  });
-  console.log(out.trim());
+  for (const phase of ["sealed", "unpacked"]) {
+    // Windows holds the ASAR open for the Electron process lifetime.
+    // Delete only our disposable fixture after the first test process has exited.
+    if (phase === "unpacked") fs.unlinkSync(path.join(resources, "app.asar"));
+    const out = execFileSync(binary, ["--input-type=module", "-e", source], {
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", DSH_HOME: home, PURGE_TEST_PHASE: phase,
+        PURGE_TEST_MODULE: pathToFileURL(path.join(root, "lib/selfcheck.js")).href, PURGE_TEST_RESOURCES: resources },
+      encoding: "utf8", timeout: 30000,
+    });
+    console.log(out.trim());
+  }
 } finally { fs.rmSync(tmp, { recursive: true, force: true }); }

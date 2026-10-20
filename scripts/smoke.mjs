@@ -34,7 +34,14 @@ try {
   ok("未安装依赖的解压包可以启动引导 CLI");
 
   // Install the packed artifact's declared dependencies, not source-tree node_modules.
-  execFileSync(process.platform === "win32" ? "npm.cmd" : "npm", ["install", "--ignore-scripts", "--legacy-peer-deps", "--omit=dev", "--no-audit", "--no-fund"], {cwd:pkgDir,stdio:"pipe",timeout:120000});
+  const installArgs = ["install", "--ignore-scripts", "--legacy-peer-deps", "--omit=dev", "--no-audit", "--no-fund"];
+  // Node cannot exec a .cmd file directly. This command contains only fixed arguments;
+  // the temporary package path is passed as cwd, never interpolated into shell code.
+  if (process.platform === "win32") {
+    execFileSync(process.env.ComSpec || "cmd.exe", ["/d", "/s", "/c", `npm ${installArgs.join(" ")}`], {cwd:pkgDir,stdio:"pipe",timeout:120000});
+  } else {
+    execFileSync("npm", installArgs, {cwd:pkgDir,stdio:"pipe",timeout:120000});
+  }
 
   // 1) 导出映射指向的文件都存在
   for (const [key, target] of Object.entries(pkg.exports || {})) {

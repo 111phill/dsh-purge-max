@@ -9,11 +9,15 @@
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.6.30** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
+当前版本 **1.6.31** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
 
 </div>
 
 ---
+
+## 1.6.31：修复默认预设自检误报
+
+修复 #38：自检只读解析当前预设，明确无需处理的 #76 不再显示红色；残留内容、匹配失败和必需文件缺失仍保留诊断，动态或损坏配置显示未知。保留现有功能和设置，不自动重启。[发行说明](docs/releases/1.6.31.md)
 
 ## 1.6.30：嵌套安装自检与准确诊断
 

@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.30** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
+> 当前版本：**1.6.31** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -131,7 +131,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.30 |
+| 插件 | `dsh-purge-community` 1.6.31 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
@@ -256,3 +256,7 @@ issue #19：`purge-community host-status` 输出 `disk.archive_exists` / `disk.u
 安装根与组件根分开：`currentHost()` 保留实例定位语义，自检使用 `normalizeHostBase()` 检查固定嵌套布局。不要把全局 `findAiBase()` 当维护自检的兜底；裸 CLI 缺少目标信息时报告未知，要求指定 `DSH_BASE` / `PURGE_DSH_CLI`。错误路径不能静默换到另一份安装。
 
 自检按原始条目计数，面板可合并显示组，数字不必强行一致。`missing_file` 不一律等于不适用；必需文件缺失保留分母并告警。`skipped` 只有明确的撤销迁移无需执行时才排除；未知和失败不能算成功。不得改用户权限或禁用功能来消除红黄项。测试需同时覆盖自检和同一实例的真实安装/回滚入口，详见 [维护说明](docs/maintenance-pr-33.md)。
+
+## 24. 默认预设诊断（1.6.31 / #38）
+
+#76 的 skipped 不能直接解释为失败或已完成。selfcheck 对当前 home 的预设做只读 YAML 检查；确认字面正文无需处理时标为 not_needed，并从必需分母排除。动态、损坏、重复或不可读配置保留 unknown；残留内容不匹配保持 broken。不执行 !!js，不读其他 profile 来代替当前文件，不改权限或反复应用来消除未知。补丁本体和用户文件不变。详见 [维护说明](docs/maintenance-issue-38.md)。
