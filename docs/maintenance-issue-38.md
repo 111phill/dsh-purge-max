@@ -18,3 +18,5 @@
 ## 测试与维护
 
 node --test test/selfcheck.test.mjs 覆盖真实默认预设、实际 patchStatus、selfCheck 汇总及异常边界。源码与发行包均测试。安装路径和备份/回滚实现未变，本版无用户配置迁移；回滚旧版本会恢复旧误报，但不需要恢复或覆盖用户预设文件。
+
+实机验证：macOS 207/212 通过、5 项平台跳过；Windows 209/212 通过、3 项平台跳过（实际 TLS 与 Electron 交接均运行）。两端 Electron 44.7.0 与发行包 smoke 通过。测试脚本的 ASAR 文件需在 Electron 测试子进程退出后删除，Windows 的 npm.cmd 通过固定命令启动；这些均不修改实际安装器或宿主。三平台 CI 新增打包检查作为后续发布门禁。

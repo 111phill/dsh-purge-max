@@ -75,3 +75,5 @@ jobs:
           $env:PURGE_ELECTRON_EXEC = Join-Path $runtime 'node_modules/electron/dist/electron.exe'
           if (-not (Test-Path -LiteralPath $env:PURGE_ELECTRON_EXEC)) { throw 'Electron binary was not installed' }
           node --test test/windows-electron-handoff.test.mjs
+      - name: Verify packed artifact on each platform
+        run: npm pack --ignore-scripts && node scripts/smoke.mjs
