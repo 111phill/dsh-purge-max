@@ -160,6 +160,8 @@ Electron 的 app.asar 本体必须用 `diskFs()` 读取；不要把普通 Node �
 6. 失败时查看返回的 backup_id，确认 package.json/锁文件/安装状态。需要恢复时走 `rollback <id>`，保留当前用户内容。不能把失败说成安装成功；不能自动重启。公开 issue 只附脱敏错误，不上传配置、凭证、提示词或完整备份。
 7. 版本核对以 package.json / release-notes 为准。README.md 与 README.zh-CN.md 必须一致，维护文档不能再停在 1.2.0/1.3.0。安装器测试与完整 Windows DSH 界面/宿主补丁验收分开记录，不混为“全部 Windows 功能已验证”。
 
+Linux CLI/Web 可用 `sh scripts/install.sh`，默认选择当前 PATH 的 `node` / `dsh` 与 `web` profile，显式指定实例可用 `DSH_NODE` / `PURGE_DSH_CLI` / `DSH_HOME` / `--profile=名称`。系统 npm 宿主只读时准备用户副本，插件迁移成功后才激活 `~/.local/bin/dsh`；失败保留原入口，完整但未激活的副本供重试复用。入口被用户并发修改时停止，不覆盖。不要自行重启、修改系统目录权限或代理。卸载仅清理本 home 内插件目录及链接本身，外部源码/共享包保留。验收边界见 [PR #42 维护说明](docs/maintenance-pr-42.md)。
+
 ## 13. Windows Electron 安装验收（1.6.13）
 
 Windows Desktop 的 exe 是 GUI 子系统。PowerShell 的 `& exe ...` 可能在子进程结束前返回，不能用它后面的 `$LASTEXITCODE` 推断已完成。安装器必须等待明确的进程对象、检查其真实 ExitCode、收集 UTF-8 输出后再清理 bootstrap。回归必须同时覆盖普通 Node 控制台进程与真正 GUI 子系统进程；只用 node.exe 模拟 Desktop 不够。

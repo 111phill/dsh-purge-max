@@ -113,15 +113,15 @@ async function main() {
     console.log("回滚完成 / Revert done。重启 dsh 后恢复 / restart to restore.");
     console.log("注: prompt-inject.md 保留（用户文件）/ prompt-inject.md kept (user file)");
   } else if (mode === "--uninstall") {
-    const { uninstallPurge } = await import("../lib/uninstall.js");
-    const result = await uninstallPurge();
+    const { uninstallPurge, finishUninstallCleanup } = await import("../lib/uninstall.js");
+    const result = await finishUninstallCleanup(await uninstallPurge());
     if (result.applied) console.log("  已检测到补丁，已还原回原版。");
     else console.log("  未检测到已应用补丁，仍会清除插件文件。");
     if (result.override?.removed) console.log(`  已删除 ${result.override.path}`);
     if (result.stripped?.length) console.log(`  已从 profile 移除: ${result.stripped.join(", ")}`);
     for (const e of result.errors || []) console.log(`  ⚠ ${e}`);
     if (!result.ok) {
-      console.log("  卸载中止：还原失败，插件文件未删除。");
+      console.log("  卸载未完成：请检查上面的还原、注销或文件清理错误。");
       process.exit(1);
     }
     console.log("");

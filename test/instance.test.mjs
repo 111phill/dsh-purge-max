@@ -564,3 +564,23 @@ test("component discovery is bounded and never searches parents or other install
   assert.equal(probes.length,9);
   assert(probes.every(p => p.startsWith(requested + path.sep)));
 });
+
+test("verified npm CLI shorthand selects its running profile when multiple profiles exist", () => {
+  const f = fixture();
+  try {
+    const web = f.profile("web"), desktop = f.profile("desktop");
+    const options = { env: { DSH_PROFILE: "desktop" }, argv: ["node", f.cli, "web"] };
+    assert.equal(resolveProfile(f.home, options).directory, web);
+    assert.equal(resolveProfile(f.home, { ...options, argv: ["node", f.cli, "web", "--profile=desktop"] }).directory, desktop);
+    if (process.platform !== "win32") {
+      const bin = path.join(f.root, "bin"); fs.mkdirSync(bin);
+      const link = path.join(bin, "dsh"); fs.symlinkSync(f.cli, link);
+      assert.equal(resolveProfile(f.home, { env: {}, argv: ["node", link, "web"] }).directory, web);
+    }
+    assert.throws(() => resolveProfile(f.home, { env: {}, argv: ["node", path.join(f.root, "other.js"), "web"] }), /无法唯一确定/);
+    const nested = path.join(f.npm, "dsh/node_modules/other-plugin/bin.js");
+    fs.mkdirSync(path.dirname(nested), { recursive: true }); fs.writeFileSync(nested, "");
+    assert.throws(() => resolveProfile(f.home, { env: {}, argv: ["node", nested, "web"] }), /无法唯一确定/);
+    assert.throws(() => resolveProfile(f.home, { env: {}, argv: ["node", f.cli, "plugin"] }), /无法唯一确定/);
+  } finally { f.close(); }
+});
