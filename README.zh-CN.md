@@ -9,11 +9,15 @@
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.6.32** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
+当前版本 **1.6.33** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
 
 </div>
 
 ---
+
+## 1.6.33：Linux 安装入口与跨平台安装保护
+
+合入 [PR #42](https://github.com/kingcharleslzy-ai/dsh-purge/pull/42)，增加 Linux CLI/Web 安装支持。系统目录不可写时准备用户宿主副本，迁移成功后才切换入口；卸载符号链接时保留外部源码与共享依赖。Windows/macOS 继续通过完整安装、打包及真实 Electron 回归。不改现有补丁功能、提示词或用户设置，不自动重启。[发行说明](docs/releases/1.6.33.md) · [验证范围](docs/maintenance-pr-42.md)
 
 ## 1.6.32：统一桌面诊断目标
 
@@ -57,22 +61,23 @@ curl -fsSL https://raw.githubusercontent.com/kingcharleslzy-ai/dsh-purge/master/
 
 ### Linux · CLI / Web
 
-**已在 CachyOS Linux x86_64 实机验证**（DSH 0.2.1-rc.2、Node 26.11.1）。沿用原有 JavaScript、面板和插件功能；安装引导要求 Node ≥18，演练台还需宿主运行时支持 `node:sqlite`。
+贡献者在 CachyOS Linux x86_64 提供了实机验证（DSH 0.2.1-rc.2、Node 26.11.1）；维护方另在 Ubuntu CI 验证真实官方 npm 宿主的安装、备份、回滚及失败恢复。Linux 全部图形界面与模型任务尚未全面验收。沿用原有 JavaScript、面板和插件功能；安装引导要求 Node ≥18，演练台还需宿主运行时支持 `node:sqlite`。
 
-先安装并启动一次 DSH，初始化 `web` profile。在仓库目录使用安装脚本：
+先安装并启动一次 DSH，初始化 `web` profile，再下载并运行安装脚本：
 
 ```sh
-sh scripts/install.sh --dry-run
-sh scripts/install.sh
+curl -fsSL https://raw.githubusercontent.com/kingcharleslzy-ai/dsh-purge/master/scripts/install.sh -o /tmp/purge-install.sh
+sh /tmp/purge-install.sh --dry-run
+sh /tmp/purge-install.sh
 ```
 
 默认选择 PATH 中的 `node` / `dsh`、`~/.dsh` 和 `web` profile。可设置 `DSH_NODE`、`PURGE_DSH_CLI`、`DSH_HOME` 或 `--profile=名称`。安装器校验 SHA256，保留设置，不需要 sudo，不自动应用补丁或重启。
 
-上述命令下载正式发行包；在包含 Linux 适配的发行版发布前，请从当前分支打包安装：
+上述命令下载正式发行包。开发或离线验收时，也可在仓库目录打包并指定本地归档：
 
 ```sh
 npm pack --ignore-scripts
-ARCHIVE="dsh-purge-community-1.6.32.tgz"
+ARCHIVE="dsh-purge-community-1.6.33.tgz"
 SHA256=$(sha256sum "$ARCHIVE" | cut -d ' ' -f1)
 sh scripts/install.sh --archive="$PWD/$ARCHIVE" --sha256="$SHA256" --dry-run
 # 核对包来源与摘要后，去掉 --dry-run 执行安装。

@@ -25,7 +25,9 @@ The script finds DSH Desktop, downloads the latest verified release, checks SHA2
 
 Then fully quit and reopen DSH, open **Purge** in the left rail, press **Apply**, and quit/reopen once more.
 
-**Current version 1.6.32 — qualified against DSH Desktop 0.2.1-rc.2 (and rc.1).**
+**Current version 1.6.33 — qualified against DSH Desktop 0.2.1-rc.2 (and rc.1).**
+
+1.6.33 adds Linux CLI/Web installation from PR #42. A user-owned host copy is activated only after migration succeeds; uninstall removes links without deleting external targets. Windows/macOS installation, packaging and Electron regression gates remain in place. Ubuntu CI additionally runs the real official npm host through installation, backup, rollback and failure recovery. Full Linux GUI/model coverage is not claimed. Existing patch behavior and settings are unchanged; no automatic restart. See [release scope](releases/1.6.33.md).
 
 1.6.14 fixes #20: atomic replacement preserves executable/private rwx permissions and CLI backup failures stop replacement. Read-only `host-status` separates disk layout from process entry evidence. #19 remains open: its complete restart/handoff path is not fixed in this release. Existing features, settings and presets are retained; no automatic restart. See [acceptance scope](releases/1.6.14.md).
 
