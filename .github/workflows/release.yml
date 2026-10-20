@@ -54,7 +54,12 @@ jobs:
         with:
           node-version: 22
       - run: npm ci --ignore-scripts --legacy-peer-deps
-      - run: npm test
+      - name: Full test suite
+        if: runner.os != 'Windows'
+        run: npm test
+      - name: Full Windows suite with bounded process concurrency
+        if: runner.os == 'Windows'
+        run: npm test -- --test-concurrency=2
       - name: Windows PowerShell 5.1 installer wrapper
         if: runner.os == 'Windows'
         shell: powershell
@@ -75,5 +80,17 @@ jobs:
           $env:PURGE_ELECTRON_EXEC = Join-Path $runtime 'node_modules/electron/dist/electron.exe'
           if (-not (Test-Path -LiteralPath $env:PURGE_ELECTRON_EXEC)) { throw 'Electron binary was not installed' }
           node --test test/windows-electron-handoff.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test:electron
+      - name: Real macOS Electron diagnostics
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          runtime="$RUNNER_TEMP/purge-electron"
+          npm install --prefix "$runtime" --no-package-lock --no-audit --no-fund electron@44.7.0
+          node "$runtime/node_modules/electron/install.js"
+          export PURGE_ELECTRON_EXEC="$runtime/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
+          npm run test:electron
       - name: Verify packed artifact on each platform
         run: npm pack --ignore-scripts && node scripts/smoke.mjs
