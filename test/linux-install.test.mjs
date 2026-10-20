@@ -36,6 +36,8 @@ test("read-only official Linux DSH gets an owned, executable, idempotent copy wi
   const options = { userHome, log: () => {} };
   const result = prepareLinuxHost(cli, options);
   assert.equal(result.copied, true);
+  assert(!fs.existsSync(result.launcher), "preparing a copy must not activate it");
+  result.activate();
   assert.deepEqual(JSON.parse((await exec(result.launcher, ["web", "含 空格", "--port", "3081"])).stdout), ["web", "含 空格", "--port", "3081"]);
   assert.equal(fs.statSync(path.join(result.aiBase, "fixture.js")).mode & 0o777, 0o600);
   assert.equal(fs.realpathSync(path.join(result.aiBase, "internal")), path.join(result.aiBase, "fixture.js"));
@@ -60,7 +62,7 @@ test("read-only official Linux DSH gets an owned, executable, idempotent copy wi
 test("Linux CLI resolves the selected symlink and rejects missing/non-executable launchers", { skip: process.platform === "win32" }, t => {
   const f = fixture(t), link = path.join(f.tmp, "dsh");
   fs.symlinkSync(f.cli, link);
-  assert.equal(webCli(link), f.cli);
+  assert.equal(webCli(link), fs.realpathSync(f.cli));
   assert.throws(() => webCli(""), /PURGE_DSH_CLI/);
   assert.throws(() => webCli(f.tmp), /must be a file/);
   fs.unlinkSync(link); fs.writeFileSync(link, "#!/bin/sh\n", { mode: 0o600 });
@@ -141,4 +143,68 @@ test("downloaded Linux wrapper waits for bootstrap and cleans temporary files on
   await assert.rejects(exec("/bin/sh", [script], { env: { ...env, PURGE_TEST_CURL_EXIT: "7" } }), e => e.code === 7);
   assert(!fs.existsSync(record), "download failure never runs bootstrap");
   assert(!fs.readdirSync(f.tmp).some(name => name.startsWith("purge-bootstrap.")));
+});
+
+// Exercise the real bootstrap/extracted CLI in temporary homes, without a live
+// service. macOS also exercises these POSIX file semantics; CI runs Linux itself.
+test('Linux migration failure preserves first-install and existing host launchers; success activates last', {skip:process.platform==='win32'||process.getuid?.()===0}, async t => {
+ const f=fixture(t), userHome=path.join(f.tmp,'user'), official=path.join(f.tmp,'official');
+ const cli=path.join(official,'lib/bin.js'), base=path.join(official,'node_modules/@deepseek-ai');
+ fs.mkdirSync(path.dirname(cli),{recursive:true}); fs.mkdirSync(base,{recursive:true});
+ const manifest=path.join(official,'package.json');
+ const writeHost=version=>fs.writeFileSync(manifest,JSON.stringify({name:'@deepseek-ai/dsh',version,bin:{dsh:'lib/bin.js'}}));
+ writeHost('0.2.1-rc.1');
+ fs.writeFileSync(cli,'#!/usr/bin/env node\nconsole.log("isolated host")\n',{mode:0o755});
+ fs.chmodSync(official,0o555); fs.chmodSync(base,0o555);
+ // Restore permissions before fixture's recursive cleanup (also works on Node 18).
+ const writable=()=>{fs.chmodSync(official,0o755);fs.chmodSync(base,0o755);};
+ try {
+  const pack=path.join(f.tmp,'package');fs.mkdirSync(path.join(pack,'bin'),{recursive:true});
+  fs.writeFileSync(path.join(pack,'package.json'),JSON.stringify({name:'dsh-purge-community',version:'1.6.32',repository:{url:'git+https://github.com/kingcharleslzy-ai/dsh-purge.git'}}));
+  const archiveFile=path.join(f.tmp,'dsh-purge-community-1.6.32.tgz');
+  const makeArchive=async source=>{
+   fs.writeFileSync(path.join(pack,'bin/community.js'),source);
+   await exec('tar',['-czf',archiveFile,'-C',f.tmp,'package']);
+   return createHash('sha256').update(fs.readFileSync(archiveFile)).digest('hex');
+  };
+  const options={...f,cli,userHome,mode:'web',platform:'linux',profile:'web',archiveFile,log:()=>{}};
+  const launcher=path.join(userHome,'.local/bin/dsh');
+  const settings=fs.readFileSync(path.join(f.profile,'cordis.patch.yml'));
+  const failure=await makeArchive('process.exit(42);');
+  await assert.rejects(bootstrapInstall({...options,sha256:failure}),error=>error.code===42);
+  assert.throws(()=>fs.lstatSync(launcher),{code:'ENOENT'});
+  const oldHost=prepareLinuxHost(cli,{userHome,log:()=>{}});oldHost.activate();
+  const previous=fs.readlinkSync(launcher), previousStat=fs.lstatSync(launcher);
+  writable();writeHost('0.2.1-rc.2');fs.chmodSync(official,0o555);fs.chmodSync(base,0o555);
+  await assert.rejects(bootstrapInstall({...options,sha256:failure}),error=>error.code===42);
+  assert.equal(fs.readlinkSync(launcher),previous);
+  assert.equal(fs.lstatSync(launcher).ino,previousStat.ino);
+  assert.deepEqual(fs.readFileSync(path.join(f.profile,'cordis.patch.yml')),settings);
+  // The migration child observes the old link; only its successful exit allows activation.
+  const success=await makeArchive(`const fs=require('node:fs');if(fs.readlinkSync(${JSON.stringify(launcher)})!==${JSON.stringify(previous)})process.exit(43);`);
+  const result=await bootstrapInstall({...options,sha256:success});assert.equal(result.installed,true);
+  assert.notEqual(fs.readlinkSync(launcher),previous);
+  assert(fs.existsSync(previous),'old host remains available for rollback');
+  assert.deepEqual(fs.readFileSync(path.join(f.profile,'cordis.patch.yml')),settings);
+ } finally {writable();}
+});
+
+test('activation refuses a concurrently changed user launcher and copy failure leaves no active entry', {skip:process.platform==='win32'||process.getuid?.()===0}, t => {
+ const f=fixture(t), userHome=path.join(f.tmp,'user'), official=path.join(f.tmp,'official');
+ const cli=path.join(official,'lib/bin.js'),base=path.join(official,'node_modules/@deepseek-ai');
+ fs.mkdirSync(path.dirname(cli),{recursive:true});fs.mkdirSync(base,{recursive:true});
+ fs.writeFileSync(path.join(official,'package.json'),JSON.stringify({name:'@deepseek-ai/dsh',version:'fixture',bin:{dsh:'lib/bin.js'}}));
+ fs.writeFileSync(cli,'#!/usr/bin/env node\n',{mode:0o755});fs.chmodSync(official,0o555);fs.chmodSync(base,0o555);
+ try {
+  const prepared=prepareLinuxHost(cli,{userHome,log:()=>{}});
+  fs.mkdirSync(path.dirname(prepared.launcher),{recursive:true});fs.writeFileSync(prepared.launcher,'my command');
+  assert.throws(()=>prepared.activate(),/changed during installation/);
+  assert.equal(fs.readFileSync(prepared.launcher,'utf8'),'my command');
+  fs.unlinkSync(prepared.launcher);fs.chmodSync(official,0o755);fs.chmodSync(base,0o755);
+  fs.appendFileSync(path.join(official,'package.json'),' ');fs.symlinkSync(f.cli,path.join(base,'external'));
+  fs.chmodSync(official,0o555);fs.chmodSync(base,0o555);
+  assert.throws(()=>prepareLinuxHost(cli,{userHome,log:()=>{}}),/symlink escapes/);
+  assert(!fs.existsSync(prepared.launcher));
+  assert(!fs.readdirSync(path.join(userHome,'.local/share/dsh-purge/hosts')).some(name=>name.startsWith('.stage-')));
+ } finally {fs.chmodSync(official,0o755);fs.chmodSync(base,0o755);}
 });

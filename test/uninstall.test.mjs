@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {stripPluginFromPackage,listInstalledProfiles,shouldDeletePluginTree} from '../lib/uninstall.js';
+import {stripPluginFromPackage,listInstalledProfiles,shouldDeletePluginTree,collectCleanupDirs,finishUninstallCleanup} from '../lib/uninstall.js';
 
 test('uninstall removes community and legacy registrations from native profile manifests, retaining other plugins',()=>{
  const pkg={dependencies:{'dsh-purge-community':'file:local','dsh-purge-panel':'1','unrelated':'keep'},optionalDependencies:{'dsh-purge':'1'},dsh:{profile:{bundles:['@deepseek-ai/dsh-base','dsh-purge-community','unrelated',{id:'dsh-purge-panel'}]}},plugins:['dsh-purge@1','unrelated'],bundles:[{name:'dsh-purge-community'},'unrelated']};
@@ -38,7 +38,7 @@ test('public CLI uninstall executes file cleanup and preserves unrelated plugins
 });
 
 test('uninstall finds all installed profiles, including an entry without node_modules, and rejects similarly named packages',()=>{
- const home=fs.mkdtempSync(path.join(os.tmpdir(),'purge-uninstall-'));
+ const home=fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(),'purge-uninstall-')));
  try{
   for(const [name,pkg] of Object.entries({web:{dependencies:{'dsh-purge-community':'file:local'}},custom:{dsh:{profile:{bundles:['dsh-purge-panel']}}},legacy:{dependencies:{'dsh-purge':'1'}},other:{dependencies:{'dsh-purge-community-extra':'1'}}})){
    const dir=path.join(home,'profiles',name);fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(path.join(dir,'package.json'),JSON.stringify(pkg));
@@ -48,4 +48,56 @@ test('uninstall finds all installed profiles, including an entry without node_mo
   assert.equal(shouldDeletePluginTree(path.join(home,'node_modules/dsh-purge-community-extra'),home),false);
   assert.equal(shouldDeletePluginTree(path.join(home,'profiles/web/node_modules/unrelated'),home),false);
  }finally{fs.rmSync(home,{recursive:true,force:true});}
+});
+
+test('cleanup unlinks external source checkouts and shared packages without deleting their contents', async t => {
+ const root=fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(),'purge-unlink-')));
+ t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ const home=path.join(root,'home'), profile=path.join(home,'profiles/web');
+ fs.mkdirSync(path.join(profile,'node_modules'),{recursive:true});
+ const targets=[path.join(root,'source-checkout'),path.join(root,'shared/node_modules/dsh-purge-panel')];
+ for(const [i,target] of targets.entries()) {
+  fs.mkdirSync(target,{recursive:true}); fs.writeFileSync(path.join(target,'keep.txt'),'private source');
+  const name=i?'dsh-purge-panel':'dsh-purge-community';
+  fs.writeFileSync(path.join(target,'package.json'),JSON.stringify({name}));
+  fs.symlinkSync(target,path.join(profile,'node_modules',name),process.platform==='win32'?'junction':'dir');
+  assert.equal(shouldDeletePluginTree(target,home),false);
+ }
+ const dangling=path.join(profile,'node_modules/dsh-purge');
+ fs.symlinkSync(path.join(root,'missing'),dangling,process.platform==='win32'?'junction':'dir');
+ const cleanup=collectCleanupDirs([{dir:profile}],home);
+ assert(targets.every(target=>!cleanup.includes(target)));
+ const result=await finishUninstallCleanup({ok:true,errors:[],cleanup});
+ assert.equal(result.ok,true);
+ for(const target of targets) assert.equal(fs.readFileSync(path.join(target,'keep.txt'),'utf8'),'private source');
+ for(const name of ['dsh-purge','dsh-purge-panel','dsh-purge-community'])
+  assert.throws(()=>fs.lstatSync(path.join(profile,'node_modules',name)),{code:'ENOENT'});
+});
+
+test('cleanup preserves an external profile target and does not follow a linked data directory', async t => {
+ const root=fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(),'purge-profile-link-')));
+ t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ const home=path.join(root,'home'), external=path.join(root,'external');
+ fs.mkdirSync(path.join(home,'profiles'),{recursive:true});
+ fs.mkdirSync(path.join(external,'node_modules/dsh-purge-community'),{recursive:true});
+ fs.writeFileSync(path.join(external,'keep.txt'),'keep');
+ const profile=path.join(home,'profiles/web');
+ fs.symlinkSync(external,profile,process.platform==='win32'?'junction':'dir');
+ fs.symlinkSync(external,path.join(home,'dsh-purge'),process.platform==='win32'?'junction':'dir');
+ const cleanup=collectCleanupDirs([{dir:profile}],home);
+ assert(!cleanup.some(file=>file.startsWith(profile)||file.startsWith(external)));
+ await finishUninstallCleanup({ok:true,errors:[],cleanup});
+ assert.equal(fs.readFileSync(path.join(external,'keep.txt'),'utf8'),'keep');
+ assert(fs.existsSync(path.join(external,'node_modules/dsh-purge-community')));
+ assert(fs.lstatSync(profile).isSymbolicLink());
+});
+
+test('failed restore/unregister never executes a pending cleanup plan', async t => {
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'purge-cleanup-fail-'));
+ t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ fs.writeFileSync(path.join(dir,'keep.txt'),'keep');
+ for(const report of [{ok:false,errors:[]},{ok:true,errors:['restore failed']}]) {
+  const result=await finishUninstallCleanup({...report,cleanup:[dir]});
+  assert.equal(result.ok,false); assert(fs.existsSync(path.join(dir,'keep.txt')));
+ }
 });

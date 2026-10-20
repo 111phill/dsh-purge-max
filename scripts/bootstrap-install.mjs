@@ -61,6 +61,17 @@ export function webCli(launcher = process.env.PURGE_DSH_CLI) {
 // System npm installations are commonly root-owned. Keep the official package
 // intact and run the same code from an owned copy; never weaken /usr permissions.
 export function prepareLinuxHost(cli, { userHome = os.homedir(), log = console.log } = {}) {
+  // Canonicalize existing parents even on a first install. /var -> /private/var
+  // on macOS and linked Linux home directories must compare as the same tree.
+  let parent = path.resolve(userHome);
+  const suffix = [];
+  for (;;) {
+    try { userHome = path.join(fs.realpathSync(parent), ...suffix); break; }
+    catch (error) {
+      if (error.code !== "ENOENT" || path.dirname(parent) === parent) throw error;
+      suffix.unshift(path.basename(parent)); parent = path.dirname(parent);
+    }
+  }
   cli = fs.realpathSync(cli);
   let root = path.dirname(cli), meta;
   for (;;) {
@@ -87,9 +98,11 @@ export function prepareLinuxHost(cli, { userHome = os.homedir(), log = console.l
     try { return owner(directory) && JSON.parse(fs.readFileSync(path.join(directory, "manifest.json"), "utf8")).managedBy === "dsh-purge-linux-host"; } catch { return false; }
   };
   // Refuse to replace a user's unrelated command, including dangling symlinks.
+  let previousLink = null;
   try {
     const stat = fs.lstatSync(launcher);
     const existing = stat.isSymbolicLink() && fs.realpathSync(launcher);
+    previousLink = { target: stat.isSymbolicLink() ? fs.readlinkSync(launcher) : null, ino: stat.ino, dev: stat.dev };
     const directory = existing && path.dirname(path.dirname(path.dirname(existing)));
     if (!existing || !inside(hostsDir, existing) || !managed(directory)) throw Error(`Existing launcher is not managed by Purge: ${launcher}`);
   } catch (error) { if (error.code !== "ENOENT") throw error; else if (fs.existsSync(path.dirname(launcher)) && fs.readdirSync(path.dirname(launcher)).includes("dsh")) throw Error(`Existing launcher is not managed by Purge: ${launcher}`); }
@@ -120,15 +133,26 @@ export function prepareLinuxHost(cli, { userHome = os.homedir(), log = console.l
     } finally { fs.rmSync(stage, { recursive: true, force: true }); }
   }
   fs.accessSync(targetCli, fs.constants.X_OK);
-  fs.mkdirSync(path.dirname(launcher), { recursive: true });
-  if (fs.existsSync(launcher)) {
-    if (fs.realpathSync(launcher) !== targetCli) {
-      const link = launcher + `.purge-${process.pid}`;
-      try { fs.symlinkSync(targetCli, link); fs.renameSync(link, launcher); } finally { fs.rmSync(link, { force: true }); }
+  // Copy preparation is not activation. Migration may still fail, so leave
+  // the current command (including an older managed host) untouched until then.
+  const activate = () => {
+    let current = null;
+    try {
+      const stat = fs.lstatSync(launcher);
+      current = { target: stat.isSymbolicLink() ? fs.readlinkSync(launcher) : null, ino: stat.ino, dev: stat.dev };
+    } catch (error) { if (error.code !== "ENOENT") throw error; }
+    if (JSON.stringify(current) !== JSON.stringify(previousLink))
+      throw Error(`DSH launcher changed during installation; retained current command: ${launcher}`);
+    fs.mkdirSync(path.dirname(launcher), { recursive: true });
+    if (!current) fs.symlinkSync(targetCli, launcher); // exclusive: never overwrite a new user command
+    else if (fs.realpathSync(launcher) !== targetCli) {
+      const stage = fs.mkdtempSync(path.join(path.dirname(launcher), ".purge-launcher-"));
+      try { fs.symlinkSync(targetCli, path.join(stage, "dsh")); fs.renameSync(path.join(stage, "dsh"), launcher); }
+      finally { fs.rmSync(stage, { recursive: true, force: true }); }
     }
-  } else fs.symlinkSync(targetCli, launcher);
-  log(`User-owned DSH ready: ${launcher}. Quit the old DSH and launch this path to use it.`);
-  return { cli: targetCli, copied: true, launcher, aiBase: path.join(target, "node_modules/@deepseek-ai") };
+    log(`User-owned DSH ready: ${launcher}. Quit the old DSH and launch this path to use it.`);
+  };
+  return { cli: targetCli, copied: true, launcher, aiBase: path.join(target, "node_modules/@deepseek-ai"), activate };
 }
 
 export async function bootstrapInstall(options = {}) {
@@ -175,6 +199,7 @@ export async function bootstrapInstall(options = {}) {
       timeout: 600000, maxBuffer: 4 * 1024 * 1024, windowsHide: true,
       env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", DSH_SURFACE: mode, PURGE_DSH_CLI: cli, DSH_BASE: "", DSH_HOME: home, DSH_PROFILE: profile, PURGE_PROFILE_DIR: path.join(home, "profiles", profile) },
     });
+    host?.activate?.();
     if (result.stdout?.trim()) log(result.stdout.trim());
     if (result.stderr?.trim()) log(result.stderr.trim());
     log("Installed. Settings preserved. Quit and reopen DSH manually when convenient; no restart or host patch was performed.");
