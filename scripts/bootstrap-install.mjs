@@ -1,4 +1,4 @@
-/** Standalone installer, run with the selected DSH Desktop's Electron runtime. */
+/** Shared installer: selected Desktop's Electron runtime or Linux CLI's Node. */
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -49,13 +49,101 @@ export function desktopCli(executable, platform = process.platform) {
   return cli;
 }
 
+export function webCli(launcher = process.env.PURGE_DSH_CLI) {
+  if (!launcher) throw Error("Set PURGE_DSH_CLI to this DSH instance's launcher.");
+  const cli = fs.realpathSync(launcher);
+  if (!fs.statSync(cli).isFile()) throw Error("DSH CLI must be a file.");
+  fs.accessSync(cli, fs.constants.R_OK);
+  if (!/\.[cm]?js$/i.test(cli)) fs.accessSync(cli, fs.constants.X_OK);
+  return cli;
+}
+
+// System npm installations are commonly root-owned. Keep the official package
+// intact and run the same code from an owned copy; never weaken /usr permissions.
+export function prepareLinuxHost(cli, { userHome = os.homedir(), log = console.log } = {}) {
+  cli = fs.realpathSync(cli);
+  let root = path.dirname(cli), meta;
+  for (;;) {
+    try {
+      const candidate = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+      const bin = typeof candidate.bin === "string" ? candidate.bin : candidate.bin?.dsh;
+      if (candidate.name === "@deepseek-ai/dsh" && typeof bin === "string" && fs.realpathSync(path.resolve(root, bin)) === cli) { meta = candidate; break; }
+    } catch {}
+    const parent = path.dirname(root);
+    if (parent === root) return { cli, copied: false };
+    root = parent;
+  }
+  const aiBase = path.join(root, "node_modules/@deepseek-ai");
+  try { fs.accessSync(root, fs.constants.W_OK); fs.accessSync(aiBase, fs.constants.W_OK); return { cli, copied: false }; } catch {}
+  const inside = (base, file) => file === base || (!path.relative(base, file).startsWith(".." + path.sep) && path.relative(base, file) !== ".." && !path.isAbsolute(path.relative(base, file)));
+  const identity = createHash("sha256").update(root).update(JSON.stringify(meta)).update(String(fs.statSync(path.join(root, "package.json")).mtimeMs)).update(fs.readFileSync(cli)).digest("hex");
+  const hostsDir = path.join(userHome, ".local/share/dsh-purge/hosts");
+  const destination = path.join(hostsDir, identity.slice(0, 20));
+  const target = path.join(destination, "dsh");
+  const targetCli = path.join(target, path.relative(root, cli));
+  const launcher = path.join(userHome, ".local/bin/dsh");
+  const owner = file => !fs.lstatSync(file).isSymbolicLink() && (typeof process.getuid !== "function" || fs.statSync(file).uid === process.getuid());
+  const managed = directory => {
+    try { return owner(directory) && JSON.parse(fs.readFileSync(path.join(directory, "manifest.json"), "utf8")).managedBy === "dsh-purge-linux-host"; } catch { return false; }
+  };
+  // Refuse to replace a user's unrelated command, including dangling symlinks.
+  try {
+    const stat = fs.lstatSync(launcher);
+    const existing = stat.isSymbolicLink() && fs.realpathSync(launcher);
+    const directory = existing && path.dirname(path.dirname(path.dirname(existing)));
+    if (!existing || !inside(hostsDir, existing) || !managed(directory)) throw Error(`Existing launcher is not managed by Purge: ${launcher}`);
+  } catch (error) { if (error.code !== "ENOENT") throw error; else if (fs.existsSync(path.dirname(launcher)) && fs.readdirSync(path.dirname(launcher)).includes("dsh")) throw Error(`Existing launcher is not managed by Purge: ${launcher}`); }
+  fs.mkdirSync(hostsDir, { recursive: true, mode: 0o700 });
+  if (fs.existsSync(destination)) {
+    if (!managed(destination) || JSON.parse(fs.readFileSync(path.join(destination, "manifest.json"), "utf8")).identity !== identity || !owner(target) || !inside(target, fs.realpathSync(targetCli))) throw Error("Invalid managed DSH copy; inspect it before retrying");
+  } else {
+    const stage = fs.mkdtempSync(path.join(hostsDir, ".stage-"));
+    const copy = (source, dest) => {
+      const stat = fs.lstatSync(source);
+      if (stat.isSymbolicLink()) {
+        const resolved = fs.realpathSync(source);
+        if (!inside(root, resolved)) throw Error(`DSH dependency symlink escapes installation: ${source}`);
+        fs.symlinkSync(path.relative(path.dirname(dest), path.join(stage, "dsh", path.relative(root, resolved))), dest);
+      } else if (stat.isDirectory()) {
+        fs.mkdirSync(dest, { mode: (stat.mode & 0o777) | 0o700 });
+        for (const name of fs.readdirSync(source)) copy(path.join(source, name), path.join(dest, name));
+      } else if (stat.isFile()) {
+        fs.copyFileSync(source, dest, fs.constants.COPYFILE_FICLONE);
+        fs.chmodSync(dest, (stat.mode & 0o777) | 0o200);
+      } else throw Error(`Unsupported DSH package entry: ${source}`);
+    };
+    try {
+      log(`System DSH is read-only; copying official ${meta.version} to ${target}...`);
+      copy(root, path.join(stage, "dsh"));
+      fs.writeFileSync(path.join(stage, "manifest.json"), JSON.stringify({ managedBy: "dsh-purge-linux-host", identity, source: root, version: meta.version }, null, 2) + "\n", { mode: 0o600 });
+      fs.renameSync(stage, destination);
+    } finally { fs.rmSync(stage, { recursive: true, force: true }); }
+  }
+  fs.accessSync(targetCli, fs.constants.X_OK);
+  fs.mkdirSync(path.dirname(launcher), { recursive: true });
+  if (fs.existsSync(launcher)) {
+    if (fs.realpathSync(launcher) !== targetCli) {
+      const link = launcher + `.purge-${process.pid}`;
+      try { fs.symlinkSync(targetCli, link); fs.renameSync(link, launcher); } finally { fs.rmSync(link, { force: true }); }
+    }
+  } else fs.symlinkSync(targetCli, launcher);
+  log(`User-owned DSH ready: ${launcher}. Quit the old DSH and launch this path to use it.`);
+  return { cli: targetCli, copied: true, launcher, aiBase: path.join(target, "node_modules/@deepseek-ai") };
+}
+
 export async function bootstrapInstall(options = {}) {
   const { request = fetch, run = exec, log = console.log, executable = process.execPath, platform = process.platform,
-    home = process.env.DSH_HOME || path.join(os.homedir(), ".dsh"), profile = process.env.DSH_PROFILE || "desktop", dryRun = false } = options;
+    mode = process.env.PURGE_INSTALL_MODE || "desktop",
+    home = process.env.DSH_HOME || path.join(os.homedir(), ".dsh"), profile = process.env.DSH_PROFILE || (mode === "web" ? "web" : "desktop"), dryRun = false } = options;
+  if (!["web", "desktop"].includes(mode)) throw Error("Invalid installation mode");
+  if (Number(process.versions.node.split(".")[0]) < 18) throw Error("Node >=18 is required");
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(profile)) throw Error("Invalid profile name");
   if (!fs.existsSync(path.join(home, "profiles", profile, "package.json"))) throw Error("Profile is not initialized; open DSH once first, or specify the correct home/profile.");
-  const cli = options.cli || desktopCli(executable, platform);
-  let version = options.version;
+  let cli = options.cli || (mode === "web" ? webCli() : desktopCli(executable, platform));
+  const local = options.archiveFile !== undefined || options.sha256 !== undefined;
+  if (local && (!options.archiveFile || !/^[a-f0-9]{64}$/i.test(options.sha256 || ""))) throw Error("Local install requires --archive and a 64-character --sha256");
+  let version = options.version || (local ? /^dsh-purge-community-(\d+\.\d+\.\d+)\.tgz$/.exec(path.basename(options.archiveFile))?.[1] : undefined);
+  if (local && !version) throw Error("Specify --version for this local archive");
   if (!version) {
     const release = JSON.parse((await get(`https://api.github.com/repos/${repo}/releases/latest`, 1024 * 1024, request)).toString("utf8"));
     if (release.draft || release.prerelease) throw Error("Latest release is not stable");
@@ -64,9 +152,10 @@ export async function bootstrapInstall(options = {}) {
   if (!/^\d+\.\d+\.\d+$/.test(version)) throw Error("Invalid release version");
   const filename = `dsh-purge-community-${version}.tgz`;
   const base = `https://github.com/${repo}/releases/download/v${version}`;
-  log(`Downloading Purge Community ${version}...`);
-  const archive = await get(`${base}/${filename}`, 50 * 1024 * 1024, request);
-  const sums = (await get(`${base}/SHA256SUMS.txt`, 64 * 1024, request)).toString("utf8");
+  log(`${local ? "Verifying local" : "Downloading"} Purge Community ${version}...`);
+  if (local && fs.statSync(options.archiveFile).size > 50 * 1024 * 1024) throw Error("Release file too large");
+  const archive = local ? fs.readFileSync(options.archiveFile) : await get(`${base}/${filename}`, 50 * 1024 * 1024, request);
+  const sums = local ? `${options.sha256}  ${filename}\n` : (await get(`${base}/SHA256SUMS.txt`, 64 * 1024, request)).toString("utf8");
   verifyChecksum(archive, sums, filename);
   if (dryRun) { log("SHA256 verified; dry run, nothing installed."); return { version, dryRun: true }; }
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "purge-installer-"));
@@ -80,9 +169,11 @@ export async function bootstrapInstall(options = {}) {
     await run(tar, ["-xzf", filename], { cwd: tmp, timeout: 30000, windowsHide: true });
     const manifest = JSON.parse(fs.readFileSync(path.join(tmp, "package/package.json"), "utf8"));
     if (manifest.name !== "dsh-purge-community" || manifest.version !== version || manifest.repository?.url !== `git+https://github.com/${repo}.git`) throw Error("Release package identity mismatch");
+    const host = platform === "linux" && mode === "web" ? prepareLinuxHost(cli, { userHome: options.userHome, log }) : null;
+    if (host) cli = host.cli;
     const result = await run(executable, [path.join(tmp, "package/bin/community.js"), "migrate", file], {
       timeout: 600000, maxBuffer: 4 * 1024 * 1024, windowsHide: true,
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", PURGE_DSH_CLI: cli, DSH_BASE: "", DSH_HOME: home, DSH_PROFILE: profile, PURGE_PROFILE_DIR: path.join(home, "profiles", profile) },
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", DSH_SURFACE: mode, PURGE_DSH_CLI: cli, DSH_BASE: "", DSH_HOME: home, DSH_PROFILE: profile, PURGE_PROFILE_DIR: path.join(home, "profiles", profile) },
     });
     if (result.stdout?.trim()) log(result.stdout.trim());
     if (result.stderr?.trim()) log(result.stderr.trim());
@@ -98,6 +189,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process
       if (arg === "--dry-run") options.dryRun = true;
       else if (arg.startsWith("--version=")) options.version = arg.slice(10);
       else if (arg.startsWith("--profile=")) options.profile = arg.slice(10);
+      else if (arg.startsWith("--archive=")) options.archiveFile = arg.slice(10);
+      else if (arg.startsWith("--sha256=")) options.sha256 = arg.slice(9);
       else throw Error(`Unknown argument: ${arg}`);
     }
     await bootstrapInstall(options);

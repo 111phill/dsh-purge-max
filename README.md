@@ -40,7 +40,7 @@
 
 ## 安装与迁移
 
-先打开一次 DSH，初始化目标 profile。默认 `desktop`。安装器先下载并校验发行包，再备份当前 profile、安装并合并旧 Purge 入口；保留提示词、规则、更新偏好和其他插件设置。**不自动重启，不自动应用宿主补丁，不修改全局 npm 源。**
+先打开一次 DSH，初始化目标 profile。桌面版默认 `desktop`，Linux CLI/Web 默认 `web`。安装器先下载并校验发行包，再备份当前 profile、安装并合并旧 Purge 入口；保留提示词、规则、更新偏好和其他插件设置。**不自动重启，不自动应用宿主补丁，不修改全局 npm 源。**
 
 ### macOS
 
@@ -54,6 +54,33 @@ sh /tmp/purge-install.sh
 ```sh
 curl -fsSL https://raw.githubusercontent.com/kingcharleslzy-ai/dsh-purge/master/scripts/install.sh | sh
 ```
+
+### Linux · CLI / Web
+
+**已在 CachyOS Linux x86_64 实机验证**（DSH 0.2.1-rc.2、Node 26.11.1）。沿用原有 JavaScript、面板和插件功能；安装引导要求 Node ≥18，演练台还需宿主运行时支持 `node:sqlite`。
+
+先安装并启动一次 DSH，初始化 `web` profile。在仓库目录使用安装脚本：
+
+```sh
+sh scripts/install.sh --dry-run
+sh scripts/install.sh
+```
+
+默认选择 PATH 中的 `node` / `dsh`、`~/.dsh` 和 `web` profile。可设置 `DSH_NODE`、`PURGE_DSH_CLI`、`DSH_HOME` 或 `--profile=名称`。安装器校验 SHA256，保留设置，不需要 sudo，不自动应用补丁或重启。
+
+上述命令下载正式发行包；在包含 Linux 适配的发行版发布前，请从当前分支打包安装：
+
+```sh
+npm pack --ignore-scripts
+ARCHIVE="dsh-purge-community-1.6.32.tgz"
+SHA256=$(sha256sum "$ARCHIVE" | cut -d ' ' -f1)
+sh scripts/install.sh --archive="$PWD/$ARCHIVE" --sha256="$SHA256" --dry-run
+# 核对包来源与摘要后，去掉 --dry-run 执行安装。
+```
+
+系统 npm 目录不可写时，安装器创建完整的用户宿主副本及 `~/.local/bin/dsh` 入口。退出旧服务后运行 `~/.local/bin/dsh web`，再在 Purge 中应用补丁并重开 DSH。不会修改 `/usr` 权限或覆盖无关启动器。
+
+已有 Linux Electron 桌面程序可显式指定 `DSH_APP=/绝对路径/deepseek-harness`，使用该程序的运行时和 `desktop` profile。安装器不创建 DSH 桌面程序。更多参数见 [安装指南](docs/INSTALLATION.md)。
 
 ### 1.6.14 安装与诊断维护
 
@@ -191,6 +218,7 @@ purge-community apply|revert|uninstall|edit   # 原版能力
 | 其他 DSH 版本 | 允许应用，标"未验证"；先跑 `selfcheck` / `diagnose` |
 | 宿主组件版本不一致 | 只报告，不阻止写入 |
 | Windows 11 · Desktop **0.2.1-rc.2** | 真实运行时的安装、回滚、宿主交接、原生设置与重载自检通过；[验收范围](docs/releases/1.6.10.md) |
+| Linux · CLI / Web | CachyOS x86_64 实机验证；统一安装脚本、SHA256 校验、用户可写宿主、原生备份/回滚 |
 | Web profile | 维护回归保留，未做完整端到端验收 |
 
 Web / Headless 的备份列表、更新结果和当前实例定位说明见 [维护定位](docs/WEB-MAINTENANCE.md)。这些维护回归不代表所有补丁已完成 Web 端到端验收。

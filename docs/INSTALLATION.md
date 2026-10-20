@@ -1,6 +1,6 @@
 # 安装、升级与故障排查
 
-当前版本 **1.6.32**。面向用户与协助安装的 Agent。支持的安装器环境：macOS Desktop；Windows 11 的 PowerShell 5.1/7。完整 Windows 宿主补丁及界面验收与安装器测试分开，不能因安装通过就宣称全部功能正常。
+当前版本 **1.6.32**。面向用户与协助安装的 Agent。支持的安装器环境：Linux CLI/Web；macOS Desktop；Windows 11 的 PowerShell 5.1/7。完整 Windows 宿主补丁及界面验收与安装器测试分开，不能因安装通过就宣称全部功能正常。
 
 ## 安装前
 
@@ -18,6 +18,14 @@ Windows：下载 README 中的 `scripts/install.ps1`，`& "$env:TEMP\purge-insta
 若 PowerShell 执行策略阻止，先审阅脚本，再用独立进程 `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\purge-install.ps1"`；不需要 `Set-ExecutionPolicy` 修改全局/持久策略。不用 `iex` 执行返回内容。
 
 Web/Headless：下载本仓库发行 `.tgz` 与 SHA256SUMS，校验**该文件对应的那一行**后解包，用当前服务的 Node 执行 `package/bin/community.js migrate <绝对tgz路径>`；设置 `PURGE_DSH_CLI`、`DSH_HOME`、`DSH_PROFILE` 指向该实例。不要使用 Desktop 自动发现。维护定位见 [WEB-MAINTENANCE.md](WEB-MAINTENANCE.md)。
+
+### Linux CLI / Web
+
+已在 CachyOS x86_64、DSH 0.2.1-rc.2 上验证。仓库内运行 `sh scripts/install.sh --dry-run`，核对来源与 SHA256 后去掉 `--dry-run` 安装。默认使用 PATH 中的 `node` / `dsh` 和 `web` profile；可设置 `DSH_NODE`、`PURGE_DSH_CLI`、`DSH_HOME`、`--profile=名称`，已有 Linux Electron 桌面程序可显式设置 `DSH_APP`，默认 profile 随之变为 `desktop`。
+
+安装本分支未发布的代码时，先打包，再使用 `--archive=/绝对路径/包.tgz --sha256=预期摘要`。本地包也验证包名、版本和仓库身份；依赖安装仍需要网络或缓存。完整命令见 [README 的 Linux 安装入口](../README.md#linux--cli--web)。
+
+系统 npm 目录不可写时，安装器保留原安装，将完整宿主复制到用户目录并创建 `~/.local/bin/dsh`。退出旧服务、用该入口启动后再应用补丁；网页刷新不会切换入口。已有无关启动器不覆盖，dry run 不复制宿主；不修改 `/usr` 权限。更新系统 DSH 后，需显式选择新的系统 CLI 重新运行安装器以建立新副本。
 
 ## 安装器承诺与边界
 
