@@ -39,7 +39,12 @@ jobs:
         with:
           node-version: 22
       - run: npm ci --ignore-scripts --legacy-peer-deps
-      - run: npm test
+      - name: Full test suite
+        if: runner.os != 'Windows'
+        run: npm test
+      - name: Full Windows suite with bounded process concurrency
+        if: runner.os == 'Windows'
+        run: npm test -- --test-concurrency=2
       - name: Windows PowerShell 5.1 installer wrapper
         if: runner.os == 'Windows'
         shell: powershell
