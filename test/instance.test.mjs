@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { resolveProfile, currentHost, resolveDshCli, normalizeHostBase } from "../lib/instance.js";
+import { resolveProfile, currentHost, resolveDshCli, normalizeHostBase, diagnosticHost } from "../lib/instance.js";
 import {
   Maintenance,
   defaultProfile,
@@ -50,6 +50,29 @@ function fixture() {
     close: () => fs.rmSync(root, { recursive: true, force: true }),
   };
 }
+
+test("#40 archive diagnostics select only the same installation's physical target", () => {
+  const f = fixture();
+  try {
+    const archive = f.desktop.replace(`${path.sep}app${path.sep}`, `${path.sep}app.asar${path.sep}`);
+    const unpacked = f.desktop.replace(`${path.sep}app${path.sep}`, `${path.sep}app.asar.unpacked${path.sep}`);
+    fs.mkdirSync(path.join(unpacked, "dsh-agent-loop"), {recursive:true});
+    fs.writeFileSync(path.join(unpacked, "dsh-agent-loop/package.json"), "{}");
+    const options = {env:{},argv:[],aiBase:archive};
+    assert.equal(currentHost(options), archive, "installer entry semantics remain unchanged");
+    assert.equal(diagnosticHost(options), f.desktop, "partial app must not fall through to healthier unpacked sibling");
+    fs.rmSync(path.join(f.resources, "app/dsh"), {recursive:true});
+    assert.equal(diagnosticHost(options), f.desktop, "incomplete extraction stays on app even when the component root is missing");
+    fs.rmSync(path.join(f.resources, "app"), {recursive:true});
+    assert.equal(diagnosticHost(options), unpacked);
+    fs.rmSync(path.join(f.resources, "app.asar.unpacked"), {recursive:true});
+    assert.equal(diagnosticHost(options), f.desktop, "unextracted expected path stays missing");
+    assert.equal(diagnosticHost({...options,aiBase:unpacked}), unpacked, "explicit physical path is never redirected");
+    assert.equal(diagnosticHost({env:{},argv:[]}), "", "no global or other-app fallback");
+    const reader = {statSync(){throw Object.assign(Error("denied"),{code:"EACCES"});}};
+    assert.equal(diagnosticHost({...options,diskReader:reader}), f.desktop, "unreadable preferred target is not skipped");
+  } finally {f.close();}
+});
 test("unique web profile is shared by maintenance and diagnostics, without desktop fallback", async () => {
   const f = fixture();
   try {

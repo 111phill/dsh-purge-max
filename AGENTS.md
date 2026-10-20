@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.31** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
+> 当前版本：**1.6.32** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -131,7 +131,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.31 |
+| 插件 | `dsh-purge-community` 1.6.32 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
@@ -260,3 +260,7 @@ issue #19：`purge-community host-status` 输出 `disk.archive_exists` / `disk.u
 ## 24. 默认预设诊断（1.6.31 / #38）
 
 #76 的 skipped 不能直接解释为失败或已完成。selfcheck 对当前 home 的预设做只读 YAML 检查；确认字面正文无需处理时标为 not_needed，并从必需分母排除。动态、损坏、重复或不可读配置保留 unknown；残留内容不匹配保持 broken。不执行 !!js，不读其他 profile 来代替当前文件，不改权限或反复应用来消除未知。补丁本体和用户文件不变。详见 [维护说明](docs/maintenance-issue-38.md)。
+
+## 25. 桌面归档诊断目标（1.6.32 / #40）
+
+status/selfcheck/diagnose 使用 `diagnosticHost` 统一检查当前安装的物理目录；`currentHost` 保留安装/启动定位语义。归档内启动路径仅映射到同一 Resources 下的 app 或 app.asar.unpacked，不能扫描别的安装来凑出绿色。部分或不可读的目标不能跳过，归档仍存在和权限差异继续提示。磁盘已应用不代表运行进程已加载；不因此自动重启、删归档或修改权限。复现和实际 HTTP handler 验收见 `npm run test:electron` 与 [维护说明](docs/maintenance-issue-40.md)。

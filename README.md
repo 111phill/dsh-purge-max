@@ -9,15 +9,20 @@
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.6.31** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
+当前版本 **1.6.32** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
 
 </div>
 
 ---
 
+## 1.6.32：统一桌面诊断目标
+
+修复 #40 涉及的归档启动路径诊断缺陷：状态、自检和锚点诊断统一检查当前安装的实际磁盘目录，避免同一文件一处显示已应用、另一处显示缺失。归档仍存在、真正的文件缺失及权限异常仍会提示；磁盘状态不等于当前进程已加载。[发行说明](docs/releases/1.6.32.md)
+
 ## 1.6.31：修复默认预设自检误报
 
 修复 #38：自检只读解析当前预设，明确无需处理的 #76 不再显示红色；残留内容、匹配失败和必需文件缺失仍保留诊断，动态或损坏配置显示未知。保留现有功能和设置，不自动重启。[发行说明](docs/releases/1.6.31.md)
+
 
 ## 1.6.30：嵌套安装自检与准确诊断
 

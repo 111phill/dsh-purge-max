@@ -3,8 +3,8 @@ import path from "node:path";
 import fs from "node:fs";
 import { spawnSync } from "node:child_process";
 import { Maintenance, compatibility, ROOT, PACKAGE } from "../lib/community.js";
-import { findDshHome, findAiBase, patchDrift } from "../lib/core.js";
-import { currentHost } from "../lib/instance.js";
+import { findDshHome, patchDrift } from "../lib/core.js";
+import { currentHost, diagnosticHost } from "../lib/instance.js";
 import { readOverrides, writeOverride, clearOverride } from "../lib/anchors.js";
 import { logAudit, readAudit } from "../lib/audit.js";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -190,7 +190,7 @@ if (LEGACY[op]) {
     const { hostLayoutEvidence } = await import("../lib/host-layout.js");
     result = hostLayoutEvidence(aiBase);
   } else if (op === "diagnose") {
-    const target = aiBase || findAiBase();
+    const target = diagnosticHost();
     const drift = await patchDrift(target);
     result = { name: "Purge Community", package: PACKAGE, compatibility: compatibility(target), ...drift };
   } else if (op === "status")
