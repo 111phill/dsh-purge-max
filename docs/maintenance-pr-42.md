@@ -13,6 +13,6 @@
 
 `npm test` 包含实际文件系统链接/卸载测试与解压后迁移子进程的成功、失败测试，覆盖原有入口不变、首次安装不激活、设置字节不变、并发入口冲突、复制失败清理、无关文件保留，以及原有诊断和功能回归。Linux 只读目录测试必须在非 root Linux 用户下执行；Windows 用 junction 验证卸载边界，不能把平台跳过算作通过。
 
-GitHub 三平台 installer 矩阵执行完整测试和打包 smoke；Windows 另有两种 PowerShell 与真实 Electron 交接测试，macOS 有真实 Electron 诊断测试。Linux shell 入口和下载包装测试包含隔离替身，并不等价于登录真实模型完成任务；实际 npm 宿主的安装/回滚须单独记录，不能将单元测试称为所有功能实机通过。
+GitHub 三平台 installer 矩阵执行完整测试和打包 smoke；Windows 另有两种 PowerShell 与真实 Electron 交接测试，macOS 有真实 Electron 诊断测试。Linux shell 入口和下载包装测试包含隔离替身，并不等价于登录真实模型完成任务；`linux-runtime` 作业另外安装官方 `@deepseek-ai/dsh@0.2.1-rc.2`，将隔离副本设为只读，实际运行 bootstrap、用户副本 CLI、插件导入、备份/回滚和失败恢复。它不启动模型服务，也不等价于完整图形界面或模型能力验收。
 
 维护时不要改用户全局 npm 源、代理、权限、提示词或启动中的服务。准备副本不需要 sudo；系统目录始终保持原状。

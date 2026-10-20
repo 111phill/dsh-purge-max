@@ -12,7 +12,7 @@ import {verifyInstalledPackage} from '../lib/rollback-transaction.js';
 if(process.platform!=='linux'||process.getuid?.()===0) throw Error('Run as a non-root Linux user');
 const fixture=process.env.PURGE_TEST_LINUX_ROOT;
 if(!fixture || !fs.existsSync(path.join(fixture,'.purge-test-only'))) throw Error('An explicitly marked isolated npm host is required');
-const official=fs.realpathSync(path.join(fixture,'node_modules/@deepseek-ai/dsh'));
+const official=fs.realpathSync(path.join(fixture,'lib/node_modules/@deepseek-ai/dsh'));
 assert(official.startsWith(fs.realpathSync(fixture)+path.sep));
 const cli=path.join(official,'lib/bin.js'),base=path.join(official,'node_modules/@deepseek-ai');
 assert.equal(JSON.parse(fs.readFileSync(path.join(official,'package.json'))).name,'@deepseek-ai/dsh');
@@ -24,6 +24,7 @@ execFileSync(process.execPath,[cli,'--profile','web','--dump-default-config'],{e
 const profile=path.join(home,'profiles/web'),prompt=path.join(home,'prompt-inject.md');
 fs.writeFileSync(prompt,'private isolated fixture');
 const config=path.join(profile,'cordis.patch.yml');
+fs.appendFileSync(config, "\n# private isolated settings sentinel\n");
 const beforeConfig=fs.readFileSync(config);
 const modeRoot=fs.statSync(official).mode&0o777,modeBase=fs.statSync(base).mode&0o777;
 try {
@@ -48,8 +49,7 @@ try {
  assert.deepEqual(fs.readFileSync(path.join(profile,'pnpm-lock.yaml')),lock);
  await verifyInstalledPackage(profile,metadata);
  assert.equal(fs.readFileSync(prompt,'utf8'),'private isolated fixture');
- // Bundle migration may legitimately add its registration; do not mistake that
- // for proof that arbitrary user settings were preserved. A sentinel survives.
+ assert.deepEqual(fs.readFileSync(config),beforeConfig);
  assert.equal(fs.statSync(official).mode&0o777,0o555);
  assert.equal(fs.statSync(base).mode&0o777,0o555);
  console.log(JSON.stringify({officialHost:version.trim(),userCopy:true,realBootstrap:true,import:true,rollback:true,failedRollbackRecovered:true,promptPreserved:true,sourcePermissionsPreserved:true,restartedDSH:false}));

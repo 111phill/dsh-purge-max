@@ -101,3 +101,12 @@ test('failed restore/unregister never executes a pending cleanup plan', async t 
   assert.equal(result.ok,false); assert(fs.existsSync(path.join(dir,'keep.txt')));
  }
 });
+
+test('Linux cleanup does not treat a case-distinct sibling home as owned', {skip:process.platform!=='linux'}, t => {
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'purge-case-boundary-'));
+ t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ const home=path.join(root,'home'),outside=path.join(root,'HOME/node_modules/dsh-purge-community');
+ fs.mkdirSync(home);fs.mkdirSync(outside,{recursive:true});
+ fs.writeFileSync(path.join(outside,'package.json'),'{"name":"dsh-purge-community"}');
+ assert.equal(shouldDeletePluginTree(outside,home),false);
+});
