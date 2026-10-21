@@ -3,34 +3,164 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
 const exec = promisify(execFile);
 const repo = "kingcharleslzy-ai/dsh-purge";
 const hosts = new Set(["api.github.com", "github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com"]);
 
-async function get(url, limit, request) {
-  for (let n = 0; n < 6; n++) {
-    const u = new URL(url);
-    if (u.protocol !== "https:" || u.username || u.password || !hosts.has(u.hostname)) throw Error("Untrusted release URL");
-    const response = await request(url, { redirect: "manual", signal: AbortSignal.timeout(60000), headers: { "user-agent": "purge-community-installer", accept: "application/vnd.github+json" } });
-    if (response.status >= 300 && response.status < 400) {
-      if (!response.headers.get("location")) throw Error("Invalid release redirect");
-      url = new URL(response.headers.get("location"), u).href;
-      continue;
-    }
-    if (!response.ok) throw Error(`Release download HTTP ${response.status}`);
-    if (Number(response.headers.get("content-length")) > limit) throw Error("Release file too large");
-    const parts = []; let size = 0;
-    for await (const chunk of response.body) {
+// Keep this module self-contained: the raw installer runs before dependencies exist.
+const transientCodes = new Set(['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'ENETUNREACH', 'EHOSTUNREACH', 'EAI_AGAIN', 'ENOTFOUND', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_BODY_TIMEOUT', 'UND_ERR_SOCKET', 'UND_ERR_DESTROYED', 'TimeoutError', 'AbortError']);
+const retryStatus = new Set([408, 429, 500, 502, 503, 504]);
+function failure(code, retryable = false) { return Object.assign(new Error(code), { code, retryable }); }
+function trustedURL(value) {
+  let u;
+  try { u = new URL(value); } catch { throw failure('INVALID_RELEASE_URL'); }
+  if (u.protocol !== 'https:' || u.username || u.password || (u.port && u.port !== '443') || !hosts.has(u.hostname)) throw failure('UNTRUSTED_RELEASE_URL');
+  return u;
+}
+function errorCodes(error, seen = new Set()) {
+  if (!error || seen.has(error) || seen.size >= 12) return [];
+  seen.add(error);
+  // Never log raw error messages: they may contain proxy credentials or signed URLs.
+  const code = error.code || (['TimeoutError', 'AbortError'].includes(error.name) ? error.name : null);
+  return [...(typeof code === 'string' && /^[A-Z_a-z0-9]{1,64}$/.test(code) ? [code] : []),
+    ...errorCodes(error.cause, seen), ...(error.errors || []).flatMap(e => errorCodes(e, seen))];
+}
+function retryable(error) {
+  if (typeof error.retryable === 'boolean') return error.retryable;
+  const codes = errorCodes(error);
+  return codes.length > 0 && codes.every(code => transientCodes.has(code));
+}
+
+// No shell, no curlrc, no automatic redirects, no insecure TLS. Stream into a
+// bounded buffer, including headers, so an untrusted body cannot fill disk/RAM.
+export function curlReleaseRequest(url, { timeout, limit, env = process.env } = {}) {
+  trustedURL(url);
+  return new Promise((resolve, reject) => {
+    const executable = process.platform === 'win32' ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'curl.exe') : '/usr/bin/curl';
+    const args = ['--disable', '--silent', '--show-error', '--globoff', '--proto', '=https', '--connect-timeout', '20', '--max-time', String(Math.max(0.001, timeout / 1000)),
+      '--include', '--suppress-connect-headers', '--header', 'accept: application/vnd.github+json', '--user-agent', 'purge-community-installer', '--url', url];
+    // Schannel curl does not consistently honor CURL_CA_BUNDLE implicitly.
+    // Honor an explicitly provided CA file without touching the system trust store.
+    if (env.CURL_CA_BUNDLE) args.splice(args.length - 2, 0, '--cacert', env.CURL_CA_BUNDLE);
+    const child = spawn(executable, args, { env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    let header = Buffer.alloc(0), headers, status, parts = [], size = 0, stopped = false;
+    const stop = error => { if (!stopped) { stopped = true; clearTimeout(timer); child.kill(); reject(error); } };
+    const timer = setTimeout(() => stop(failure('CURL_TIMEOUT', true)), timeout + 1000);
+    // stderr can include credential-bearing URLs. Drain it, never echo it.
+    child.stderr.resume();
+    child.on('error', error => stop(failure(error.code === 'ENOENT' ? 'CURL_UNAVAILABLE' : 'CURL_START_FAILED')));
+    child.stdout.on('data', chunk => {
+      if (stopped) return;
+      if (!headers) {
+        header = Buffer.concat([header, chunk]);
+        for (;;) {
+          const end = header.indexOf('\r\n\r\n');
+          if (end < 0) { if (header.length > 65536) stop(failure('RELEASE_HEADERS_TOO_LARGE')); return; }
+          if (end > 65536) { stop(failure('RELEASE_HEADERS_TOO_LARGE')); return; }
+          const lines = header.subarray(0, end).toString('latin1').split('\r\n');
+          const match = /^HTTP\/[^ ]+ (\d{3})(?: |$)/.exec(lines.shift());
+          if (!match) { stop(failure('INVALID_RELEASE_RESPONSE')); return; }
+          status = Number(match[1]);
+          chunk = header.subarray(end + 4); header = Buffer.alloc(0);
+          if (status >= 100 && status < 200) { header = chunk; continue; }
+          headers = new Headers();
+          try { for (const line of lines) { const colon = line.indexOf(':'); if (colon > 0) headers.append(line.slice(0, colon), line.slice(colon + 1).trim()); } }
+          catch { stop(failure('INVALID_RELEASE_HEADERS')); return; }
+          if (Number(headers.get('content-length')) > limit) { stop(failure('RELEASE_FILE_TOO_LARGE')); return; }
+          break;
+        }
+      }
       size += chunk.length;
-      if (size > limit) throw Error("Release file too large");
+      if (size > limit) { stop(failure('RELEASE_FILE_TOO_LARGE')); return; }
       parts.push(chunk);
+    });
+    child.on('close', code => {
+      clearTimeout(timer);
+      if (stopped) return;
+      stopped = true;
+      if (code !== 0) { reject(failure(`CURL_EXIT_${code}`, [5, 6, 7, 18, 28, 52, 55, 56, 92].includes(code))); return; }
+      if (!headers) { reject(failure('INVALID_RELEASE_RESPONSE')); return; }
+      resolve({ status, headers, body: Buffer.concat(parts) });
+    });
+  });
+}
+
+export async function downloadReleaseFile(url, limit, { request = fetch, curlRequest = curlReleaseRequest, log = console.log,
+  stage = 'release', budget = 60000, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
+  trustedURL(url);
+  const deadline = Date.now() + budget;
+  const failures = [];
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const transport = attempt < 2 ? 'fetch' : 'curl';
+    let current = url, lastHost = trustedURL(url).hostname;
+    try {
+      // Restart at the official URL on retry; signed asset redirects may expire.
+      for (let hop = 0; hop < 6; hop++) {
+        const u = trustedURL(current), remaining = deadline - Date.now();
+        if (remaining <= 0) throw failure('DOWNLOAD_BUDGET_EXHAUSTED');
+        lastHost = u.hostname;
+        const timeout = transport === 'fetch' ? Math.min(20000, remaining) : remaining;
+        let result;
+        if (transport === 'curl') result = await curlRequest(current, { timeout, limit });
+        else {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(new DOMException('Timed out', 'TimeoutError')), timeout);
+          let response;
+          try {
+            response = await request(current, { redirect: 'manual', signal: controller.signal, headers: { 'user-agent': 'purge-community-installer', accept: 'application/vnd.github+json' } });
+            if (response.status < 200 || response.status >= 300) {
+              result = { status: response.status, headers: response.headers };
+            } else {
+              if (Number(response.headers.get('content-length')) > limit) throw failure('RELEASE_FILE_TOO_LARGE');
+              const parts = []; let size = 0;
+              for await (const chunk of response.body) {
+                size += chunk.length;
+                if (size > limit) throw failure('RELEASE_FILE_TOO_LARGE');
+                parts.push(chunk);
+              }
+              result = { status: response.status, headers: response.headers, body: Buffer.concat(parts) };
+            }
+          } finally {
+            clearTimeout(timer);
+            // Abort unused redirect/error bodies as well as partial streams.
+            controller.abort();
+            if (response?.body && !response.body.locked) await response.body.cancel().catch(() => {});
+          }
+        }
+        if (result.status >= 300 && result.status < 400) {
+          const location = result.headers.get('location');
+          if (!location) throw failure('INVALID_RELEASE_REDIRECT');
+          try { current = new URL(location, u).href; } catch { throw failure('INVALID_RELEASE_REDIRECT'); }
+          trustedURL(current);
+          continue;
+        }
+        if (result.status < 200 || result.status >= 300) throw failure(`HTTP_${result.status}`, retryStatus.has(result.status));
+        if (!Buffer.isBuffer(result.body) || result.body.length > limit) throw failure('RELEASE_FILE_TOO_LARGE');
+        if (attempt) log(`[download] stage=${stage} transport=${transport} recovered; SHA256 verification is still required.`);
+        return result.body;
+      }
+      throw failure('TOO_MANY_RELEASE_REDIRECTS');
+    } catch (error) {
+      const codes = [...new Set(errorCodes(error))].join(',') || 'NETWORK_OR_RESPONSE_ERROR';
+      const diagnostic = `stage=${stage} host=${lastHost} transport=${transport} attempt=${attempt + 1}/3 code=${codes}`;
+      failures.push(diagnostic);
+      if (!retryable(error) || attempt === 2 || deadline - Date.now() <= 1000) {
+        throw new Error(`Release download failed: ${failures.join(' | ')}. Nothing installed. Check the existing network/proxy and certificate configuration; do not disable TLS or SHA256 verification.`);
+      }
+      log(`[download] ${diagnostic}; ${attempt === 0 ? 'retrying once' : 'trying system curl with the existing environment'}.`);
+      await sleep(500 * (attempt + 1));
     }
-    return Buffer.concat(parts);
   }
-  throw Error("Too many release redirects");
+}
+
+export function archiveDownloadBudget(env = process.env) {
+  const raw = env.PURGE_DOWNLOAD_TIMEOUT_MS;
+  if (raw === undefined || raw === '') return 180000;
+  if (!/^\d+$/.test(raw) || Number(raw) < 30000 || Number(raw) > 900000) throw Error('PURGE_DOWNLOAD_TIMEOUT_MS must be 30000–900000');
+  return Number(raw);
 }
 
 export function verifyChecksum(bytes, text, filename) {
@@ -156,7 +286,7 @@ export function prepareLinuxHost(cli, { userHome = os.homedir(), log = console.l
 }
 
 export async function bootstrapInstall(options = {}) {
-  const { request = fetch, run = exec, log = console.log, executable = process.execPath, platform = process.platform,
+  const { request = fetch, download = {}, run = exec, log = console.log, executable = process.execPath, platform = process.platform,
     mode = process.env.PURGE_INSTALL_MODE || "desktop",
     home = process.env.DSH_HOME || path.join(os.homedir(), ".dsh"), profile = process.env.DSH_PROFILE || (mode === "web" ? "web" : "desktop"), dryRun = false } = options;
   if (!["web", "desktop"].includes(mode)) throw Error("Invalid installation mode");
@@ -169,7 +299,7 @@ export async function bootstrapInstall(options = {}) {
   let version = options.version || (local ? /^dsh-purge-community-(\d+\.\d+\.\d+)\.tgz$/.exec(path.basename(options.archiveFile))?.[1] : undefined);
   if (local && !version) throw Error("Specify --version for this local archive");
   if (!version) {
-    const release = JSON.parse((await get(`https://api.github.com/repos/${repo}/releases/latest`, 1024 * 1024, request)).toString("utf8"));
+    const release = JSON.parse((await downloadReleaseFile(`https://api.github.com/repos/${repo}/releases/latest`, 1024 * 1024, { ...download, request, log, stage: "metadata" })).toString("utf8"));
     if (release.draft || release.prerelease) throw Error("Latest release is not stable");
     version = String(release.tag_name || "").replace(/^v/, "");
   }
@@ -178,8 +308,8 @@ export async function bootstrapInstall(options = {}) {
   const base = `https://github.com/${repo}/releases/download/v${version}`;
   log(`${local ? "Verifying local" : "Downloading"} Purge Community ${version}...`);
   if (local && fs.statSync(options.archiveFile).size > 50 * 1024 * 1024) throw Error("Release file too large");
-  const archive = local ? fs.readFileSync(options.archiveFile) : await get(`${base}/${filename}`, 50 * 1024 * 1024, request);
-  const sums = local ? `${options.sha256}  ${filename}\n` : (await get(`${base}/SHA256SUMS.txt`, 64 * 1024, request)).toString("utf8");
+  const archive = local ? fs.readFileSync(options.archiveFile) : await downloadReleaseFile(`${base}/${filename}`, 50 * 1024 * 1024, { ...download, request, log, stage: "archive", budget: archiveDownloadBudget() });
+  const sums = local ? `${options.sha256}  ${filename}\n` : (await downloadReleaseFile(`${base}/SHA256SUMS.txt`, 64 * 1024, { ...download, request, log, stage: "checksum" })).toString("utf8");
   verifyChecksum(archive, sums, filename);
   if (dryRun) { log("SHA256 verified; dry run, nothing installed."); return { version, dryRun: true }; }
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "purge-installer-"));

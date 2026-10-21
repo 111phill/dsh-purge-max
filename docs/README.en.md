@@ -8,7 +8,7 @@ A self-hosted add-on for DeepSeek Harness (known in the community as a 破甲 / 
 
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 
-Current version 1.6.38 · targets **DSH Desktop 0.2.1-rc.2** (rc.1 also passes)
+Current version 1.6.39 · targets **DSH Desktop 0.2.1-rc.2** (rc.1 also passes)
 
 </div>
 
@@ -70,7 +70,7 @@ Two separate preferences (check / install), default check-only every six hours. 
 
 ## Compatibility
 
-Plugin `dsh-purge-community` 1.6.38 · verified on DSH Desktop 0.2.1-rc.1 / rc.2 · Node ≥ 18.
+Plugin `dsh-purge-community` 1.6.39 · verified on DSH Desktop 0.2.1-rc.1 / rc.2 · Node ≥ 18.
 
 ## Troubleshooting
 
@@ -90,9 +90,9 @@ Agent-facing instructions live in [AGENTS.md](../AGENTS.md); when the two disagr
 
 **Keywords**: 破甲 · unrestricted mode · prompt injection · jailbreak · DSH plugin · status self-check · backup and rollback
 
-## 1.6.38
+## 1.6.39
 
-Adds a separate archive timeout and opt-in TGZ mirror backed by official SHA256 metadata. Download failures no longer start installation rollback. Fixes duplicate configuration warnings and Linux audit ownership across root/service-user calls without widening private permissions. No proxy changes or automatic restart. See [release notes](releases/1.6.38.md) and [maintenance details](maintenance-issues-44-47.md).
+Fixes opaque standalone installer download failures with stage-specific diagnostics, bounded retries and system curl fallback. Official HTTPS source, certificate and SHA256 verification remain mandatory. Failed downloads do not modify the existing installation. No proxy changes or automatic restart. See [release notes](releases/1.6.39.md) and [maintenance details](maintenance-issue-52.md).
 
 ## Contributors
 
@@ -133,3 +133,7 @@ Thank you to the original author, code contributors, and everyone who provided r
 <!-- CONTRIBUTORS:END -->
 
 The list combines GitHub commit authors with curated acknowledgements, refreshes daily, and retains historical contributors. Order is not a ranking; reporting an issue does not imply authorship of code.
+
+### Download troubleshooting (#52)
+
+The standalone installer now reports the failing stage, official host, transport, attempt and error code. Transient failures get one fetch retry followed by system curl, with bounded time and attempts. Both paths retain HTTPS source, TLS, size and SHA256 checks. Re-download the installer and run dry-run first; share only redacted diagnostic lines if it still fails. No proxy configuration or automatic restart is performed. See [maintenance details](maintenance-issue-52.md).

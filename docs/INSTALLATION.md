@@ -1,6 +1,6 @@
 # 安装、升级与故障排查
 
-当前版本 **1.6.38**。面向用户与协助安装的 Agent。支持的安装器环境：Linux CLI/Web；macOS Desktop；Windows 11 的 PowerShell 5.1/7。完整 Windows 宿主补丁及界面验收与安装器测试分开，不能因安装通过就宣称全部功能正常。
+当前版本 **1.6.39**。面向用户与协助安装的 Agent。支持的安装器环境：Linux CLI/Web；macOS Desktop；Windows 11 的 PowerShell 5.1/7。完整 Windows 宿主补丁及界面验收与安装器测试分开，不能因安装通过就宣称全部功能正常。
 
 ## 安装前
 
@@ -74,6 +74,10 @@ Web/Headless：下载本仓库发行 `.tgz` 与 SHA256SUMS，校验**该文件�
 
 面板回滚通过归档安装并校验新进程加载，失败恢复本轮前的依赖图。更新代理只作用于插件请求，不修改系统；token 仅发往 GitHub API。环境变量需由实际宿主进程继承。旧版本损坏 link 可用校验后的新版发行包通过独立入口恢复；不要删用户设置或全局缓存。限制及实测方法见 [维护说明](maintenance-issues-34-35.md)。
 
-## 1.6.38：慢网更新与审计属主
+## 1.6.39：慢网更新与审计属主
 
 归档预算使用 `PURGE_DOWNLOAD_TIMEOUT_MS`（默认 180000，范围 30000–900000）；可选 `PURGE_GH_MIRROR` 仅传输社区 TGZ，官方摘要不可用就停止。容器 root home 需明确服务 UID/GID；不要扩大权限或改全局代理。完整步骤、变量及测试边界见 [维护说明](maintenance-issues-44-47.md)。不自动重启。
+
+## #52：下载失败与备用通道
+
+新版独立安装器会报告 `[download] stage=archive host=github.com transport=fetch attempt=1/3 code=…`。最多两次 fetch 和一次系统 curl；来源、证书与 SHA256 不会因此放宽。先重新下载入口脚本并执行 dry-run；保留失败阶段与错误码即可，不要粘贴代理密码、完整环境变量或签名下载 URL。详情见 [下载诊断](maintenance-issue-52.md)。

@@ -44,7 +44,7 @@ test('latest stable version selection works and invalid versions/profiles do not
 test('bad checksums, HTTP failure and untrusted redirects stop before any extraction',async t=>{
  const f=fixture(t);
  for(const request of [async()=>new Response('bad'),async()=>new Response('',{status:503}),async()=>new Response('',{status:302,headers:{location:'https://evil.example/file'}})]){
- await assert.rejects(bootstrapInstall({...f,version,request,run:()=>assert.fail(),log:()=>{}}));
+ await assert.rejects(bootstrapInstall({...f,version,request,download:{sleep:async()=>{},curlRequest:async()=>{throw Object.assign(Error("offline"),{code:"CURL_UNAVAILABLE"});}},run:()=>assert.fail(),log:()=>{}}));
  }
 });
 test('runtime discovery stays in selected Desktop, sealed/unsealed, macOS and Windows shapes',t=>{
