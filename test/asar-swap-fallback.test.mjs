@@ -50,7 +50,7 @@ test('real Windows PowerShell: wait for process, preserve archive, complete with
     await until(()=>fs.existsSync(ready));
     helper=spawn(powershell,['-NoProfile','-File',ps,'-ExePath',exe,'-AsarPath',f.asar,'-StatePath',state,'-Token','test','-TimeoutSeconds','10','-PollMilliseconds','100'],{stdio:'pipe'});
     let stderr='';helper.stderr.on('data',b=>stderr+=b);
-    await until(()=>readWindowsAsarHandoff(f.asar)?.phase==='waiting_for_quit').catch(e=>{throw Error(e.message+' '+JSON.stringify(readWindowsAsarHandoff(f.asar))+' '+stderr)});
+    await until(()=>readWindowsAsarHandoff(f.asar)?.phase==='waiting_for_quit',30000).catch(e=>{throw Error(e.message+' exit='+helper.exitCode+' state='+JSON.stringify(readWindowsAsarHandoff(f.asar))+' '+stderr)});
     assert.ok(fs.existsSync(f.asar));assert.equal(holder.exitCode,null);
     holder.kill();await until(()=>readWindowsAsarHandoff(f.asar)?.phase==='complete');
     assert.equal(fs.existsSync(f.asar),false);assert.equal(fs.readFileSync(f.asar+'.purge-test.bak','utf8'),'original archive');assert.equal(stderr,'');

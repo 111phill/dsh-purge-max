@@ -47,3 +47,12 @@ test('audit refuses directory/file symlinks and hard links without changing targ
     assert.equal(fs.readFileSync(target,'utf8'),'PRIVATE');
   } finally {fs.rmSync(home,{recursive:true,force:true});}
 });
+
+
+test('audit read permission errors are visible, not an empty history', {skip:process.platform==='win32'||process.getuid?.()===0}, () => {
+  const home=fs.mkdtempSync(path.join(os.tmpdir(),'purge-audit-unreadable-'));
+  const dir=path.join(home,'dsh-purge-community');fs.mkdirSync(dir);
+  const file=path.join(dir,'audit.jsonl');fs.writeFileSync(file,'private',{mode:0o000});
+  try { assert.throws(()=>readAudit({home}),/审计日志读取失败/); }
+  finally {fs.chmodSync(file,0o600);fs.rmSync(home,{recursive:true,force:true});}
+});

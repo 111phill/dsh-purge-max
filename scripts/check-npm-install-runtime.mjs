@@ -22,4 +22,11 @@ try {
   execFileSync(process.execPath,[fileURLToPath(new URL('./verify-rollback-runtime.mjs',import.meta.url)),baseline,candidate],{env,stdio:'inherit',timeout:600000});
   assert.deepEqual(fs.readFileSync(config),before);assert.equal(fs.readFileSync(prompt,'utf8'),'PRIVATE PROMPT SENTINEL');
   console.log(JSON.stringify({platform:process.platform,realOfficialHost:true,upgradeRollbackAndRecovery:true,configPreserved:true,promptPreserved:true,restart:false}));
+} catch (error) {
+  const logs=path.join(home,'profiles/web/.plugin-manager/logs');
+  if(fs.existsSync(logs)) for(const dir of fs.readdirSync(logs).slice(-8)) {
+    const file=path.join(logs,dir,'pnpm.log');
+    if(fs.existsSync(file)) console.error(`Isolated package-manager log ${dir}:\n${fs.readFileSync(file,'utf8').slice(-6000)}`);
+  }
+  throw error;
 } finally {fs.rmSync(temp,{recursive:true,force:true});}
