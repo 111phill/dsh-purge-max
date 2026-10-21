@@ -114,6 +114,15 @@ if (LEGACY[op]) {
     } else {
       throw Error("用法：purge-community reanchor list | show <id> | apply <id> [--index n] [--lines a-b] [--yes] | clear <id>");
     }
+  } else if (op === "retry") {
+    const sub = (argument || "status").toLowerCase();
+    if (sub === "on" || sub === "off") {
+      const next = writeTuning({ refusalRetry: sub === "on" });
+      logAudit("refusal_retry_setting", { enabled: next.refusalRetry }, home);
+      result = { ok: true, refusalRetry: next.refusalRetry, restart_required: true };
+    } else {
+      result = { ok: true, refusalRetry: readTuning(home).refusalRetry === true, hint: "purge-community retry on|off" };
+    }
   } else if (op === "rewind") {
     const sub = (argument || "status").toLowerCase();
     if (sub === "on" || sub === "off") {

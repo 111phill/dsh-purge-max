@@ -9,15 +9,15 @@
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.6.33** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
+当前版本 **1.6.34** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
 
 </div>
 
 ---
 
-## 1.6.33：Linux 安装入口与跨平台安装保护
+## 1.6.34：Linux 安装入口与跨平台安装保护
 
-合入 [PR #42](https://github.com/kingcharleslzy-ai/dsh-purge/pull/42)，增加 Linux CLI/Web 安装支持。系统目录不可写时准备用户宿主副本，迁移成功后才切换入口；卸载符号链接时保留外部源码与共享依赖。Windows/macOS 继续通过完整安装、打包及真实 Electron 回归。不改现有补丁功能、提示词或用户设置，不自动重启。[发行说明](docs/releases/1.6.33.md) · [验证范围](docs/maintenance-pr-42.md)
+合入 [PR #42](https://github.com/kingcharleslzy-ai/dsh-purge/pull/42)，增加 Linux CLI/Web 安装支持。系统目录不可写时准备用户宿主副本，迁移成功后才切换入口；卸载符号链接时保留外部源码与共享依赖。Windows/macOS 继续通过完整安装、打包及真实 Electron 回归。不改现有补丁功能、提示词或用户设置，不自动重启。[发行说明](docs/releases/1.6.34.md) · [验证范围](docs/maintenance-pr-42.md)
 
 ## 1.6.32：统一桌面诊断目标
 
@@ -77,7 +77,7 @@ sh /tmp/purge-install.sh
 
 ```sh
 npm pack --ignore-scripts
-ARCHIVE="dsh-purge-community-1.6.33.tgz"
+ARCHIVE="dsh-purge-community-1.6.34.tgz"
 SHA256=$(sha256sum "$ARCHIVE" | cut -d ' ' -f1)
 sh scripts/install.sh --archive="$PWD/$ARCHIVE" --sha256="$SHA256" --dry-run
 # 核对包来源与摘要后，去掉 --dry-run 执行安装。

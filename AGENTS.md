@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.33** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
+> 当前版本：**1.6.34** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -131,7 +131,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.33 |
+| 插件 | `dsh-purge-community` 1.6.34 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
@@ -266,3 +266,16 @@ issue #19：`purge-community host-status` 输出 `disk.archive_exists` / `disk.u
 ## 25. 桌面归档诊断目标（1.6.32 / #40）
 
 status/selfcheck/diagnose 使用 `diagnosticHost` 统一检查当前安装的物理目录；`currentHost` 保留安装/启动定位语义。归档内启动路径仅映射到同一 Resources 下的 app 或 app.asar.unpacked，不能扫描别的安装来凑出绿色。部分或不可读的目标不能跳过，归档仍存在和权限差异继续提示。磁盘已应用不代表运行进程已加载；不因此自动重启、删归档或修改权限。复现和实际 HTTP handler 验收见 `npm run test:electron` 与 [维护说明](docs/maintenance-issue-40.md)。
+
+## 26. 拒绝检测 + 单次重试（1.6.34 起）
+
+开关：`purge-community retry on|off`（默认 **off**，存在 `tuning.json` 的 `refusalRetry`）。
+
+实现：插件在 `llm/stream` waterfall 上包一层，不改宿主、不改注入正文。
+
+1. 缓冲输出开头最多 400 字符（或遇到工具调用/结束块）；
+2. 命中拒绝特征 → 丢弃本次输出，在**系统提示尾部**追加一段加固语，重跑一次；
+3. 未命中 → 缓冲块原样吐出，之后流式透传，与未装钩子一致；
+4. 每次重试写 `audit.jsonl` 的 `refusal_retry`（只记长度与前 80 字符）。
+
+只重试一次，避免死循环。排查拒绝率先看 `purge-community audit --limit 20` 有没有 `refusal_retry`，再决定是否调整 `tuning.injectPosition`。本层与 §20 的插话、§19 的换包互不影响。
