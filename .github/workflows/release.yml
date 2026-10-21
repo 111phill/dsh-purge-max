@@ -92,5 +92,8 @@ jobs:
           node "$runtime/node_modules/electron/install.js"
           export PURGE_ELECTRON_EXEC="$runtime/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
           npm run test:electron
+      - name: Real Linux root and service-user audit ownership
+        if: runner.os == 'Linux'
+        run: sudo "$(command -v node)" scripts/check-audit-ownership.mjs
       - name: Verify packed artifact on each platform
         run: npm pack --ignore-scripts && node scripts/smoke.mjs

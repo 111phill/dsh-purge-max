@@ -28,6 +28,7 @@ test('real CONNECT tunnel validates TLS, scopes credentials and respects total t
   const server=https.createServer({key:fs.readFileSync(path.join(dir,'key.pem')),cert:fs.readFileSync(path.join(dir,'cert.pem'))},(req,res)=>{
     requests.push({url:req.url,headers:req.headers});
     if(req.url==='/redirect'){res.writeHead(302,{location:`https://release-assets.githubusercontent.com:${server.address().port}/asset`});res.end();}
+    else if(req.url==='/stream'){res.writeHead(200);let n=0;const timer=setInterval(()=>{res.write('x');if(++n===6){clearInterval(timer);res.end();}},40);res.on('close',()=>clearInterval(timer));}
     else if(req.url==='/slow'){res.writeHead(200);res.write('x');}
     else if(req.url==='/large'){res.end('too many bytes');}
     else res.end('verified');
@@ -49,6 +50,8 @@ test('real CONNECT tunnel validates TLS, scopes credentials and respects total t
     assert(connects.every(r=>!r.headers.authorization && r.headers['proxy-authorization']==='Basic '+Buffer.from('user:fixture').toString('base64')));
     await assert.rejects(requestUpdate(`https://github.com:${server.address().port}/asset`,{env}),/网络连接失败/);
     await assert.rejects(requestUpdate(base+'/large',{env,maxBytes:2}),/过大/);
+    assert.equal((await requestUpdate(base+'/stream',{env,timeout:1000})).body.toString(),'xxxxxx');
+    await assert.rejects(requestUpdate(base+'/stream',{env,timeout:100}),/超时/);
     await assert.rejects(requestUpdate(base+'/slow',{env,timeout:100}),/超时/);
   } finally {for(const socket of sockets)socket.destroy();await Promise.all([server,proxy].map(s=>new Promise(resolve=>s.close(resolve))));}
 });

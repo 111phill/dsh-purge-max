@@ -16,6 +16,7 @@ const official=fs.realpathSync(path.join(fixture,'lib/node_modules/@deepseek-ai/
 assert(official.startsWith(fs.realpathSync(fixture)+path.sep));
 const cli=path.join(official,'lib/bin.js'),base=path.join(official,'node_modules/@deepseek-ai');
 assert.equal(JSON.parse(fs.readFileSync(path.join(official,'package.json'))).name,'@deepseek-ai/dsh');
+execFileSync(process.execPath,[new URL('./check-cordis-composition.mjs',import.meta.url).pathname],{env:{...process.env,PURGE_TEST_HOST:base},stdio:'inherit'});
 const archive=path.resolve(process.argv[2]);const metadata=await validateArchive(archive);
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'purge-linux-runtime-'));
 const home=path.join(root,'home'),userHome=path.join(root,'user');fs.mkdirSync(home);
