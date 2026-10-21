@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.36** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
+> 当前版本：**1.6.37** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -131,7 +131,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.36 |
+| 插件 | `dsh-purge-community` 1.6.37 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
@@ -268,7 +268,7 @@ issue #19：`purge-community host-status` 输出 `disk.archive_exists` / `disk.u
 status/selfcheck/diagnose 使用 `diagnosticHost` 统一检查当前安装的物理目录；`currentHost` 保留安装/启动定位语义。归档内启动路径仅映射到同一 Resources 下的 app 或 app.asar.unpacked，不能扫描别的安装来凑出绿色。部分或不可读的目标不能跳过，归档仍存在和权限差异继续提示。磁盘已应用不代表运行进程已加载；不因此自动重启、删归档或修改权限。复现和实际 HTTP handler 验收见 `npm run test:electron` 与 [维护说明](docs/maintenance-issue-40.md)。
 
 
-## macOS #40：手动退出换包（1.6.36）
+## macOS #40：手动退出换包（1.6.37）
 
 - 「应用」写入磁盘后，确认 `host-status.handoff.phase` / 面板 `asar_handoff.phase`。`waiting_for_quit` 仅代表助手已就绪，不代表宿主已加载；请用户使用 ⌘Q 完整退出，确认 `complete` 后再由用户手动打开。不得自动退出或重开。
 - `not_scheduled` 是未安排，不是等待；`failed/expired/helper_stopped/unreadable` 必须展开 detail 排查；`archive_reappeared` 表示旧完成记录不能证明新归档，`backup_missing` 表示备份丢失。不得隐藏这些状态。

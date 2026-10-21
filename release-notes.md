@@ -1,3 +1,32 @@
+# 1.6.37
+
+## 修掉一个会真出问题的死链
+
+原上游仓库 `YuJunZhiXue/dsh-purge` 已被删除并换成无关项目。`lib/update-net.js` 里的
+`UPSTREAM_REPO` 仍指向它，**beta / 源码 ZIP 通道**会因此 404：
+
+```js
+export const SOURCE_REPO = "kingcharleslzy-ai/dsh-purge";
+export const UPSTREAM_REPO = SOURCE_REPO;   // 旧名字保留，避免外部脚本引用失效
+```
+
+正式 release 通道本来就走 `lib/community.js` 的 `REPOSITORY`，不受影响；本次一并统一。
+
+## 文档
+
+- `docs/CWD-COMPAT.md`：上游 issue #114 / PR #115 改成纯文本编号（原链接已 404）；
+- `docs/upstream/*`：加了一行归档横幅，说明上游仓库不可访问、文中链接仅作历史记录；
+- 署名与 MIT 许可证保留，`CONTRIBUTORS.md` 里作者链接仍指向 GitHub 账号（不是仓库），可正常访问。
+
+## 测试
+
+```
+npm test   241 通过 / 0 失败
+新增 test/update-source.test.mjs：
+  · 发布源必须是本仓库，且与 community.REPOSITORY 一致
+  · 归档 ZIP/TGZ 链接不得出现已删除的上游
+```
+
 # 1.6.36
 
 ## 拒绝重试改成「先给方案 + 问一句是否执行」

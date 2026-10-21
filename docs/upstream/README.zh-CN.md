@@ -1,3 +1,5 @@
+> 归档快照：原上游仓库 `YuJunZhiXue/dsh-purge` 已不可访问，本文中的上游链接仅作历史记录，点击可能 404。
+
 <p align="center">
   <img src="docs/banner.svg" alt="dsh-purge" width="720">
 </p>
