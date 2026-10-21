@@ -522,3 +522,19 @@ test('fresh-process verifier rejects a version-correct package with missing depe
     await verifyInstalledPackage(f.profile,meta);
   } finally { f.close(); }
 });
+
+
+test('Windows native installer resolves archive path aliases without changing their bytes', {skip:process.platform !== 'win32'}, async () => {
+  const {installWithDsh}=await import('../lib/community.js');const f=setup();const previous=process.env.PURGE_DSH_CLI;
+  try {
+    const dir=path.join(f.home,'archive-input');fs.mkdirSync(dir);
+    const archive=path.join(dir,'candidate.tgz');fs.copyFileSync(f.candidate,archive);
+    const alias=path.join(f.home,'archive-alias');fs.symlinkSync(dir,alias,'junction');
+    const input=path.join(alias,'candidate.tgz'),before=fs.readFileSync(input);
+    const cli=path.join(f.home,'cli.js');fs.writeFileSync(cli,'');process.env.PURGE_DSH_CLI=cli;
+    let supplied;
+    await installWithDsh(input,f.manager,{execute:async(_cmd,args)=>{assert.equal(args.at(-2),'add');supplied=args.at(-1);return {stdout:''};}});
+    assert.equal(supplied,fs.realpathSync.native(input));assert.notEqual(supplied,input);
+    assert.deepEqual(fs.readFileSync(input),before);assert(fs.lstatSync(alias).isSymbolicLink());
+  } finally {if(previous===undefined)delete process.env.PURGE_DSH_CLI;else process.env.PURGE_DSH_CLI=previous;f.close();}
+});

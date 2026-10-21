@@ -8,7 +8,7 @@ A self-hosted add-on for DeepSeek Harness (known in the community as a 破甲 / 
 
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 
-Current version 1.6.37 · targets **DSH Desktop 0.2.1-rc.2** (rc.1 also passes)
+Current version 1.6.38 · targets **DSH Desktop 0.2.1-rc.2** (rc.1 also passes)
 
 </div>
 
@@ -70,7 +70,7 @@ Two separate preferences (check / install), default check-only every six hours. 
 
 ## Compatibility
 
-Plugin `dsh-purge-community` 1.6.37 · verified on DSH Desktop 0.2.1-rc.1 / rc.2 · Node ≥ 18.
+Plugin `dsh-purge-community` 1.6.38 · verified on DSH Desktop 0.2.1-rc.1 / rc.2 · Node ≥ 18.
 
 ## Troubleshooting
 
@@ -89,3 +89,7 @@ If the panel does not open, confirm both sides run the same version, then follow
 Agent-facing instructions live in [AGENTS.md](../AGENTS.md); when the two disagree, AGENTS.md wins.
 
 **Keywords**: 破甲 · unrestricted mode · prompt injection · jailbreak · DSH plugin · status self-check · backup and rollback
+
+## 1.6.38
+
+Adds a separate archive timeout and opt-in TGZ mirror backed by official SHA256 metadata. Download failures no longer start installation rollback. Fixes duplicate configuration warnings and Linux audit ownership across root/service-user calls without widening private permissions. No proxy changes or automatic restart. See [release notes](releases/1.6.38.md) and [maintenance details](maintenance-issues-44-47.md).

@@ -32,3 +32,27 @@ test("audit appends, rotates and reads newest first", () => {
     fs.rmSync(home, { recursive: true, force: true });
   }
 });
+
+test('audit refuses directory/file symlinks and hard links without changing targets', {skip:process.platform==='win32'}, () => {
+  const home=fs.mkdtempSync(path.join(os.tmpdir(),'purge-audit-link-'));
+  try {
+    const outside=path.join(home,'outside'); fs.mkdirSync(outside);
+    const dir=path.join(home,'dsh-purge-community'),file=path.join(dir,'audit.jsonl');
+    fs.symlinkSync(outside,dir);
+    assert.equal(logAudit('test',{},home),false);assert.deepEqual(fs.readdirSync(outside),[]);
+    fs.unlinkSync(dir);fs.mkdirSync(dir,{mode:0o700});
+    const target=path.join(outside,'private');fs.writeFileSync(target,'PRIVATE',{mode:0o600});
+    fs.symlinkSync(target,file);assert.equal(logAudit('test',{},home),false);fs.unlinkSync(file);
+    fs.linkSync(target,file);assert.equal(logAudit('test',{},home),false);
+    assert.equal(fs.readFileSync(target,'utf8'),'PRIVATE');
+  } finally {fs.rmSync(home,{recursive:true,force:true});}
+});
+
+
+test('audit read permission errors are visible, not an empty history', {skip:process.platform==='win32'||process.getuid?.()===0}, () => {
+  const home=fs.mkdtempSync(path.join(os.tmpdir(),'purge-audit-unreadable-'));
+  const dir=path.join(home,'dsh-purge-community');fs.mkdirSync(dir);
+  const file=path.join(dir,'audit.jsonl');fs.writeFileSync(file,'private',{mode:0o000});
+  try { assert.throws(()=>readAudit({home}),/审计日志读取失败/); }
+  finally {fs.chmodSync(file,0o600);fs.rmSync(home,{recursive:true,force:true});}
+});

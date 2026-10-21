@@ -5,13 +5,15 @@ import https from 'node:https';import http from 'node:http';import net from 'nod
 import {execFile} from 'node:child_process';import {promisify} from 'node:util';
 import {fileURLToPath} from 'node:url';
 import {requestUpdate} from '../lib/update-http.js';
+import {prepareRelease,PACKAGE,REPOSITORY} from '../lib/community.js';
+import {createHash} from 'node:crypto';
 const exec=promisify(execFile);
 
 test('real CONNECT tunnel validates TLS, scopes credentials and respects total timeout',async t=>{
   if(!process.env.PURGE_PROXY_TEST_CHILD) {
     const tmp=process.env.PURGE_TEST_TLS_DIR || fs.mkdtempSync(path.join(os.tmpdir(),'purge-tls-'));
     if(!process.env.PURGE_TEST_TLS_DIR) {
-      try {await exec('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-keyout',path.join(tmp,'key.pem'),'-out',path.join(tmp,'cert.pem'),'-days','1','-subj','/CN=localhost','-addext','subjectAltName=DNS:localhost,DNS:api.github.com,DNS:release-assets.githubusercontent.com']);}
+      try {await exec('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-keyout',path.join(tmp,'key.pem'),'-out',path.join(tmp,'cert.pem'),'-days','1','-subj','/CN=localhost','-addext','subjectAltName=DNS:localhost,DNS:api.github.com,DNS:release-assets.githubusercontent.com,DNS:mirror.example']);}
       catch(e) {if(process.platform==='win32' && e.code==='ENOENT'){t.skip('Provide PURGE_TEST_TLS_DIR when OpenSSL is unavailable');return;}throw e;}
     }
     try {
@@ -25,9 +27,20 @@ test('real CONNECT tunnel validates TLS, scopes credentials and respects total t
     return;
   }
   const dir=process.env.PURGE_TEST_TLS_DIR;const requests=[],connects=[];const sockets=new Set();
+  const packageDir=path.join(dir,'package');fs.mkdirSync(packageDir,{recursive:true});
+  fs.writeFileSync(path.join(packageDir,'package.json'),JSON.stringify({name:PACKAGE,version:'9.9.9',repository:{url:`https://github.com/${REPOSITORY}.git`}}));
+  const packed=path.join(dir,'fixture.tgz');
+  await exec('tar',['-czf',packed,'-C',dir,'package']);
+  const bytes=fs.readFileSync(packed),digest='sha256:'+createHash('sha256').update(bytes).digest('hex');
+  const release={ref:'v9.9.9',version:'9.9.9',asset:`https://github.com/${REPOSITORY}/releases/download/v9.9.9/${PACKAGE}-9.9.9.tgz`,sums:`https://github.com/${REPOSITORY}/releases/download/v9.9.9/SHA256SUMS.txt`};
+  let tamper=false;
+
   const server=https.createServer({key:fs.readFileSync(path.join(dir,'key.pem')),cert:fs.readFileSync(path.join(dir,'cert.pem'))},(req,res)=>{
     requests.push({url:req.url,headers:req.headers});
-    if(req.url==='/redirect'){res.writeHead(302,{location:`https://release-assets.githubusercontent.com:${server.address().port}/asset`});res.end();}
+    if(req.url===`/repos/${REPOSITORY}/releases/tags/v9.9.9`){res.setHeader('content-type','application/json');res.end(JSON.stringify({tag_name:release.ref,assets:[{name:PACKAGE+'-9.9.9.tgz',browser_download_url:release.asset,digest}]}));}
+    else if(req.url==='/'+release.asset){res.writeHead(200);const data=tamper?Buffer.from('tampered'):bytes;let n=0;const timer=setInterval(()=>{res.write(data.subarray(n,n+32));n+=32;if(n>=data.length){clearInterval(timer);res.end();}},20);res.on('close',()=>clearInterval(timer));}
+    else if(req.url==='/redirect'){res.writeHead(302,{location:`https://release-assets.githubusercontent.com:${server.address().port}/asset`});res.end();}
+    else if(req.url==='/stream'){res.writeHead(200);let n=0;const timer=setInterval(()=>{res.write('x');if(++n===6){clearInterval(timer);res.end();}},40);res.on('close',()=>clearInterval(timer));}
     else if(req.url==='/slow'){res.writeHead(200);res.write('x');}
     else if(req.url==='/large'){res.end('too many bytes');}
     else res.end('verified');
@@ -49,6 +62,19 @@ test('real CONNECT tunnel validates TLS, scopes credentials and respects total t
     assert(connects.every(r=>!r.headers.authorization && r.headers['proxy-authorization']==='Basic '+Buffer.from('user:fixture').toString('base64')));
     await assert.rejects(requestUpdate(`https://github.com:${server.address().port}/asset`,{env}),/网络连接失败/);
     await assert.rejects(requestUpdate(base+'/large',{env,maxBytes:2}),/过大/);
+    // Actual HTTPS -> CONNECT -> mirror byte stream -> official digest -> tar identity check.
+    Object.assign(process.env,env,{PURGE_HTTPS_PROXY:env.HTTPS_PROXY,NO_PROXY:'',no_proxy:'',GITHUB_TOKEN:'test-token',PURGE_GH_MIRROR:'https://mirror.example/'});
+    const offset=requests.length;
+    const prepared=await prepareRelease({base:path.join(dir,'cache')},release);
+    assert.deepEqual(fs.readFileSync(prepared),bytes);
+    assert.equal(requests[offset].headers.authorization,'Bearer test-token');
+    assert.equal(requests[offset+1].headers.authorization,undefined);
+    assert(!requests.slice(offset).some(r=>r.url.includes('SHA256SUMS')));
+    tamper=true;
+    await assert.rejects(prepareRelease({base:path.join(dir,'cache')},release),/SHA256/);
+    assert.deepEqual(fs.readFileSync(prepared),bytes,'tampered response cannot replace validated cache');
+    assert.equal((await requestUpdate(base+'/stream',{env,timeout:1000})).body.toString(),'xxxxxx');
+    await assert.rejects(requestUpdate(base+'/stream',{env,timeout:100}),/超时/);
     await assert.rejects(requestUpdate(base+'/slow',{env,timeout:100}),/超时/);
   } finally {for(const socket of sockets)socket.destroy();await Promise.all([server,proxy].map(s=>new Promise(resolve=>s.close(resolve))));}
 });

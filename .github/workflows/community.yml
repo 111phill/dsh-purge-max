@@ -77,6 +77,9 @@ jobs:
           node "$runtime/node_modules/electron/install.js"
           export PURGE_ELECTRON_EXEC="$runtime/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
           npm run test:electron
+      - name: Real Linux root and service-user audit ownership
+        if: runner.os == 'Linux'
+        run: sudo "$(command -v node)" scripts/check-audit-ownership.mjs
       - name: Verify packed artifact on each platform
         run: npm pack --ignore-scripts && node scripts/smoke.mjs
 
@@ -99,3 +102,30 @@ jobs:
           export PATH="$PURGE_TEST_LINUX_ROOT/bin:$PATH"
           npm pack --ignore-scripts
           node scripts/check-linux-install-runtime.mjs "dsh-purge-community-$(node -p 'require("./package.json").version').tgz"
+
+  npm-runtime:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts --legacy-peer-deps
+      - name: Actual official host upgrade, rollback and failed rollback recovery
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          export PURGE_TEST_NPM_ROOT="$RUNNER_TEMP/purge-npm-official"
+          mkdir -p "$PURGE_TEST_NPM_ROOT"
+          touch "$PURGE_TEST_NPM_ROOT/.purge-test-only"
+          npm install --prefix "$PURGE_TEST_NPM_ROOT" --no-package-lock --no-audit --no-fund @deepseek-ai/dsh@0.2.1-rc.2 pnpm@10.32.1
+          export PATH="$PURGE_TEST_NPM_ROOT/node_modules/.bin:$PATH"
+          gh release download v1.6.36 --repo kingcharleslzy-ai/dsh-purge --pattern dsh-purge-community-1.6.36.tgz --dir "$RUNNER_TEMP/purge-baseline"
+          npm pack --ignore-scripts
+          node scripts/check-npm-install-runtime.mjs "$RUNNER_TEMP/purge-baseline/dsh-purge-community-1.6.36.tgz" "dsh-purge-community-$(node -p 'require("./package.json").version').tgz"

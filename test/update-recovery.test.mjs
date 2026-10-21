@@ -28,6 +28,7 @@ test('partial profile update remains actionable across scheduler restarts; only 
   const services = {
     listReleases: async () => ({ rows:[release] }), installSites: () => targets,
     createManager: site => ({site, backup: async () => { snapshots.set(site.profile,fs.readFileSync(path.join(site.dir,'package.json'))); return {id:site.profile}; }, rollback: async () => fs.writeFileSync(path.join(site.dir,'package.json'),snapshots.get(site.profile))}),
+    prepareRelease: async () => "isolated-prepared-archive",
     installRelease: async manager => { const site = manager.site; calls.push(site.profile); fs.writeFileSync(path.join(site.dir,'package.json'),JSON.stringify({name:PACKAGE,version:release.version})); if(site.profile==='web' && fail) throw Error('simulated disk failure'); return {restart_required:true}; },
   };
   const check = async () => ({ok:true,channel:'stable',remoteVersion:release.version,...summarizeProfileUpdates(profileVersions(targets,release.version))});
@@ -75,4 +76,19 @@ test('actual checkUpdate uses all profile disk versions rather than the running 
   let r=await checkUpdate(services); assert.equal(r.hasUpdate,true);assert.equal(r.retryIncomplete,true);assert.equal(r.targets.length,2);
   fs.writeFileSync(path.join(targets[1].dir,'package.json'),JSON.stringify({name:PACKAGE,version:release.version}));
   r=await checkUpdate(services);assert.equal(r.hasUpdate,false);assert.equal(r.lanes.stable.hasUpdate,false);
+});
+
+test('download/integrity failure never starts a backup, install or rollback', async t => {
+  const {targets}=fixture(t); const calls=[];
+  const result=await installForkRelease({}, {
+    listReleases:async()=>({rows:[release]}),installSites:()=>targets,
+    createManager:()=>({backup(){calls.push('backup');},rollback(){calls.push('rollback');},install(){calls.push('install');}}),
+    prepareRelease:async()=>{throw Error('download integrity failure');},
+  });
+  assert.equal(result.ok,false);assert.deepEqual(calls,[]);
+  assert(!JSON.stringify(result).includes('已回滚'));
+  for(const site of targets) {
+    assert.equal(JSON.parse(fs.readFileSync(path.join(site.dir,'package.json'))).version,'1.6.27');
+    assert.equal(fs.readFileSync(path.join(site.profileDir,'cordis.patch.yml'),'utf8'),'PRIVATE SETTINGS');
+  }
 });
