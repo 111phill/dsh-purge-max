@@ -38,6 +38,24 @@ Purge Community 是一个跑在你自己机器上的 Harness 附加组件。它�
 
 1.6.40 新增 `excludePresets`：默认空列表，保持原有行为；可将 `roleplay`、`minimal` 等预设排除在 Purge 提示词注入之外，保留命令、面板与工具。切换预设、并行会话和子 Agent 各自判断，宿主兜底也遵守排除。配置示例、升级步骤与边界见 [按预设排除说明](docs/maintenance-issue-53.md)。这不会撤销全局宿主补丁。
 
+## 搭配：本机出图（Qwen Studio）
+
+破甲之后最直接的玩法，是把「生图」也搬到本机——不用网页、不用会员、不把提示词发到别人服务器。
+
+配套插件 **Qwen Studio**（`dsh-qwen-studio`）把 Qwen Image 2.1 接进 DSH：
+
+- **Apple Silicon Mac**：MLX / MFLUX 本机推理，模型用时加载、空闲释放；
+- **Windows / Linux + NVIDIA**：连你自己的 GPU 网关（ComfyUI 或 vLLM-Omni 协议），也支持 SSH 按需拉起；
+- 支持参考图编辑（按图改画风、换材质）、LoRA、ControlNet、蒙版、整套预设、图库与批量任务；
+- 装好之后，会话里直接说「画一张…」或「把这张改成水彩」，Agent 调用 `qwen_generate_image` 并把图返回到对话里。
+
+**组合效果**：破甲让 Agent 不再反复确认「要不要画」，出图插件让它真的画出来，全程在你自己的机器上完成。
+
+```
+Qwen Studio  →  https://github.com/kingcharleslzy-ai/dsh-qwen-studio
+安装与硬件自查 →  docs/SETUP.md（先看「这台机器能不能跑」再动手）
+```
+
 ## 设计原则
 
 | 原则 | 含义 |
