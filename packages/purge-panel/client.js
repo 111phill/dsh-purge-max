@@ -10341,9 +10341,12 @@ function UpdatePreferences({ value, status = {}, onSaved }) {
     h(
       "p",
       { className: "dshpp-hint" },
-      status.restartRequired ? `\u5DF2\u5B89\u88C5 ${status.pendingVersion}\uFF0C\u7B49\u5F85\u4F60\u624B\u52A8\u91CD\u542F DSH\u3002` : !value.autoCheck ? "\u81EA\u52A8\u68C0\u67E5\u5DF2\u5173\u95ED\uFF0C\u81EA\u52A8\u5B89\u88C5\u6682\u505C\u3002" : status.checkedAt ? `\u4E0A\u6B21\u68C0\u67E5\uFF1A${new Date(status.checkedAt).toLocaleString()}${status.hasUpdate ? ` \xB7 \u53EF\u7528\u7248\u672C ${status.availableVersion}` : ""}` : "\u542F\u52A8\u540E\u81EA\u52A8\u68C0\u67E5\uFF1B\u5B89\u88C5\u540E\u4EC5\u63D0\u793A\u624B\u52A8\u91CD\u542F\u3002"
+      status.reconciliationError ? "\u5B89\u88C5\u72B6\u6001\u5F85\u6838\u5BF9\uFF0C\u81EA\u52A8\u5B89\u88C5\u5DF2\u6682\u505C\u3002" : status.restartRequired ? `\u78C1\u76D8\u7248\u672C ${status.pendingVersion}\uFF0C\u5F53\u524D\u8FD0\u884C ${status.runningVersion || "\u672A\u77E5"}\uFF1B\u7B49\u5F85\u4F60\u624B\u52A8\u91CD\u542F DSH\u3002` : !value.autoCheck ? "\u81EA\u52A8\u68C0\u67E5\u5DF2\u5173\u95ED\uFF0C\u81EA\u52A8\u5B89\u88C5\u6682\u505C\u3002" : status.checkedAt ? `\u4E0A\u6B21\u68C0\u67E5\uFF1A${new Date(status.checkedAt).toLocaleString()}${status.hasUpdate ? ` \xB7 \u53EF\u7528\u7248\u672C ${status.availableVersion}` : ""}` : "\u542F\u52A8\u540E\u81EA\u52A8\u68C0\u67E5\uFF1B\u5B89\u88C5\u540E\u4EC5\u63D0\u793A\u624B\u52A8\u91CD\u542F\u3002"
     ),
-    status.error ? h("p", { role: "alert" }, status.error) : null,
+    status.reconciliationError ? h("p", { role: "alert" }, status.reconciliationError) : null,
+    [...new Set([status.error, status.installError].filter(Boolean))].map(
+      (message) => h("p", { key: message, role: "alert" }, message)
+    ),
     error ? h("p", { role: "alert" }, error) : null
   );
 }

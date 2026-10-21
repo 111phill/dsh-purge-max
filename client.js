@@ -10341,9 +10341,12 @@ function UpdatePreferences({ value, status = {}, onSaved }) {
     h(
       "p",
       { className: "dshpp-hint" },
-      status.restartRequired ? `\u5DF2\u5B89\u88C5 ${status.pendingVersion}\uFF0C\u7B49\u5F85\u4F60\u624B\u52A8\u91CD\u542F DSH\u3002` : !value.autoCheck ? "\u81EA\u52A8\u68C0\u67E5\u5DF2\u5173\u95ED\uFF0C\u81EA\u52A8\u5B89\u88C5\u6682\u505C\u3002" : status.checkedAt ? `\u4E0A\u6B21\u68C0\u67E5\uFF1A${new Date(status.checkedAt).toLocaleString()}${status.hasUpdate ? ` \xB7 \u53EF\u7528\u7248\u672C ${status.availableVersion}` : ""}` : "\u542F\u52A8\u540E\u81EA\u52A8\u68C0\u67E5\uFF1B\u5B89\u88C5\u540E\u4EC5\u63D0\u793A\u624B\u52A8\u91CD\u542F\u3002"
+      status.reconciliationError ? "\u5B89\u88C5\u72B6\u6001\u5F85\u6838\u5BF9\uFF0C\u81EA\u52A8\u5B89\u88C5\u5DF2\u6682\u505C\u3002" : status.restartRequired ? `\u78C1\u76D8\u7248\u672C ${status.pendingVersion}\uFF0C\u5F53\u524D\u8FD0\u884C ${status.runningVersion || "\u672A\u77E5"}\uFF1B\u7B49\u5F85\u4F60\u624B\u52A8\u91CD\u542F DSH\u3002` : !value.autoCheck ? "\u81EA\u52A8\u68C0\u67E5\u5DF2\u5173\u95ED\uFF0C\u81EA\u52A8\u5B89\u88C5\u6682\u505C\u3002" : status.checkedAt ? `\u4E0A\u6B21\u68C0\u67E5\uFF1A${new Date(status.checkedAt).toLocaleString()}${status.hasUpdate ? ` \xB7 \u53EF\u7528\u7248\u672C ${status.availableVersion}` : ""}` : "\u542F\u52A8\u540E\u81EA\u52A8\u68C0\u67E5\uFF1B\u5B89\u88C5\u540E\u4EC5\u63D0\u793A\u624B\u52A8\u91CD\u542F\u3002"
     ),
-    status.error ? h("p", { role: "alert" }, status.error) : null,
+    status.reconciliationError ? h("p", { role: "alert" }, status.reconciliationError) : null,
+    [...new Set([status.error, status.installError].filter(Boolean))].map(
+      (message) => h("p", { key: message, role: "alert" }, message)
+    ),
     error ? h("p", { role: "alert" }, error) : null
   );
 }
@@ -12815,7 +12818,7 @@ function SettingsRoot(props = {}) {
       h(
         "span",
         { className: "dshpp-native-badge" },
-        (true ? "\u793E\u533A\u7248 " : "\u72EC\u7ACB\u754C\u9762 ") + "1.6.40"
+        (true ? "\u793E\u533A\u7248 " : "\u72EC\u7ACB\u754C\u9762 ") + "1.6.41"
       )
     ),
     h(CompatibilityNote, { status: backendStatus }),
@@ -12971,7 +12974,7 @@ function StatusStrip({ info }) {
       "span",
       { className: "dshpp-strip-item" },
       "\u63D2\u4EF6 ",
-      h("b", null, info?.plugin_version || "1.6.40")
+      h("b", null, info?.plugin_version || "1.6.41")
     )
   );
 }
@@ -13006,11 +13009,11 @@ function VersionNotice({ info }) {
     );
   }
   const backend = info?.plugin_version;
-  if (!backend || backend === "1.6.40") return null;
+  if (!backend || backend === "1.6.41") return null;
   return h(
     "p",
     { className: "dshpp-warn", role: "status" },
-    `\u5B98\u65B9\u7248\u672C ${backend}\uFF1B\u754C\u9762 ${"1.6.40"}\u3002\u4E24\u8005\u4E0D\u4E00\u81F4\u65F6\u8BBE\u7F6E\u53EF\u80FD\u4E0D\u751F\u6548\uFF0C\u8BF7\u66F4\u65B0\u5230\u540C\u4E00\u7248\u672C\u540E\u91CD\u542F DSH\u3002`
+    `\u5B98\u65B9\u7248\u672C ${backend}\uFF1B\u754C\u9762 ${"1.6.41"}\u3002\u4E24\u8005\u4E0D\u4E00\u81F4\u65F6\u8BBE\u7F6E\u53EF\u80FD\u4E0D\u751F\u6548\uFF0C\u8BF7\u66F4\u65B0\u5230\u540C\u4E00\u7248\u672C\u540E\u91CD\u542F DSH\u3002`
   );
 }
 function PurgePage() {
@@ -13067,7 +13070,7 @@ function PurgePage() {
           true ? h(
             "span",
             { className: "dshpp-page-ver" },
-            "\u793E\u533A\u7248 1.6.40"
+            "\u793E\u533A\u7248 1.6.41"
           ) : null
         )
       )

@@ -8,10 +8,10 @@ import { rememberUpdate } from "../lib/update.js";
 
 function setup(extra = {}) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "purge-updates-"));
-  const waits = new Map(); let checks = 0, installs = 0, seq = 0;
-  const c = createUpdateController({ home, runningVersion: "1.6.4",
+  const waits = new Map(); let checks = 0, installs = 0, seq = 0, diskVersion = "1.6.4";
+  const c = createUpdateController({ home, runningVersion: "1.6.4", readInstalledVersion: () => diskVersion,
     check: async () => { checks++; return { ok: true, hasUpdate: true, remoteVersion: "1.6.5" }; },
-    install: async () => { installs++; return { ok: true, applied: true, localVersion: "1.6.5" }; },
+    install: async () => { installs++; diskVersion = "1.6.5"; return { ok: true, applied: true, localVersion: "1.6.5" }; },
     timers: { setTimeout(fn, delay) { const id = ++seq; waits.set(id, { fn, delay }); return id; }, clearTimeout(id) { waits.delete(id); } },
     ...extra,
   });
@@ -56,7 +56,7 @@ test("a completed install stays pending until a new runtime loads it and is neve
     assert.equal(updateStatus(f.home).pendingVersion, "1.6.5");
     assert.equal(updateStatus(f.home).restartRequired, true);
     f.c.stop();
-    const next = createUpdateController({ home: f.home, runningVersion: "1.6.5", check: async () => ({}), install: async () => assert.fail(), timers: { setTimeout() {}, clearTimeout() {} } });
+    const next = createUpdateController({ home: f.home, runningVersion: "1.6.5", readInstalledVersion: () => "1.6.5", check: async () => ({}), install: async () => assert.fail(), timers: { setTimeout() {}, clearTimeout() {} } });
     next.start(); next.stop();
     assert.equal(updateStatus(f.home).restartRequired, false);
   } finally { f.close(); }

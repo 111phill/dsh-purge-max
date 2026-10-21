@@ -1,6 +1,6 @@
 # 维护、迁移与恢复
 
-当前版本 **1.6.40**。包名 `dsh-purge-community`，来源仅本仓库正式 GitHub Releases；保留内部 Cordis ID `dsh-purge`、HTTP `/dsh-purge/*` 及用户数据目录。主安装步骤与镜像故障决策树统一见 [安装指南](INSTALLATION.md)；[AGENTS.md](../AGENTS.md) 是 Agent 操作说明。
+当前版本 **1.6.41**。包名 `dsh-purge-community`，来源仅本仓库正式 GitHub Releases；保留内部 Cordis ID `dsh-purge`、HTTP `/dsh-purge/*` 及用户数据目录。主安装步骤与镜像故障决策树统一见 [安装指南](INSTALLATION.md)；[AGENTS.md](../AGENTS.md) 是 Agent 操作说明。
 
 ## 兼容与操作边界
 
@@ -89,3 +89,7 @@ profile 不存在/有多个且未明确选择时停止。Web/Headless 只用当�
 归档预算使用 `PURGE_DOWNLOAD_TIMEOUT_MS`（默认 180000，范围 30000–900000）；可选 `PURGE_GH_MIRROR` 仅传输社区 TGZ，官方摘要不可用就停止。容器 root home 需明确服务 UID/GID；不要扩大权限或改全局代理。完整步骤、变量及测试边界见 [维护说明](maintenance-issues-44-47.md)。不自动重启。
 
 独立安装器下载与网络排查见 [#52 维护说明](maintenance-issue-52.md)，不要将网络失败误判为安装破坏或要求用户清配置。
+
+## 1.6.41：更新状态核对
+
+运行版本与当前 profile 磁盘版本分开核对；旧 pendingVersion 不代表当前安装。未知版本或读取失败继续告警，安装失败不会被成功检查掩盖。旧版已卡住时先手动安装新版，由用户手动退出重开一次；不要删除设置、改更新开关或自动重启。详见 [状态迁移与测试说明](maintenance-update-state.md)。

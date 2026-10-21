@@ -1,6 +1,6 @@
 # 安装、升级与故障排查
 
-当前版本 **1.6.40**。面向用户与协助安装的 Agent。支持的安装器环境：Linux CLI/Web；macOS Desktop；Windows 11 的 PowerShell 5.1/7。完整 Windows 宿主补丁及界面验收与安装器测试分开，不能因安装通过就宣称全部功能正常。
+当前版本 **1.6.41**。面向用户与协助安装的 Agent。支持的安装器环境：Linux CLI/Web；macOS Desktop；Windows 11 的 PowerShell 5.1/7。完整 Windows 宿主补丁及界面验收与安装器测试分开，不能因安装通过就宣称全部功能正常。
 
 ## 安装前
 
@@ -81,3 +81,7 @@ Web/Headless：下载本仓库发行 `.tgz` 与 SHA256SUMS，校验**该文件�
 ## #52：下载失败与备用通道
 
 新版独立安装器会报告 `[download] stage=archive host=github.com transport=fetch attempt=1/3 code=…`。最多两次 fetch 和一次系统 curl；来源、证书与 SHA256 不会因此放宽。先重新下载入口脚本并执行 dry-run；保留失败阶段与错误码即可，不要粘贴代理密码、完整环境变量或签名下载 URL。详情见 [下载诊断](maintenance-issue-52.md)。
+
+## 1.6.41：更新状态核对
+
+运行版本与当前 profile 磁盘版本分开核对；旧 pendingVersion 不代表当前安装。未知版本或读取失败继续告警，安装失败不会被成功检查掩盖。旧版已卡住时先手动安装新版，由用户手动退出重开一次；不要删除设置、改更新开关或自动重启。详见 [状态迁移与测试说明](maintenance-update-state.md)。

@@ -33,7 +33,7 @@ test('partial profile update remains actionable across scheduler restarts; only 
   };
   const check = async () => ({ok:true,channel:'stable',remoteVersion:release.version,...summarizeProfileUpdates(profileVersions(targets,release.version))});
   const install = () => installForkRelease({reason:'auto'}, services);
-  const create = runningVersion => createUpdateController({home, runningVersion, check, install, timers:{setTimeout(){},clearTimeout(){}}});
+  const create = runningVersion => createUpdateController({home, runningVersion, readInstalledVersion: () => JSON.parse(fs.readFileSync(path.join(targets[0].dir,"package.json"))).version, check, install, timers:{setTimeout(){},clearTimeout(){}}});
   savePreferences(home,{autoInstall:true}); let c = create('1.6.27'); c.start(); await c.run(); c.stop();
   assert.equal(updateStatus(home).hasUpdate,true); assert.match(updateStatus(home).error,/disk failure/);
   assert.equal(updateStatus(home).restartRequired,true);

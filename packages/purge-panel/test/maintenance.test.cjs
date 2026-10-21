@@ -342,3 +342,50 @@ test("cached releases and failed fallbacks are visible instead of claiming lates
     await unmount(tree);
   }
 });
+
+test("update status distinguishes loaded code, pending disk version and independent failures", async () => {
+  const h = harness(() => reply({ ok: true }), "UpdatePreferences");
+  let tree;
+  const render = async (status) =>
+    act(async () => {
+      const props = {
+        value: { autoCheck: true, autoInstall: true, intervalHours: 24 },
+        status,
+        onSaved() {},
+      };
+      if (tree) tree.update(React.createElement(h.Component, props));
+      else tree = create(React.createElement(h.Component, props));
+    });
+  await render({
+    runningVersion: "1.6.40",
+    pendingVersion: "1.6.41",
+    restartRequired: true,
+  });
+  assert(text(tree).includes("磁盘版本 1.6.41，当前运行 1.6.40"));
+  await render({
+    runningVersion: "1.6.41",
+    restartRequired: false,
+    checkedAt: "2026-10-21T00:00:00Z",
+    installError: "web rollback failed",
+  });
+  assert(!text(tree).includes("等待你手动重启"));
+  assert(text(tree).includes("web rollback failed"));
+  await render({
+    restartRequired: true,
+    pendingVersion: "1.6.33",
+    reconciliationError: "package unreadable",
+    error: "network timeout",
+    installError: "web rollback failed",
+  });
+  assert(text(tree).includes("安装状态待核对"));
+  assert(text(tree).includes("package unreadable"));
+  assert(text(tree).includes("network timeout"));
+  assert(text(tree).includes("web rollback failed"));
+  assert(!text(tree).includes("等待你手动重启"));
+  assert.equal(
+    h.calls.length,
+    0,
+    "rendering status must never install or restart",
+  );
+  await unmount(tree);
+});

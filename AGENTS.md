@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.40** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
+> 当前版本：**1.6.41** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -131,7 +131,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.40 |
+| 插件 | `dsh-purge-community` 1.6.41 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
@@ -308,3 +308,7 @@ status/selfcheck/diagnose 使用 `diagnosticHost` 统一检查当前安装的物
 主提示、头尾段、能力说明、boost、probe、postPrompt、宿主兜底使用同一判定。被排除的装配保留其现有人设、工作区规则和工具；只清理 Purge 的段落及有来源记录的改写，不猜测删除用户文本。子 Agent 按自己的实际预设判断；缺少预设信息时，在非空排除列表下暂停注入，避免旧宿主无参兜底泄漏。可选 refusalRetry 在无法识别请求会话时也不追加提示。
 
 升级包不会自动改用户配置、应用补丁或重启。若要让旧宿主兜底识别会话，需要用户安排时间应用新版补丁并手动退出重开；无参旧调用在启用排除后会返回空。测试 standard → minimal → standard，并行 standard/roleplay，以及子 Agent；观察 `assemble.excluded` 的 preset/excluded/unknown。不要把“排除注入”称为“恢复原生权限”：全局补丁、已有部署配置和历史聊天均不会被撤销或删除。详情见 [维护说明](docs/maintenance-issue-53.md)。
+
+## 1.6.41：更新状态核对
+
+运行版本与当前 profile 磁盘版本分开核对；旧 pendingVersion 不代表当前安装。未知版本或读取失败继续告警，安装失败不会被成功检查掩盖。旧版已卡住时先手动安装新版，由用户手动退出重开一次；不要删除设置、改更新开关或自动重启。详见 [状态迁移与测试说明](docs/maintenance-update-state.md)。

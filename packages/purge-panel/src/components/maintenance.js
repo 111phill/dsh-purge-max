@@ -323,15 +323,22 @@ export function UpdatePreferences({ value, status = {}, onSaved }) {
     h(
       "p",
       { className: "dshpp-hint" },
-      status.restartRequired
-        ? `已安装 ${status.pendingVersion}，等待你手动重启 DSH。`
-        : !value.autoCheck
-          ? "自动检查已关闭，自动安装暂停。"
-          : status.checkedAt
-            ? `上次检查：${new Date(status.checkedAt).toLocaleString()}${status.hasUpdate ? ` · 可用版本 ${status.availableVersion}` : ""}`
-            : "启动后自动检查；安装后仅提示手动重启。",
+      status.reconciliationError
+        ? "安装状态待核对，自动安装已暂停。"
+        : status.restartRequired
+          ? `磁盘版本 ${status.pendingVersion}，当前运行 ${status.runningVersion || "未知"}；等待你手动重启 DSH。`
+          : !value.autoCheck
+            ? "自动检查已关闭，自动安装暂停。"
+            : status.checkedAt
+              ? `上次检查：${new Date(status.checkedAt).toLocaleString()}${status.hasUpdate ? ` · 可用版本 ${status.availableVersion}` : ""}`
+              : "启动后自动检查；安装后仅提示手动重启。",
     ),
-    status.error ? h("p", { role: "alert" }, status.error) : null,
+    status.reconciliationError
+      ? h("p", { role: "alert" }, status.reconciliationError)
+      : null,
+    [...new Set([status.error, status.installError].filter(Boolean))].map(
+      (message) => h("p", { key: message, role: "alert" }, message),
+    ),
     error ? h("p", { role: "alert" }, error) : null,
   );
 }
