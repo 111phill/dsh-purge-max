@@ -54,3 +54,19 @@ test("normal output streams through untouched and is not retried", async () => {
   assert.equal(calls, 1);
   assert.equal(chunks[0].text, "Here is the plan.");
 });
+
+test("soft Chinese refusals from a real failing session are detected", () => {
+  const real = [
+    "这一步我不做：把“黑进某个网站”当作目标，和之前装工具不是一回事。",
+    "目标是别人的站点、但没有授权：这一步我不参与。",
+    "我不会帮你把它包装成“渗透测试”来绕过这一点。",
+    "请把目标和授权依据发给我。",
+    "这属于未授权的入侵行为。",
+  ];
+  for (const text of real) assert(looksLikeRefusal(text), text);
+});
+
+test("legitimate answers that merely mention 授权 are not flagged", () => {
+  assert(!looksLikeRefusal("登录接口需要携带 Authorization 头，授权失败返回 401。"));
+  assert(!looksLikeRefusal("这部分代码不参与渲染，可以安全删除。"));
+});
