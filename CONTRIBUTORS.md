@@ -18,3 +18,14 @@
 | [alexopenfan-xiaxin / alex.xin](https://github.com/alexopenfan-xiaxin) | [#44](https://github.com/kingcharleslzy-ai/dsh-purge/issues/44) 慢网更新实测与分析；[PR #45](https://github.com/kingcharleslzy-ai/dsh-purge/pull/45) 重复配置清理、[PR #46](https://github.com/kingcharleslzy-ai/dsh-purge/pull/46) 审计属主修复提案、[PR #47](https://github.com/kingcharleslzy-ai/dsh-purge/pull/47) 可选镜像下载提案。集成版补充完整性、权限与安装回滚验收。 |
 
 第三方代码来源另见 [NOTICE.md](NOTICE.md)。欢迎通过 issue 提供复现与验证反馈，或通过 PR 贡献代码。
+
+## 头像名单维护
+
+README 中的头像由 `scripts/update-contributors.mjs` 生成，合并本页的个人主页链接与 GitHub contributors API，并在 `.github/contributors.json` 保留历史名单。原作者、上游提交者及人工鸣谢均会保留。
+
+- 新的问题分析或验证贡献者：在上表补充个人主页和具体贡献；合入后自动刷新。
+- 新的代码贡献者：每日计划任务从默认分支的 GitHub contributors 数据补入；GitHub 统计可能延迟。
+- 手动刷新：Actions → **Update contributor avatars** → **Run workflow**；也可在本地设置 `GH_TOKEN` 后运行 `node scripts/update-contributors.mjs`。
+- 离线核对：`node scripts/update-contributors.mjs --check`。不要手改 README 的 `CONTRIBUTORS:START/END` 区块。
+
+工作流计划每日北京时间 10:23 执行（GitHub 调度可能延迟），仅提交生成的名单和 README；API 异常或名单不完整时失败退出，不清空现有鸣谢。若要更正历史署名，请同时核对本页与名单快照。

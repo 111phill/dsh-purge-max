@@ -19,6 +19,7 @@ jobs:
       - run: npm ci --ignore-scripts --legacy-peer-deps
       - run: npm --prefix packages/purge-panel ci --ignore-scripts --legacy-peer-deps
       - run: npm run check:docs
+      - run: node scripts/update-contributors.mjs --check
       - run: npm test
       - run: npm run check:client
       - run: npm pack --ignore-scripts && node scripts/smoke.mjs
