@@ -4,7 +4,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
-import { once } from "node:events";
 import { pathToFileURL } from "node:url";
 import { createHash } from "node:crypto";
 import { readMacAsarHandoff } from "../lib/macos-asar-handoff.js";
@@ -77,6 +76,14 @@ app.whenReady().then(()=>{
 });
 `;
 }
+async function expectExit() {
+  await until(
+    () => child.exitCode !== null || child.signalCode !== null,
+    "fixture quit",
+  );
+  assert.equal(child.signalCode, null, "fixture crashed: " + logs);
+  assert.equal(child.exitCode, 0, "fixture exited abnormally: " + logs);
+}
 function launch() {
   const env = { ...process.env, PURGE_FIXTURE_ROOT: root };
   delete env.ELECTRON_RUN_AS_NODE;
@@ -124,11 +131,11 @@ try {
     false,
   );
   await delay(300);
-  assert.equal(child.exitCode, null);
+  assert.equal(child.exitCode, null, logs);
+  assert.equal(child.signalCode, null, logs);
   assert.equal(hash(asar), original);
-  const exited = once(child, "exit");
   fs.writeFileSync(path.join(root, "quit"), "1");
-  await exited;
+  await expectExit();
   const done = await until(() => {
     const s = readMacAsarHandoff(asar);
     if (s?.phase === "failed") throw Error(s.detail);
@@ -154,9 +161,8 @@ try {
     fs.readFileSync(path.join(root, "ready-directory")),
   );
   assert(second.path.endsWith("/app"));
-  const secondExit = once(child, "exit");
   fs.writeFileSync(path.join(root, "quit"), "1");
-  await secondExit;
+  await expectExit();
   // Exercise the documented host-archive rollback without touching user data.
   assert.equal(fs.existsSync(asar), false);
   fs.copyFileSync(done.backup, asar, fs.constants.COPYFILE_EXCL);
@@ -174,9 +180,8 @@ try {
     ),
   );
   assert.equal(hash(settings), settingsHash);
-  const rollbackExit = once(child, "exit");
   fs.writeFileSync(path.join(root, "quit"), "1");
-  await rollbackExit;
+  await expectExit();
   console.log(
     JSON.stringify({
       platform: process.platform,
@@ -192,9 +197,14 @@ try {
   );
 } finally {
   // Only a temporary fixture process is allowed to be terminated on a test failure.
-  if (child && child.exitCode === null) {
+  if (child && child.exitCode === null && child.signalCode === null) {
     child.kill();
-    await Promise.race([once(child, "exit"), delay(3000)]);
+    for (
+      let i = 0;
+      i < 30 && child.exitCode === null && child.signalCode === null;
+      i++
+    )
+      await delay(100);
   }
   fs.rmSync(root, { recursive: true, force: true });
 }
