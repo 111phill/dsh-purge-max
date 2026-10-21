@@ -30,10 +30,7 @@
 
 **组合效果**：破甲让 Agent 不再反复确认「要不要画」，出图插件让它真的画出来，全程在你自己的机器上完成。
 
-```
-Qwen Studio  →  https://github.com/kingcharleslzy-ai/dsh-qwen-studio
-安装与硬件自查 →  docs/SETUP.md（先看「这台机器能不能跑」再动手）
-```
+**仓库**：[kingcharleslzy-ai/dsh-qwen-studio](https://github.com/kingcharleslzy-ai/dsh-qwen-studio) · **下载**：[最新 Releases](https://github.com/kingcharleslzy-ai/dsh-qwen-studio/releases/latest) · **安装与硬件自查**：[docs/SETUP.md](https://github.com/kingcharleslzy-ai/dsh-qwen-studio/blob/main/docs/SETUP.md)（先看「这台机器能不能跑」再动手）
 
 ## 它是什么
 
