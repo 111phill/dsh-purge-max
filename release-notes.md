@@ -1,4 +1,4 @@
-# 1.6.37
+# 1.6.38
 
 - #44 / PR #47：正式发行包下载预算独立配置，默认 180 秒；增加默认关闭的 URL 前缀镜像。镜像只传输 TGZ，SHA256 来自官方渠道，令牌不发给镜像。下载或校验失败不再触发安装回滚。
 - PR #45：删除创建条目前的重复配置修改，保留完整插件定义、用户覆盖和旧包迁移行为。
@@ -8,6 +8,35 @@
 不修改现有提示词、预设、代理或更新偏好，不自动应用宿主补丁，不自动退出或重启 DSH。感谢 alexopenfan-xiaxin 的复现和三个 PR；集成版完善了提案中的校验来源与文件所有权边界。
 
 配置方法、适用范围与回滚注意事项见 [维护说明](docs/maintenance-issues-44-47.md)。
+
+# 1.6.37
+
+## 修掉一个会真出问题的死链
+
+原上游仓库 `YuJunZhiXue/dsh-purge` 已被删除并换成无关项目。`lib/update-net.js` 里的
+`UPSTREAM_REPO` 仍指向它，**beta / 源码 ZIP 通道**会因此 404：
+
+```js
+export const SOURCE_REPO = "kingcharleslzy-ai/dsh-purge";
+export const UPSTREAM_REPO = SOURCE_REPO;   // 旧名字保留，避免外部脚本引用失效
+```
+
+正式 release 通道本来就走 `lib/community.js` 的 `REPOSITORY`，不受影响；本次一并统一。
+
+## 文档
+
+- `docs/CWD-COMPAT.md`：上游 issue #114 / PR #115 改成纯文本编号（原链接已 404）；
+- `docs/upstream/*`：加了一行归档横幅，说明上游仓库不可访问、文中链接仅作历史记录；
+- 署名与 MIT 许可证保留，`CONTRIBUTORS.md` 里作者链接仍指向 GitHub 账号（不是仓库），可正常访问。
+
+## 测试
+
+```
+npm test   241 通过 / 0 失败
+新增 test/update-source.test.mjs：
+  · 发布源必须是本仓库，且与 community.REPOSITORY 一致
+  · 归档 ZIP/TGZ 链接不得出现已删除的上游
+```
 
 # 1.6.36
 
