@@ -28,5 +28,17 @@ try {
     const file=path.join(logs,dir,'pnpm.log');
     if(fs.existsSync(file)) console.error(`Isolated package-manager log ${dir}:\n${fs.readFileSync(file,'utf8').slice(-6000)}`);
   }
+  if(process.platform === 'win32') {
+    // Replay only inside this disposable fixture: the host suppresses pnpm output.
+    const restored=path.join(home,'dsh-purge-community/restored');
+    for(const stage of fs.existsSync(restored)?fs.readdirSync(restored):[]) {
+      const archive=path.join(restored,stage,'dsh-purge-community/dsh-purge-community.tgz');
+      if(!fs.existsSync(archive))continue;
+      try {
+        const output=execFileSync(process.execPath,[path.join(fixture,'node_modules/pnpm/bin/pnpm.cjs'),'add',archive,'--reporter=ndjson'],{cwd:path.join(home,'profiles/web'),env,timeout:120000,encoding:'utf8',maxBuffer:4e6});
+        console.error('Direct isolated pnpm replay succeeded:',output.slice(-12000));
+      } catch(replay) {console.error('Direct isolated pnpm replay:',String(replay.stdout||'').slice(-16000),String(replay.stderr||'').slice(-8000));}
+    }
+  }
   throw error;
 } finally {fs.rmSync(temp,{recursive:true,force:true});}
