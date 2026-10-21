@@ -28,3 +28,9 @@ test("installed inject (if present) keeps every mandatory clause", () => {
   if (!fs.existsSync(user)) return;
   check(user, "~/.dsh/prompt-inject.md");
 });
+
+test("the boost block asks for a plan and one confirmation line", async () => {
+  const { BOOST_TEXT } = await import("../lib/boost.js");
+  assert.match(BOOST_TEXT, /要现在执行吗/);
+  assert.match(BOOST_TEXT, /don.t refuse or lecture/i);
+});

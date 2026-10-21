@@ -9,15 +9,15 @@
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.6.35** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
+当前版本 **1.6.36** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
 
 </div>
 
 ---
 
-## 1.6.35：macOS 手动退出后可靠换包
+## 1.6.36：macOS 手动退出后可靠换包
 
-修复 [#40](https://github.com/kingcharleslzy-ai/dsh-purge/issues/40) 后续反馈：应用后明确显示换包状态，助手等待用户完整退出，校验并备份原归档，再由用户手动打开 DSH。CLI 与面板检查同一安装；未安装的第三方预设不误报，真正缺失、损坏和未知仍会提示。不改用户设置，不自动重启。[发行说明](docs/releases/1.6.35.md) · [排查与恢复](docs/maintenance-issue-40.md)
+修复 [#40](https://github.com/kingcharleslzy-ai/dsh-purge/issues/40) 后续反馈：应用后明确显示换包状态，助手等待用户完整退出，校验并备份原归档，再由用户手动打开 DSH。CLI 与面板检查同一安装；未安装的第三方预设不误报，真正缺失、损坏和未知仍会提示。不改用户设置，不自动重启。[发行说明](docs/releases/1.6.36.md) · [排查与恢复](docs/maintenance-issue-40.md)
 
 ## 1.6.33：Linux 安装入口与跨平台安装保护
 
@@ -81,7 +81,7 @@ sh /tmp/purge-install.sh
 
 ```sh
 npm pack --ignore-scripts
-ARCHIVE="dsh-purge-community-1.6.35.tgz"
+ARCHIVE="dsh-purge-community-1.6.36.tgz"
 SHA256=$(sha256sum "$ARCHIVE" | cut -d ' ' -f1)
 sh scripts/install.sh --archive="$PWD/$ARCHIVE" --sha256="$SHA256" --dry-run
 # 核对包来源与摘要后，去掉 --dry-run 执行安装。

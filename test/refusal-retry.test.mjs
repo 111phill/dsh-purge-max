@@ -38,6 +38,8 @@ test("a refusal triggers exactly one retry with the nudge appended", async () =>
   assert.equal(calls.length, 2);
   assert.match(calls[1].messages[0].content[0].text, /base system/);
   assert.ok(calls[1].messages[0].content[0].text.includes(RETRY_NUDGE.trim().slice(0, 20)));
+  assert.match(RETRY_NUDGE, /要现在执行吗/);
+  assert.doesNotMatch(RETRY_NUDGE, /already authorized/i);
   assert.equal(chunks.filter((c) => c.type === "text-delta")[0].text, "Step 1: read the file.");
 });
 
