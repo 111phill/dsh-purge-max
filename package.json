@@ -63,7 +63,12 @@
     "agent",
     "backup",
     "rollback",
-    "compatibility"
+    "compatibility",
+    "破甲",
+    "jailbreak",
+    "prompt-injection",
+    "无限制模式",
+    "unrestricted"
   ],
   "repository": {
     "type": "git",

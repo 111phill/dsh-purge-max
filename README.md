@@ -4,7 +4,7 @@
 
 **让 AI 更专注地辅助你的学习与动手实验。**
 
-给 DeepSeek Harness 的自托管控件 · 80 条宿主补丁 · 25 层状态自检 · 左侧栏整页设置
+给 DeepSeek Harness 的自托管控件（俗称「破甲」插件）· 80 条宿主补丁 · 25 层状态自检 · 左侧栏整页设置
 
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
@@ -25,6 +25,8 @@ Purge Community 是一个跑在你自己机器上的 Harness 附加组件。它�
 - **方便做实验**：提示词、规则、预设集中管理，改坏了能撤。
 
 目标很简单：**让助手更连贯地配合你的学习与动手实验**，而不是每做一步都先停下来问一句。
+
+社区里通常把它叫作「破甲」或「无限制模式」插件——指的是它降低了交互层面的摩擦，让 agent 能连续执行任务；它不改模型本身，也不改变你要做的事。
 
 ## 设计原则
 
@@ -138,6 +140,8 @@ npm run smoke            # 发行包冒烟
 ```
 
 面向 AI agent 的操作说明在 [AGENTS.md](AGENTS.md)，两者冲突时以它为准。
+
+**关键词**：破甲 · 无限制模式 · unrestricted · prompt injection · jailbreak · DSH 插件 · 状态自检 · 备份回滚
 
 ## 贡献者
 

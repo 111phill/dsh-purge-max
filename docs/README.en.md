@@ -4,7 +4,7 @@
 
 **Helping your AI assistant stay focused on your learning and hands-on work.**
 
-A self-hosted add-on for DeepSeek Harness · 80 host patches · 25 status layers · full-page sidebar settings
+A self-hosted add-on for DeepSeek Harness (known in the community as a 破甲 / "jailbreak" plugin) · 80 host patches · 25 status layers
 
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 
@@ -24,6 +24,8 @@ Purge Community runs entirely on your own machine and gathers the parts of daily
 - **Easy to experiment** — prompts, rules and presets in one place, all undoable.
 
 The goal is simple: let the assistant support your learning and hands-on experiments coherently, instead of stopping to ask before every step.
+
+People usually call this a 破甲 ("armor-breaking") or unrestrained-mode plugin: it lowers interaction friction so the agent can keep working. It does not change the model itself, and it does not change what you are trying to do.
 
 ## Principles
 
@@ -85,3 +87,5 @@ If the panel does not open, confirm both sides run the same version, then follow
 `npm test`, `npm run check:docs`, `npm run check:client`, `npm run test:electron`, `npm run smoke`.
 
 Agent-facing instructions live in [AGENTS.md](../AGENTS.md); when the two disagree, AGENTS.md wins.
+
+**Keywords**: 破甲 · unrestricted mode · prompt injection · jailbreak · DSH plugin · status self-check · backup and rollback
