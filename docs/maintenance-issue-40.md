@@ -48,3 +48,37 @@ Windows CI 的全套 Node 测试固定 `--test-concurrency=2`，避免多个测�
 PowerShell 时的冷启动争用。曾在 GitHub runner 复现 12 秒状态等待超时、另一
 PowerShell 用例耗时约 26 秒；相同源码在 4090 全套通过。仅限制测试并发，测试列表、
 断言、生产助手超时与失败检查保持不变。
+
+## 1.6.35：报告者补充后的独立根因与处理
+
+报告者已补充 macOS 15.7.4、官方 Desktop 0.2.1-rc.2 nightly、独立 Homebrew CLI 及现场磁盘证据。1.6.32 的目标分裂已消失；剩余归档仍是官方原件不是假红。macOS 的 HTTP apply 当时没有像 Windows 一样安排等待退出助手，所以“提示重启”不能保证换包发生。
+
+现在 macOS apply 安排独立 CJS 助手，在应用外临时目录运行，使用真实磁盘 fs，等待所选 `.app/Contents` 内所有进程退出（排除助手自身）。备份采用同文件系统独占硬链接并核对 inode、设备和 SHA-256，再移除原入口；从不覆盖已有备份。等待时校验归档身份，退出后重新校验主入口和已知 runtime 链接。没有写权限、锁冲突、归档更新或解包不完整均停止并保留原件，不自动提权。
+
+- `handoff`：`not_scheduled`、`starting/ready/waiting_for_quit/moving`、`complete`、`failed/expired/helper_stopped/unreadable` 等。等待最长 30 分钟；未知旧锁不抢占。旧完成记录遇到新归档返回 `archive_reappeared`；备份消失返回 `backup_missing`。
+- `disk` 与 `process` 仍独立：换包完成不证明下一次运行的代码已加载；独立 CLI 的 process/权限未知仍保留。
+- Desktop shell 路径从显式目标的 Resources 解析，终端本身是 Web/Node 不再造成 #83 假缺失；目标文件真缺失时不寻找另一份安装替代。
+- #71 的家族检测限定当前 DSH_HOME：本地预设、各 profile 实际包、fallback 包和依赖声明。没有家族才 na；安装残缺仍 missing，YAML 损坏仍 unmatched，读取或解析依赖不足仍 unknown。不改补丁表或原有处理功能。
+
+### 用户操作与脱敏诊断
+
+先升级插件；在桌面面板点「应用」，看到“等待完整退出”再 **⌘Q**。助手不自动打开 DSH。可在终端使用已核对的同一安装路径检查：
+
+```sh
+PURGE_DSH_CLI='/实际安装/Contents/Resources/app/dsh/node_modules/@deepseek-ai/dsh-desktop-host/lib/cli.js' purge-community host-status --profile desktop
+PURGE_DSH_CLI='/实际安装/Contents/Resources/app/dsh/node_modules/@deepseek-ai/dsh-desktop-host/lib/cli.js' purge-community selfcheck --json --profile desktop
+```
+
+不需要为 shell 诊断额外设置 DSH_SURFACE；不要把示例路径当真实路径。没有明确目标的裸 CLI 继续报 unknown，是正确边界。`handoff.phase=complete` 后手动打开并在面板重测。反馈只需插件/DSH/macOS 版本、handoff.phase/detail、disk/process 和剩余红项，路径可脱敏，不发提示词/密钥/完整配置。
+
+### 失败与回滚
+
+1. 未完成时原归档通常仍在。先检查 phase/detail、是否仍有同安装进程、解包入口/runtime 和当前目录写权限；不要直接删锁/归档或全局改权限。助手 failed/expired 后，原问题解决再由用户重新应用；未知旧锁需人工确认归属。
+2. 完成后如下一次打开异常，先由用户完整退出。核对状态记录中的 **同一安装** backup 路径和 archive_sha256；原 app.asar 必须不存在，备份必须存在且哈希吻合，再恢复备份至 app.asar。若已有新归档，不覆盖它；先诊断版本冲突。恢复后仍由用户手动打开。
+3. 插件包回滚使用既有快照流程；不回写旧提示词、profile、权限或图库数据。宿主归档恢复与插件回滚分开执行。
+
+### 新增实际验证
+
+`test/macos-handoff.test.mjs` 运行真实独立进程，覆盖手动退出等待、重复请求、备份、归档更新、坏入口/runtime、超时、坏记录、旧锁、启动失败及旧完成记录失效。
+`scripts/check-macos-handoff.mjs` 使用独立 **Electron.app 44.7.0** 副本实际从 ASAR 启动，应用后由测试应用自行 quit，确认助手存活、备份哈希及未自动重开，再显式二次启动确认入口为 `Resources/app`；隔离设置哈希不变。
+这不等于验证了报告者那一份签名、权限与 nightly 构建，仍需他按上述步骤回报。Windows 原助手代码未改，继续运行 Windows Electron 和完整安装/回滚测试。

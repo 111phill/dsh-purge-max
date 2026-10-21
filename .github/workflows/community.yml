@@ -67,7 +67,7 @@ jobs:
           node --test test/windows-electron-handoff.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm run test:electron
-      - name: Real macOS Electron diagnostics
+      - name: Real macOS Electron diagnostics and manual-quit handoff
         if: runner.os == 'macOS'
         shell: bash
         run: |

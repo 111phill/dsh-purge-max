@@ -461,7 +461,7 @@ export function PurgifySection({ page = "status", onStatus } = {}) {
               if (d.manualQuit) {
                 setNotice({
                   kind: "ok",
-                  text: "补丁已写入磁盘，当前进程尚未加载。换包助手等待你从系统托盘完整退出；完成后请手动打开 DSH，不会自动重启。",
+                  text: "补丁已写入磁盘，当前进程尚未加载。换包助手等待你完整退出（macOS 用 ⌘Q，Windows 从系统托盘退出）。确认换包完成后再手动打开 DSH，不会自动重启。",
                 });
                 setAskRestart(false);
                 loadAll();

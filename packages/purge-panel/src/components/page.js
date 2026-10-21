@@ -112,7 +112,7 @@ export function LayoutNotice({ info }) {
     info.host_layout?.note ||
     "目标磁盘仍有 app.asar；当前进程加载来源尚未确认。";
   const handoff = info.asar_handoff
-    ? ` 换包状态：${{ starting: "助手启动中（尚未确认就绪）", ready: "助手已就绪", waiting_for_quit: "等待从系统托盘完整退出", waiting_for_unlock: "等待归档解锁", moving: "正在保留原归档", complete: "换包完成，请手动打开 DSH", already_unsealed: "归档已移走，请手动打开 DSH", failed: "失败，请查看诊断并按恢复文档操作", expired: "等待超时，请重新应用或按恢复文档操作", helper_stopped: "助手意外结束，请重新应用或按恢复文档操作" }[info.asar_handoff.phase] || info.asar_handoff.phase}。`
+    ? ` 换包状态：${{ not_scheduled: "尚未安排换包", archive_reappeared: "归档再次出现，旧换包记录不代表当前已完成", backup_missing: "原归档备份缺失，请检查诊断", unknown_target: "目标实例未确定", unreadable: "换包记录不可读，请检查诊断", starting: "助手启动中（尚未确认就绪）", ready: "助手已就绪", waiting_for_quit: "等待完整退出（macOS ⌘Q / Windows 系统托盘）", waiting_for_unlock: "等待归档解锁", moving: "正在保留原归档", complete: "换包完成，请手动打开 DSH", already_unsealed: "归档已移走，请手动打开 DSH", failed: "失败，请查看诊断并按恢复文档操作", expired: "等待超时，请重新应用或按恢复文档操作", helper_stopped: "助手意外结束，请重新应用或按恢复文档操作" }[info.asar_handoff.phase] || info.asar_handoff.phase}。`
     : "";
   const diskNote =
     info.host_layout?.disk.archive_exists === true
