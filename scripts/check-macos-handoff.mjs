@@ -60,8 +60,8 @@ function main(marker) {
   return `
 const {app,BrowserWindow}=require('electron'),fs=require('node:fs'),path=require('node:path');
 const base=process.env.PURGE_FIXTURE_ROOT;app.setPath('userData',path.join(base,'isolated-user-data'));
-app.whenReady().then(()=>{
- const w=new BrowserWindow({show:false});w.loadURL('data:text/html,isolated');
+app.whenReady().then(async()=>{
+ const w=new BrowserWindow({show:false});await w.loadURL('data:text/html,isolated');
  fs.writeFileSync(path.join(base,'ready-${marker}'),JSON.stringify({path:app.getAppPath(),pid:process.pid,electron:process.versions.electron}));
  let applied=false,quitting=false;
  const timer=setInterval(async()=>{
@@ -95,7 +95,16 @@ function launch() {
 try {
   fs.cpSync(binary.slice(0, binary.indexOf("/Contents/MacOS/")), bundle, {
     recursive: true,
+    verbatimSymlinks: true,
   });
+  const icu = path.join(
+    bundle,
+    "Contents/Frameworks/Electron Framework.framework/Resources/icudtl.dat",
+  );
+  assert(
+    fs.realpathSync(icu).startsWith(bundle + path.sep),
+    "framework links must remain within the copied app",
+  );
   fs.rmSync(path.join(resources, "default_app.asar"), { force: true });
   const meta = JSON.stringify({
     name: "purge-isolated-acceptance",
