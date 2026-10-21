@@ -1,11 +1,14 @@
 // Disposable official npm host: baseline -> candidate -> rollback -> failure recovery.
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
+import {createRequire} from 'node:module';
 import assert from 'node:assert/strict';import {execFileSync} from 'node:child_process';import {fileURLToPath} from 'node:url';
 const fixture=process.env.PURGE_TEST_NPM_ROOT;
 if(!fixture||!fs.existsSync(path.join(fixture,'.purge-test-only')))throw Error('Explicit isolated host marker required');
 const host=path.join(fixture,'node_modules/@deepseek-ai/dsh');
 const cli=path.join(host,'lib/bin.js');
-const base=path.join(host,'node_modules/@deepseek-ai');
+const requireHost=createRequire(path.join(host,'package.json'));
+const base=path.dirname(path.dirname(path.dirname(requireHost.resolve('@deepseek-ai/dsh-app-boot'))));
+assert(fs.realpathSync(base).startsWith(fs.realpathSync(fixture)+path.sep),'Host components must stay inside the isolated installation');
 const [baseline,candidate]=process.argv.slice(2).map(p=>path.resolve(p));
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'purge-official-install-'));
 const home=path.join(temp,'home');fs.mkdirSync(home);
