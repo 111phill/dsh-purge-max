@@ -31,9 +31,6 @@
     # The runtime checks cwd availability; the config layer must not require it.
     personaSuffix: ""
 
-- id: dsh-purge
-  inject: [systemPrompt, tools]
-
 - insert:
     - id: dsh-purge
       name: 'dsh-purge-community'
