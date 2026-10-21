@@ -1,7 +1,7 @@
 {
   "name": "dsh-purge-community",
   "version": "1.6.36",
-  "description": "Purge Community：独立维护的 DSH 插件，原生设置、宿主诊断、独立更新检查与安装、本机备份和回滚。",
+  "description": "让 AI 更专注地辅助学习与动手实验：DSH 附加组件，提供状态自检、提示词与规则管理、本机备份与回滚。",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
