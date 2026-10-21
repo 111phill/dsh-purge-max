@@ -8,7 +8,7 @@ A self-hosted add-on for DeepSeek Harness (known in the community as a 破甲 / 
 
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 
-Current version 1.6.39 · targets **DSH Desktop 0.2.1-rc.2** (rc.1 also passes)
+Current version 1.6.40 · targets **DSH Desktop 0.2.1-rc.2** (rc.1 also passes)
 
 </div>
 
@@ -70,7 +70,7 @@ Two separate preferences (check / install), default check-only every six hours. 
 
 ## Compatibility
 
-Plugin `dsh-purge-community` 1.6.39 · verified on DSH Desktop 0.2.1-rc.1 / rc.2 · Node ≥ 18.
+Plugin `dsh-purge-community` 1.6.40 · verified on DSH Desktop 0.2.1-rc.1 / rc.2 · Node ≥ 18.
 
 ## Troubleshooting
 
@@ -137,3 +137,9 @@ The list combines GitHub commit authors with curated acknowledgements, refreshes
 ### Download troubleshooting (#52)
 
 The standalone installer now reports the failing stage, official host, transport, attempt and error code. Transient failures get one fetch retry followed by system curl, with bounded time and attempts. Both paths retain HTTPS source, TLS, size and SHA256 checks. Re-download the installer and run dry-run first; share only redacted diagnostic lines if it still fails. No proxy configuration or automatic restart is performed. See [maintenance details](maintenance-issue-52.md).
+
+## Per-preset prompt exclusions (1.6.40)
+
+Merge `excludePresets: [roleplay, minimal]` into the existing `dsh-purge` entry's config in the current profile. The default `[]` preserves existing behavior. Match effective preset IDs exactly, ignoring case and surrounding whitespace. All prompt sections, assembly rewrites and the host fallback use the same per-session decision; subagents use their own effective preset. Configured exclusions with an unknown context suppress injection rather than leaking it. Commands, UI and tools remain registered.
+
+This does not revert global host patches, deployment configuration or past chat messages. Installation does not apply patches or restart DSH; old host fallback calls need a user-scheduled apply and manual restart to pass session context. See [configuration, migration and test boundaries](maintenance-issue-53.md).

@@ -37,6 +37,7 @@
       inject: [systemPrompt, tools]
       config:
         enabled: true
+        excludePresets: []
         autoApplyOnStart: false
         autoUpdateOnStart: false
         autoRevertOnMissing: false

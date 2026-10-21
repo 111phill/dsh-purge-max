@@ -15,6 +15,7 @@ const home=path.join(temp,'home');fs.mkdirSync(home);
 const env={...process.env,DSH_HOME:home,DSH_PROFILE:'web',DSH_SURFACE:'web',PURGE_DSH_CLI:cli,DSH_BASE:'',PURGE_PROFILE_DIR:'',PURGE_TEST_HOME:home,PURGE_TEST_PROFILE:'web',PURGE_TEST_HOST:base};
 try {
   execFileSync(process.execPath,[fileURLToPath(new URL('./check-cordis-composition.mjs',import.meta.url))],{env,stdio:'inherit'});
+  execFileSync(process.execPath,[fileURLToPath(new URL('./check-preset-runtime.mjs',import.meta.url))],{env,stdio:'inherit'});
   execFileSync(process.execPath,[cli,'--profile','web','--dump-default-config'],{env,stdio:'pipe',timeout:120000,maxBuffer:4e6});
   const config=path.join(home,'profiles/web/cordis.patch.yml');fs.appendFileSync(config,'\n# PRIVATE CONFIG SENTINEL\n');
   const prompt=path.join(home,'prompt-inject.md');fs.writeFileSync(prompt,'PRIVATE PROMPT SENTINEL');
