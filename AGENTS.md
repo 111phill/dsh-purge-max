@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.46** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
+> 当前版本：**1.6.47** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -131,7 +131,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.46 |
+| 插件 | `dsh-purge-community` 1.6.47 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
@@ -338,3 +338,7 @@ status/selfcheck/diagnose 使用 `diagnosticHost` 统一检查当前安装的物
 ## 1.6.46：链接目标保护（#67）
 
 Windows Electron 的递归删除可能进入 Junction。清理使用 `removeTreeNoFollowSync` / `removeTreeNoFollow`，不要回退到原生 recursive rm。旧运行进程仍会执行旧清理代码，因此受影响 Windows 版本应通过新版独立安装器升级；不要先触发旧面板更新或回滚。保留当前设置、外部依赖与可用备份；清理警告不代表安装验证失败，不能用部分删除的 checkpoint 回滚。已丢文件单独从可信来源或适当备份恢复，不假设 Purge 备份覆盖所有第三方数据。详情见 [#67 维护说明](docs/maintenance-issue-67.md)。
+
+## 桌面壳入口诊断（1.6.47，#68）
+
+`diagnose` 的 `desktop_entry` 与自检、应用使用相同解析器。优先所选物理 app 目录的 package.json/main；仅在无声明时使用唯一已知布局。`missing_entry`、`invalid_manifest`、`invalid_main`、`outside_app`、`not_file`、`unreadable_entry`、`ambiguous_entry` 都不能当作补丁已生效。不要删 main 字段、伪造 marker 或复制旧入口消除红点；核对安装文件与宿主版本，保留配置和原文件。已定位但锚点不匹配仍按原有漂移诊断处理。磁盘状态不证明当前进程已加载，不能自行重启用户 DSH。

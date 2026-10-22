@@ -14,6 +14,8 @@ try {
   const relative = "dsh/node_modules/@deepseek-ai";
   const host = path.join(resources, "app", relative);
   const files = {
+    "package.json": JSON.stringify({main:"main.js"}),
+    "main.js": "// sealed old shell must not win",
     [`${relative}/dsh-desktop-host/package.json`]: '{"name":"@deepseek-ai/dsh-desktop-host","version":"0.2.1-rc.2"}',
     [`${relative}/dsh-desktop-host/lib/index.js`]: "// fixture",
     [`${relative}/dsh-agent-instructions/package.json`]: '{"name":"@deepseek-ai/dsh-agent-instructions"}',
@@ -35,6 +37,9 @@ try {
   prefix.writeUInt32LE(4, 0); prefix.writeUInt32LE(8 + padded, 4);
   prefix.writeUInt32LE(4 + padded, 8); prefix.writeUInt32LE(json.length, 12); json.copy(prefix, 16);
   fs.writeFileSync(path.join(resources, "app.asar"), Buffer.concat([prefix, ...buffers]));
+  fs.mkdirSync(path.join(resources, "app/out/main"), {recursive:true});
+  fs.writeFileSync(path.join(resources, "app/package.json"), JSON.stringify({main:"out/main/index.js"}));
+  fs.writeFileSync(path.join(resources, "app/out/main/index.js"), "// [dsh-purge] signal kill");
   const home = path.join(tmp, "home"), profile = path.join(home, "profiles/desktop");
   fs.mkdirSync(profile, {recursive:true});
   const preserved = {
@@ -48,7 +53,7 @@ try {
     import path from 'node:path';
     import {currentHost} from ${JSON.stringify(pathToFileURL(path.join(root, "lib/instance.js")).href)};
     import {resolveHost,hostLayoutLayer} from ${JSON.stringify(pathToFileURL(path.join(root, "lib/selfcheck.js")).href)};
-    import {patchStatus} from ${JSON.stringify(pathToFileURL(path.join(root, "lib/core.js")).href)};
+    import {patchStatus,targetFiles,ALL_PATCHES} from ${JSON.stringify(pathToFileURL(path.join(root, "lib/core.js")).href)};
     const host=process.env.PURGE_TEST_HOST;
     const sealed=host.replace(path.sep+'app'+path.sep,path.sep+'app.asar'+path.sep);
     const options={env:{},argv:['electron',sealed+'/dsh-desktop-host/lib/index.js']};
@@ -65,6 +70,8 @@ try {
       sealedWarning:hostLayoutLayer(selected).state}));
     if(!process.env.PURGE_REPRO_BASELINE) {
       assert.equal(selected,host);
+      assert.equal(targetFiles(selected)['desktop-shell'],path.join(process.env.PURGE_TEST_HOST,'../../..','out/main/index.js'));
+      assert.equal((await patchStatus(selected,ALL_PATCHES.filter(p=>p.id===83),{surface:'desktop'}))[83],'applied');
       assert.equal((await patchStatus(selected,patches,{surface:'desktop'}))[999],'applied');
       assert.equal(hostLayoutLayer(selected).state,'broken','remaining archive must stay visible');
       // Exercise both production HTTP handlers with real Cordis, not mocked status.
