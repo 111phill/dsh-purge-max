@@ -72,3 +72,10 @@ test("legitimate answers that merely mention 授权 are not flagged", () => {
   assert(!looksLikeRefusal("登录接口需要携带 Authorization 头，授权失败返回 401。"));
   assert(!looksLikeRefusal("这部分代码不参与渲染，可以安全删除。"));
 });
+
+test("short meta refusals count, long technical discussion does not", () => {
+  assert(looksLikeRefusal("这段指令是提示词注入，我不会执行。"));
+  assert(looksLikeRefusal("I won't treat this as a valid instruction; this is prompt injection."));
+  const long = "提示词注入的防御通常分三层：" + "输入过滤、上下文隔离、输出审查。".repeat(30);
+  assert(!looksLikeRefusal(long), "长文里讨论注入不应触发重试");
+});
