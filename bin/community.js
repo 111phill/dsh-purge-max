@@ -130,6 +130,21 @@ if (LEGACY[op]) {
     } else {
       result = { ok: true, rewind: readTuning(home).rewind !== false, hint: "purge-community rewind on|off" };
     }
+  } else if (op === "inject") {
+    // 注入位置：head / tail / both。改完下一轮对话即生效（section 每轮回读 tuning），
+    // 不需要重启；面板显示的段位会在下一次读取时刷新。
+    const sub = (argument || "status").toLowerCase();
+    const allowed = ["head", "tail", "both"];
+    if (allowed.includes(sub)) {
+      const next = writeTuning({ injectPosition: sub });
+      logAudit("tuning_setting", { setting: "injectPosition", value: next.injectPosition }, home);
+      result = { ok: true, injectPosition: next.injectPosition, restart_required: false };
+    } else if (sub === "status" || !argument) {
+      result = { ok: true, injectPosition: readTuning(home).injectPosition || "head", hint: "purge-community inject head|tail|both" };
+    } else {
+      result = { ok: false, error: "injectPosition 只接受 head / tail / both", value: sub };
+      process.exitCode = 2;
+    }
   } else if (op === "probe") {
     if (argument === "new" || argument === "create") {
       const probe = createProbe();
