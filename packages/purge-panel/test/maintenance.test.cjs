@@ -187,6 +187,14 @@ test("no-op, backup success and partial update failure keep their own result sem
       "未安装新版本",
     ),
   );
+  assert.match(
+    maintenanceNotice("update", {
+      ok: true,
+      applied: true,
+      cleanup_warnings: [{ stage: "checkpoint", code: "EPERM" }],
+    }),
+    /清理未完成.*checkpoint:EPERM.*残留已保留/,
+  );
   assert.throws(
     () =>
       assertMaintenanceResult({

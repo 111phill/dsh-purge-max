@@ -66,5 +66,14 @@ try {
 } finally {
     [Net.ServicePointManager]::SecurityProtocol = $previousProtocol
     foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $previous[$name], 'Process') }
-    if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Recurse -Force }
+    # This folder owns only these files. Never recursively remove reparse targets.
+    if (Test-Path -LiteralPath $temporary) {
+        try {
+            foreach ($name in @('bootstrap-install.mjs', 'stdout.log', 'stderr.log')) {
+                $file = Join-Path $temporary $name
+                if (Test-Path -LiteralPath $file) { Remove-Item -LiteralPath $file -Force -ErrorAction Stop }
+            }
+            [IO.Directory]::Delete($temporary, $false)
+        } catch { Write-Warning "Bootstrap cleanup incomplete; temporary files retained." }
+    }
 }

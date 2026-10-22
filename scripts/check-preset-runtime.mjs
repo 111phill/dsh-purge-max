@@ -1,3 +1,4 @@
+import { removeTreeNoFollowSync } from "../lib/remove-tree.js";
 // Read-only real host services + migrated agent-loop request construction.
 // No account/model request, app restart, installation or live config writes.
 import fs from 'node:fs';
@@ -66,5 +67,5 @@ try {
   await root.fiber.dispose();
   delete globalThis.__dshPurgeHungPrompt;
   if(oldHome===undefined)delete process.env.DSH_HOME;else process.env.DSH_HOME=oldHome;
-  fs.rmSync(home,{recursive:true,force:true});
+  removeTreeNoFollowSync(home);
 }

@@ -1,3 +1,4 @@
+import { removeTreeNoFollowSync } from "../lib/remove-tree.js";
 // Real official Release, selected Node/Electron runtime, disposable profile only.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
@@ -22,4 +23,4 @@ try {
     assert.deepEqual(fs.readdirSync(home),['profiles']);
     console.log(JSON.stringify({platform:process.platform,node:process.versions.node,electron:process.versions.electron||null,version,forcedFallback:fallback,sha256Verified:true,settingsPreserved:true,installed:false}));
   }
-} finally {fs.rmSync(home,{recursive:true,force:true});}
+} finally {removeTreeNoFollowSync(home);}

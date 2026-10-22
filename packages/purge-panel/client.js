@@ -10263,7 +10263,9 @@ function maintenanceNotice(op, result) {
       return result.note || "\u672A\u5B89\u88C5\u65B0\u7248\u672C\uFF0C\u5F53\u524D\u5B89\u88C5\u672A\u66F4\u65B0\u3002";
     if (result.applied || result.needRestart || result.restart_required) {
       const version = result.release?.version || result.localVersion || result.remoteVersion;
-      return `\u63D2\u4EF6\u5DF2\u5B89\u88C5${version ? "\uFF1A" + version : ""}\u3002\u8BF7\u91CD\u542F DSH \u8FDB\u7A0B\uFF1B\u4EC5\u5237\u65B0\u6D4F\u89C8\u5668\u4E0D\u4F1A\u52A0\u8F7D\u65B0\u7248\u540E\u7AEF\u3002`;
+      const warnings = result.cleanup_warnings || [];
+      const cleanup = warnings.length ? `\u6E05\u7406\u672A\u5B8C\u6210\uFF08${warnings.map((w) => `${w.stage}:${w.code}`).join("\uFF0C")}\uFF09\uFF0C\u6B8B\u7559\u5DF2\u4FDD\u7559\u3002` : "";
+      return `${cleanup}\u63D2\u4EF6\u5DF2\u5B89\u88C5${version ? "\uFF1A" + version : ""}\u3002\u8BF7\u91CD\u542F DSH \u8FDB\u7A0B\uFF1B\u4EC5\u5237\u65B0\u6D4F\u89C8\u5668\u4E0D\u4F1A\u52A0\u8F7D\u65B0\u7248\u540E\u7AEF\u3002`;
     }
     return result.note || "\u66F4\u65B0\u8BF7\u6C42\u5DF2\u5B8C\u6210\uFF0C\u8BF7\u5237\u65B0\u72B6\u6001\u6838\u5BF9\u5B89\u88C5\u7ED3\u679C\u3002";
   }

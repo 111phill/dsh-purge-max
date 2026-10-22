@@ -138,3 +138,18 @@ jobs:
           gh release download v1.6.36 --repo kingcharleslzy-ai/dsh-purge --pattern dsh-purge-community-1.6.36.tgz --dir "$RUNNER_TEMP/purge-baseline"
           npm pack --ignore-scripts
           node scripts/check-npm-install-runtime.mjs "$RUNNER_TEMP/purge-baseline/dsh-purge-community-1.6.36.tgz" "dsh-purge-community-$(node -p 'require("./package.json").version').tgz"
+          export PURGE_LINK_TEST_CLI="$PURGE_TEST_NPM_ROOT/node_modules/@deepseek-ai/dsh/lib/bin.js"
+          export PURGE_LINK_TEST_PNPM="$PURGE_TEST_NPM_ROOT/node_modules/pnpm/bin/pnpm.cjs"
+          engine="$(command -v node)"
+          if [ "$RUNNER_OS" != Linux ]; then
+            npm install --prefix "$RUNNER_TEMP/linked-electron" --no-package-lock --no-audit --no-fund electron@44.7.0
+            node "$RUNNER_TEMP/linked-electron/node_modules/electron/install.js"
+            if [ "$RUNNER_OS" = Windows ]; then
+              engine="$RUNNER_TEMP/linked-electron/node_modules/electron/dist/electron.exe"
+            else
+              engine="$RUNNER_TEMP/linked-electron/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
+            fi
+            export ELECTRON_RUN_AS_NODE=1
+          fi
+          "$engine" --test test/remove-tree.test.mjs
+          "$engine" scripts/check-linked-install-runtime.mjs "$RUNNER_TEMP/purge-baseline/dsh-purge-community-1.6.36.tgz" "dsh-purge-community-$(node -p 'require("./package.json").version').tgz"

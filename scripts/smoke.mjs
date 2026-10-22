@@ -1,3 +1,4 @@
+import { removeTreeNoFollowSync } from "../lib/remove-tree.js";
 // 发行包 smoke test：不依赖 DSH 真机，验证"打出来的 tgz 至少能导入、能解析"。
 // CI 在 npm pack 之后跑它；本地 `npm run smoke` 同理。
 import fs from "node:fs";
@@ -87,7 +88,7 @@ try {
   if (report.state !== "broken") problems.push(`无宿主时 selfcheck 应为 broken，实际 ${report.state}`);
   else ok("selfcheck 无宿主时安全降级");
 } finally {
-  fs.rmSync(tmp, { recursive: true, force: true });
+  removeTreeNoFollowSync(tmp);
 }
 
 if (problems.length) {

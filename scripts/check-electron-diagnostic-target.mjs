@@ -1,3 +1,4 @@
+import { removeTreeNoFollowSync } from "../lib/remove-tree.js";
 /** Read-only diagnostics in a disposable, real Electron ASAR fixture. */
 import fs from "node:fs";
 import os from "node:os";
@@ -110,5 +111,5 @@ try {
     if (fs.readFileSync(file, "utf8") !== text) throw Error("Diagnostics changed fixture settings");
   }
 } finally {
-  fs.rmSync(tmp, { recursive: true, force: true });
+  removeTreeNoFollowSync(tmp);
 }

@@ -231,7 +231,11 @@ export function maintenanceNotice(op, result) {
     if (result.applied || result.needRestart || result.restart_required) {
       const version =
         result.release?.version || result.localVersion || result.remoteVersion;
-      return `插件已安装${version ? "：" + version : ""}。请重启 DSH 进程；仅刷新浏览器不会加载新版后端。`;
+      const warnings = result.cleanup_warnings || [];
+      const cleanup = warnings.length
+        ? `清理未完成（${warnings.map((w) => `${w.stage}:${w.code}`).join("，")}），残留已保留。`
+        : "";
+      return `${cleanup}插件已安装${version ? "：" + version : ""}。请重启 DSH 进程；仅刷新浏览器不会加载新版后端。`;
     }
     return result.note || "更新请求已完成，请刷新状态核对安装结果。";
   }

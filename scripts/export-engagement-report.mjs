@@ -1,3 +1,4 @@
+import { removeTreeNoFollowSync } from "../lib/remove-tree.js";
 #!/usr/bin/env node
 /**
  * 把一个靶标的得分报告导出成可移动的交付包：`<outDir>/<靶标>-红队成果复现报告.md` + `<outDir>/shots/`。
@@ -34,7 +35,7 @@ mkdirSync(outDir, { recursive: true });
 const shotsSrc = join(root, "engagements", id, "shots");
 const shotsDst = join(outDir, "shots");
 if (existsSync(shotsSrc)) {
-  rmSync(shotsDst, { recursive: true, force: true });
+  removeTreeNoFollowSync(shotsDst);
   cpSync(shotsSrc, shotsDst, { recursive: true });
 }
 

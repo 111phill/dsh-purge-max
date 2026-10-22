@@ -1,3 +1,4 @@
+import { removeTreeNoFollowSync } from "../lib/remove-tree.js";
 // Run only in disposable Linux CI as root. All writes stay inside a fresh temp dir.
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
 import assert from 'node:assert/strict';import {execFileSync} from 'node:child_process';
@@ -36,4 +37,4 @@ try {
   const target=path.join(outside,'secret');fs.writeFileSync(target,'PRIVATE',{mode:0o600});
   for(const link of ['symlinkSync','linkSync']){fs[link](target,path.join(dir,'audit.jsonl'));assert.throws(()=>child(home,true));fs.unlinkSync(path.join(dir,'audit.jsonl'));assert.equal(fs.statSync(target).uid,0);assert.equal(fs.readFileSync(target,'utf8'),'PRIVATE');}
   console.log(JSON.stringify({actualRootAndUnprivileged:true,newAndLegacy:true,rotation:true,privateModesPreserved:true,explicitContainerOwner:true,linkTargetsUntouched:true}));
-} finally {fs.rmSync(tmp,{recursive:true,force:true});}
+} finally {removeTreeNoFollowSync(tmp);}

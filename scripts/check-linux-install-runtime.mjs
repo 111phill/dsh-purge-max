@@ -1,3 +1,4 @@
+import { removeTreeNoFollowSync } from "../lib/remove-tree.js";
 /** Explicit CI integration: isolated official npm host, no service/model/restart. */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -56,5 +57,5 @@ try {
  console.log(JSON.stringify({officialHost:version.trim(),userCopy:true,realBootstrap:true,import:true,rollback:true,failedRollbackRecovered:true,promptPreserved:true,sourcePermissionsPreserved:true,restartedDSH:false}));
 } finally {
  fs.chmodSync(official,modeRoot);fs.chmodSync(base,modeBase);
- fs.rmSync(root,{recursive:true,force:true});
+ removeTreeNoFollowSync(root);
 }

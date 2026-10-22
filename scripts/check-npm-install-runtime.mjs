@@ -1,3 +1,4 @@
+import { removeTreeNoFollowSync } from "../lib/remove-tree.js";
 // Disposable official npm host: baseline -> candidate -> rollback -> failure recovery.
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
 import {createRequire} from 'node:module';
@@ -42,4 +43,4 @@ try {
     }
   }
   throw error;
-} finally {fs.rmSync(temp,{recursive:true,force:true});}
+} finally {removeTreeNoFollowSync(temp);}

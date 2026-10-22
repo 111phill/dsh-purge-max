@@ -1,3 +1,4 @@
+import { removeTreeNoFollowSync } from "../lib/remove-tree.js";
 /** Runs Electron's real ASAR shim against disposable archives; does not start/restart DSH. */
 import fs from "node:fs";
 import os from "node:os";
@@ -61,4 +62,4 @@ try {
     });
     console.log(out.trim());
   }
-} finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+} finally { removeTreeNoFollowSync(tmp); }

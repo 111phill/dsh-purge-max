@@ -1,3 +1,4 @@
+import { removeTreeNoFollowSync } from "../lib/remove-tree.js";
 /** Real, isolated Electron lifecycle. Never opens, quits or edits the user's DSH. */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -215,5 +216,5 @@ try {
     )
       await delay(100);
   }
-  fs.rmSync(root, { recursive: true, force: true });
+  removeTreeNoFollowSync(root);
 }

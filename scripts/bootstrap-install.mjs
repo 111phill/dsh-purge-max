@@ -260,7 +260,7 @@ export function prepareLinuxHost(cli, { userHome = os.homedir(), log = console.l
       copy(root, path.join(stage, "dsh"));
       fs.writeFileSync(path.join(stage, "manifest.json"), JSON.stringify({ managedBy: "dsh-purge-linux-host", identity, source: root, version: meta.version }, null, 2) + "\n", { mode: 0o600 });
       fs.renameSync(stage, destination);
-    } finally { fs.rmSync(stage, { recursive: true, force: true }); }
+    } finally { removeTreeNoFollowSync(stage); }
   }
   fs.accessSync(targetCli, fs.constants.X_OK);
   // Copy preparation is not activation. Migration may still fail, so leave
@@ -278,7 +278,7 @@ export function prepareLinuxHost(cli, { userHome = os.homedir(), log = console.l
     else if (fs.realpathSync(launcher) !== targetCli) {
       const stage = fs.mkdtempSync(path.join(path.dirname(launcher), ".purge-launcher-"));
       try { fs.symlinkSync(targetCli, path.join(stage, "dsh")); fs.renameSync(path.join(stage, "dsh"), launcher); }
-      finally { fs.rmSync(stage, { recursive: true, force: true }); }
+      finally { removeTreeNoFollowSync(stage); }
     }
     log(`User-owned DSH ready: ${launcher}. Quit the old DSH and launch this path to use it.`);
   };
@@ -334,7 +334,7 @@ export async function bootstrapInstall(options = {}) {
     if (result.stderr?.trim()) log(result.stderr.trim());
     log("Installed. Settings preserved. Quit and reopen DSH manually when convenient; no restart or host patch was performed.");
     return { version, installed: true };
-  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  } finally { removeTreeNoFollowSync(tmp); }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
@@ -351,3 +351,37 @@ if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process
     await bootstrapInstall(options);
   } catch (error) { console.error(error.stderr || error.message); process.exitCode = 1; }
 }
+
+// BEGIN standalone no-follow cleanup (checked against lib/remove-tree.js)
+function removeTreeNoFollowSync(target, options = {}) {
+  const io = options.fs || fs;
+  const root = path.resolve(target);
+  if (root === path.parse(root).root) throw Error('Refusing to remove a filesystem root');
+  const maxRetries = options.maxRetries ?? 0;
+  const retryDelay = options.retryDelay ?? 100;
+  const retryable = new Set(['EBUSY', 'EMFILE', 'ENFILE', 'ENOTEMPTY', 'EPERM']);
+  const walk = file => {
+    let stat;
+    try { stat = io.lstatSync(file); } catch (error) {
+      if (error.code === 'ENOENT') return;
+      throw error;
+    }
+    // lstat must come before isDirectory: never stat / realpath a deletion target.
+    try {
+      if (stat.isSymbolicLink()) { io.unlinkSync(file); return; }
+      if (stat.isDirectory()) {
+        for (const name of io.readdirSync(file)) walk(path.join(file, name));
+        io.rmdirSync(file); // Non-recursive: no native recursive rm fallback.
+      } else io.unlinkSync(file);
+    } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  };
+  for (let attempt = 0; ; attempt++) {
+    try { walk(root); return; } catch (error) {
+      if (error.code === 'ENOENT') return;
+      if (attempt >= maxRetries || !retryable.has(error.code)) throw error;
+      // Each retry re-lstats every remaining entry, including the root.
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, retryDelay * (attempt + 1));
+    }
+  }
+}
+// END standalone no-follow cleanup
