@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.41** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
+> 当前版本：**1.6.42** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -131,7 +131,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.41 |
+| 插件 | `dsh-purge-community` 1.6.42 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
@@ -312,3 +312,9 @@ status/selfcheck/diagnose 使用 `diagnosticHost` 统一检查当前安装的物
 ## 1.6.41：更新状态核对
 
 运行版本与当前 profile 磁盘版本分开核对；旧 pendingVersion 不代表当前安装。未知版本或读取失败继续告警，安装失败不会被成功检查掩盖。旧版已卡住时先手动安装新版，由用户手动退出重开一次；不要删除设置、改更新开关或自动重启。详见 [状态迁移与测试说明](docs/maintenance-update-state.md)。
+
+## 1.6.42：设置与流诊断
+
+`tuning_setting` 记录实际保存后的已知设置变化，旧事件历史保留。未知字段保留在配置中但不写入日志；重复保存不新增变更事件。不要以审计条目数推断功能是否启用。
+
+`refusal_retry_outcome` 的 text / tool_call / reasoning_only / empty 只表示传输形态，error / cancelled 表示失败或取消，不能据此宣称任务成功或内容质量。retry 设置在下一次请求读取；rewind 的前端可见性仍需重载。不要自动重启用户的 DSH。详情见 [维护说明](docs/maintenance-pr-58-61.md)。
