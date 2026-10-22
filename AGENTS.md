@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.43** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
+> 当前版本：**1.6.44** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -131,7 +131,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.43 |
+| 插件 | `dsh-purge-community` 1.6.44 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
@@ -326,3 +326,7 @@ status/selfcheck/diagnose 使用 `diagnosticHost` 统一检查当前安装的物
 - A/B：启动 DSH 前设 `PURGE_BOOST_ORDER=-50000` 可回到旧位置；不设则用 9500。
 - 切换段位：`purge-community inject head|tail|both`（写 tuning + 记 `tuning_setting`，下一轮生效，不需要重启）。
 - 改排序属于"行为变更"：发布前应做真机 A/B（同一组易拒请求，比较 `refusal_retry` 次数与回答形态），不能只靠单测的 order 数字。
+
+## 1.6.44：市场安装与旧包迁移
+
+市场重复安装拦截发生在插件加载前，不能靠修改插件运行时代码解决。旧版用户使用本仓库独立安装器迁移，不先卸载；保留数据目录、权限、更新偏好及提示词。安装后检查实际包入口、启用 bundle 和配置合成；失败恢复依赖树、清单与锁文件，不能把 CLI 退出 0 当作全部成功。已知旧包 `name` 引用精确迁移；未知 ID、手动 insert 或动态入口停止并报告，不删参数。回滚反向迁移已记录的包引用，保留后续配置值。说明和实际验收命令见 [市场迁移指南](docs/MARKET-MIGRATION.md)。第三方索引/市场 PR 待其发布，不自动重启。
