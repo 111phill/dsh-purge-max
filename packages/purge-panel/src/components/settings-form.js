@@ -1,4 +1,5 @@
 // UI derived from YuJunZhiXue/dsh-purge 1.1.71 (MIT). See LICENSE.
+import { incompleteApplyDetail } from "../shared/apply-result.js";
 import {
   h,
   useState,
@@ -422,33 +423,11 @@ export function PurgifySection({ page = "status", onStatus } = {}) {
               }
             }
             if (action === "apply" && d.complete === false) {
-              const parts = [];
-              if (d.failed > 0) {
-                const ids = (d.failed_items || [])
-                  .map((x) => x.id)
-                  .filter((id) => id != null)
-                  .join(",");
-                parts.push(
-                  tr("restart.incomplete.patches", {
-                    failed: String(d.failed || 0),
-                    ids: ids || "?",
-                  }),
-                );
-              }
-              if (d.cmd_flash && d.cmd_flash.ok === false) {
-                parts.push(
-                  tr("restart.incomplete.flash", {
-                    entry: String(d.cmd_flash.entry || "fail"),
-                  }),
-                );
-              }
-              if (parts.length === 0)
-                parts.push(
-                  tr("restart.incomplete.flash", { entry: "unknown" }),
-                );
               setNotice({
                 kind: "error",
-                text: tr("restart.incomplete", { detail: parts.join("；") }),
+                text: tr("restart.incomplete", {
+                  detail: incompleteApplyDetail(d, tr),
+                }),
               });
               loadAll();
               if (d.restarting || d.needs_full_quit) {
