@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.42** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
+> 当前版本：**1.6.43** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -131,7 +131,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.42 |
+| 插件 | `dsh-purge-community` 1.6.43 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
@@ -318,3 +318,11 @@ status/selfcheck/diagnose 使用 `diagnosticHost` 统一检查当前安装的物
 `tuning_setting` 记录实际保存后的已知设置变化，旧事件历史保留。未知字段保留在配置中但不写入日志；重复保存不新增变更事件。不要以审计条目数推断功能是否启用。
 
 `refusal_retry_outcome` 的 text / tool_call / reasoning_only / empty 只表示传输形态，error / cancelled 表示失败或取消，不能据此宣称任务成功或内容质量。retry 设置在下一次请求读取；rewind 的前端可见性仍需重载。不要自动重启用户的 DSH。详情见 [维护说明](docs/maintenance-pr-58-61.md)。
+
+## 27. 注入位置与强化段排序（1.6.43）
+
+- 宿主 section 的 order 区间是 `-1000…10200`（persona-prefix 0、工具 1000–3100、DELIVERABLE 9000、STRUCTURED_OUTPUT 9900、WEB_SURFACE 10100、persona-suffix 10200）。低于 0 的 order 排在 persona 之前，**不能用 `GLOBAL_PROMPT_ORDER + n` 表示"尾部"**。
+- 本版：boost `9500`，tail 注入 `10150`。`inject tail|both` 才有意义；`head` 仍是 `GLOBAL_PROMPT_ORDER`。
+- A/B：启动 DSH 前设 `PURGE_BOOST_ORDER=-50000` 可回到旧位置；不设则用 9500。
+- 切换段位：`purge-community inject head|tail|both`（写 tuning + 记 `tuning_setting`，下一轮生效，不需要重启）。
+- 改排序属于"行为变更"：发布前应做真机 A/B（同一组易拒请求，比较 `refusal_retry` 次数与回答形态），不能只靠单测的 order 数字。

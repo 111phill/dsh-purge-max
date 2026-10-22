@@ -1,3 +1,34 @@
+# 1.6.43
+
+## 修：`tail` 注入位置一直是空操作
+
+宿主 `dsh-system-prompt` 的 section 都落在 `-1000…10200`；插件原来用 `GLOBAL_PROMPT_ORDER(-100000) + 40000/50000`，
+结果仍是负数，两段「尾部」排在 persona 之前，长上下文里最先被裁掉的恰好是它们。
+
+现在按宿主区间注册：boost `9500`（DELIVERABLE 之后）、tail 注入 `10150`（WEB_SURFACE 之后、persona-suffix 之前）。
+`injectPosition: tail` 从本版起是真的尾部。
+
+需要 A/B 时可用 `PURGE_BOOST_ORDER` 临时钉住 boost 位置（例如回归旧值 `-50000`），启动进程时设置，重启生效。
+
+## 修：红队注入没有切掉竞赛约定
+
+注入正文的标题写作 `CTF Core Contract`，常量是全大写，`indexOf` 恒为 -1。现在按**整行**、忽略大小写比较，
+并要求后文出现 `CTF Scope and Evidence` 或「竞赛沙箱」才当结构标记：普通正文里的同名词、引用、代码围栏都不受影响。
+
+## 新：`purge-community inject head|tail|both`
+
+写入 `tuning.json` 并记 `tuning_setting` 审计；返回 `restart_required: false`（section 每轮重读）。非法值退 2。
+
+## 新：元拒绝检测（收窄）
+
+除了模板化拒答，还能识别「只评论指令本身、不给答案」的短回复（提示词注入 / 越狱 / 我不会把它当指令）。
+**整段超过 280 字符不算**，避免把正常技术讨论误判成拒绝而白跑一次重试。
+
+## 实测
+
+本机 A/B（同一 3 条历史易拒请求）：boost 旧位置 0/3 拒绝，新位置 0/3 拒绝，未见退化。
+排序已用宿主锚点逐条核对；`npm test` 305 通过。
+
 # 1.6.42
 
 修复 PR 审查中复现的内容保留、流取消和设置日志问题。

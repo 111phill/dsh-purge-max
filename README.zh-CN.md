@@ -9,9 +9,9 @@
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.6.42** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
+当前版本 **1.6.43** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
 
-1.6.42 修复正常提示词误截断和取消流后的连接残留，统一设置变更日志；传输失败与取消分别记录，不把有输出等同于回答成功。[更新说明](docs/maintenance-pr-58-61.md)。
+1.6.43 修复正常提示词误截断和取消流后的连接残留，统一设置变更日志；传输失败与取消分别记录，不把有输出等同于回答成功。[更新说明](docs/maintenance-pr-58-61.md)。
 
 </div>
 
@@ -68,7 +68,7 @@ Purge Community 是一个跑在你自己机器上的 Harness 附加组件。它�
 
 ## 1.6.39 更新
 
-修复独立安装器只显示 `fetch failed` 的问题：分阶段诊断、有限重试和系统 curl 备用下载，继续严格校验官方来源、证书和 SHA256。下载失败不触碰现有安装。[发行说明](docs/releases/1.6.42.md) · [配置与验收](docs/maintenance-issue-52.md)
+修复独立安装器只显示 `fetch failed` 的问题：分阶段诊断、有限重试和系统 curl 备用下载，继续严格校验官方来源、证书和 SHA256。下载失败不触碰现有安装。[发行说明](docs/releases/1.6.43.md) · [配置与验收](docs/maintenance-issue-52.md)
 
 ## 安装
 
@@ -143,7 +143,7 @@ powershell -ExecutionPolicy Bypass -File $env:TEMP\purge-install.ps1
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.42 |
+| 插件 | `dsh-purge-community` 1.6.43 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许安装，自检会标「未验证」；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
