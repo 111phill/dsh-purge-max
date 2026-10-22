@@ -474,11 +474,12 @@ test('a failed fresh install quarantines partial package and retains user settin
       fs.writeFileSync(path.join(f.root, 'incomplete.js'), 'partial download');
       throw Error('fixture install failed');
     };
-    await assert.rejects(f.manager.install(f.candidate), /fixture install failed.*半安装目录已隔离/);
+    await assert.rejects(f.manager.install(f.candidate), /fixture install failed.*安装前依赖、安装与清单已恢复/);
     assert.equal(fs.existsSync(f.root), false);
-    const failed = fs.readdirSync(f.manager.base).filter(x => x.startsWith('failed-install-'));
+    const recovery = path.join(f.manager.base, 'install-recovery');
+    const failed = fs.readdirSync(recovery);
     assert.equal(failed.length, 1);
-    assert.equal(fs.readFileSync(path.join(f.manager.base, failed[0], 'incomplete.js'),'utf8'), 'partial download');
+    assert.equal(fs.readFileSync(path.join(recovery, failed[0], 'failed-node_modules', PACKAGE, 'incomplete.js'),'utf8'), 'partial download');
     assert.equal(fs.readFileSync(path.join(f.profile,'cordis.patch.yml'),'utf8'), 'PRIVATE CURRENT SETTINGS');
     assert.equal(fs.readFileSync(path.join(f.home,'prompt-inject.md'),'utf8'), 'PRIVATE USER PROMPT');
   } finally { f.close(); }
@@ -537,4 +538,40 @@ test('Windows native installer resolves archive path aliases without changing th
     assert.equal(supplied,fs.realpathSync.native(input));assert.notEqual(supplied,input);
     assert.deepEqual(fs.readFileSync(input),before);assert(fs.lstatSync(alias).isSymbolicLink());
   } finally {if(previous===undefined)delete process.env.PURGE_DSH_CLI;else process.env.PURGE_DSH_CLI=previous;f.close();}
+});
+
+test('failed install restores the complete dependency graph and lockfile, not just the manifest', async () => {
+  for (const stage of ['install','verify']) {
+    const f=setup();
+    try {
+      const manifest=fs.readFileSync(path.join(f.profile,'package.json'));
+      fs.writeFileSync(path.join(f.profile,'pnpm-lock.yaml'),'old lock');
+      f.manager.installer=async()=>{
+        const pkg=JSON.parse(manifest);pkg.dependencies[PACKAGE]='file:candidate';
+        fs.writeFileSync(path.join(f.profile,'package.json'),JSON.stringify(pkg));
+        fs.writeFileSync(path.join(f.profile,'pnpm-lock.yaml'),'new lock');
+        fs.writeFileSync(path.join(f.root,'client.js'),'partial replacement');
+        if(stage==='install')throw Error('download failure');
+      };
+      f.manager.verifier=async()=>{throw Error('dependency import failure');};
+      await assert.rejects(f.manager.install(f.candidate),/安装前依赖、安装与清单已恢复/);
+      assert.deepEqual(fs.readFileSync(path.join(f.profile,'package.json')),manifest);
+      assert.equal(fs.readFileSync(path.join(f.profile,'pnpm-lock.yaml'),'utf8'),'old lock');
+      assert.equal(fs.readFileSync(path.join(f.root,'client.js'),'utf8'),'original client');
+      assert.equal(fs.readFileSync(path.join(f.home,'prompt-inject.md'),'utf8'),'PRIVATE USER PROMPT');
+    } finally {f.close();}
+  }
+});
+test('install recovery refuses to erase concurrent unrelated dependency changes',async()=>{
+  const f=setup();
+  try {
+    f.manager.installer=async()=>{
+      const file=path.join(f.profile,'package.json'),pkg=JSON.parse(fs.readFileSync(file));
+      pkg.dependencies.concurrent='1.0.0';fs.writeFileSync(file,JSON.stringify(pkg));
+      throw Error('failure after concurrent change');
+    };
+    await assert.rejects(f.manager.install(f.candidate),/检测到并发配置变化，未覆盖/);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(f.profile,'package.json'))).dependencies.concurrent,'1.0.0');
+    assert.equal(fs.readdirSync(path.join(f.manager.base,'install-recovery')).length,1);
+  } finally {f.close();}
 });

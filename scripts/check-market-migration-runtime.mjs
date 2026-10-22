@@ -1,0 +1,54 @@
+// Actual official DSH CLI, disposable profile, real legacy/candidate archives.
+// No server is started and no plugin apply(), prompt injection or host patch runs.
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+import {Maintenance,PACKAGE} from '../lib/community.js';
+import {verifyInstalledPackage} from '../lib/rollback-transaction.js';
+const [cliArg,legacyArg,candidateArg] = process.argv.slice(2);
+if (!cliArg || !legacyArg || !candidateArg) throw Error('Usage: node script <official CLI> <legacy tgz> <candidate tgz>');
+const [cli,legacy,candidate] = [cliArg,legacyArg,candidateArg].map(p=>path.resolve(p));
+const temp=fs.mkdtempSync(path.join(os.tmpdir(),'purge-market-migration-'));
+const home=path.join(temp,'home'); fs.mkdirSync(home);
+process.env.DSH_HOME=home; process.env.DSH_PROFILE='web'; process.env.DSH_SURFACE='web';
+process.env.PURGE_DSH_CLI=cli; delete process.env.DSH_BASE; delete process.env.PURGE_PROFILE_DIR;
+const run=args=>execFileSync(process.execPath,[cli,...args],{env:process.env,encoding:'utf8',timeout:240000,maxBuffer:8e6});
+run(['--profile','web','--dump-default-config']);
+const profile=path.join(home,'profiles/web'),config=path.join(profile,'cordis.patch.yml');
+run(['plugin','--profile','web','add',legacy]);
+const oldPkg=JSON.parse(fs.readFileSync(path.join(profile,'node_modules/dsh-purge/package.json')));
+assert.equal(oldPkg.name,'dsh-purge');
+fs.writeFileSync(config,fs.readFileSync(config,'utf8').replace(/\[\]/,'')+'\n# user overrides\n- id: dsh-purge\n  name: dsh-purge\n  config:\n    enabled: false\n    postPrompt: "PRIVATE SENTINEL"\n    verbose: true\n');
+if(process.platform!=='win32')fs.chmodSync(config,0o640);
+const original=fs.readFileSync(config,'utf8');
+const previousBundles=JSON.parse(fs.readFileSync(path.join(profile,'package.json'))).dsh.profile.bundles;
+const sentinels={'prompt-inject.md':'PRIVATE USER CONTENT','dsh-purge/tuning.json':'{"boost":false,"custom":17}', 'rules/custom.md':'PRIVATE RULE','redteam/user-data.txt':'PRIVATE RESOURCE'};
+for(const [rel,value] of Object.entries(sentinels)){const p=path.join(home,rel);fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p,value);}
+const preserved=()=>{if(process.platform!=='win32')assert.equal(fs.statSync(config).mode & 0o777,0o640);for(const [rel,value] of Object.entries(sentinels))assert.equal(fs.readFileSync(path.join(home,rel),'utf8'),value);};
+const manager=new Maintenance({home,profile});
+const installed=await manager.install(candidate,{reason:'before-migration'});
+assert.equal(installed.migrated_references,1);
+const newMeta=JSON.parse(fs.readFileSync(path.join(profile,'node_modules',PACKAGE,'package.json')));
+await verifyInstalledPackage(profile,newMeta);
+assert.deepEqual(JSON.parse(fs.readFileSync(path.join(profile,'package.json'))).dsh.profile.bundles,[...previousBundles.filter(n=>n!=='dsh-purge'),PACKAGE]);
+assert.equal(fs.readFileSync(config,'utf8'),original.replace('name: dsh-purge\n','name: "dsh-purge-community"\n'));
+const composed=run(['--profile','web','--dump-config']);
+assert.equal((composed.match(/name: dsh-purge-community\s/g)||[]).length,1);
+assert.match(composed,/PRIVATE SENTINEL/);preserved();
+// User changes after migration must survive rollback and re-upgrade.
+fs.appendFileSync(config,'\n# later user edit\n');
+await manager.rollback(installed.backup_id);
+await verifyInstalledPackage(profile,oldPkg);
+assert.equal(fs.readFileSync(config,'utf8'),original.replace('name: dsh-purge\n','name: "dsh-purge"\n')+'\n# later user edit\n');
+preserved();
+await manager.install(candidate,{reason:'before-migration'});preserved();
+const manifest=fs.readFileSync(path.join(profile,'package.json')),lock=fs.readFileSync(path.join(profile,'pnpm-lock.yaml')),patch=fs.readFileSync(config);
+manager.verifier=async()=>{throw Error('injected post-install validation failure');};
+await assert.rejects(manager.install(candidate),/安装前依赖、安装与清单已恢复/);
+assert.deepEqual(fs.readFileSync(path.join(profile,'package.json')),manifest);
+assert.deepEqual(fs.readFileSync(path.join(profile,'pnpm-lock.yaml')),lock);
+assert.deepEqual(fs.readFileSync(config),patch);
+await verifyInstalledPackage(profile,newMeta);preserved();
+console.log(JSON.stringify({platform:process.platform,home,legacy:oldPkg.version,candidate:newMeta.version,realCli:true,composed:true,migration:true,rollback:true,reupgrade:true,failedInstallRecovery:true,settingsPreserved:true,restart:false}));
