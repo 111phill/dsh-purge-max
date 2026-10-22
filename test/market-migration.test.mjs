@@ -24,3 +24,13 @@ test('known legacy submodule overrides migrate; malformed, dynamic and ambiguous
   assert.match(migrateReferences(text,yaml).text,/"dsh-purge-community\/redteam\/ui"/);
   for(const text of ['- id: dsh-purge\n  name: [', '- id: custom\n  name: dsh-purge\n','- id: dsh-purge\n  name: !!js dsh-purge\n','- insert:\n    - id: dsh-purge\n      name: dsh-purge\n']) assert.throws(()=>migrateReferences(text,yaml));
 });
+
+test('rollback safety records restore community references without losing later settings',()=>{
+  const original='- id: dsh-purge\n  name: dsh-purge\n  config:\n    custom: 1\n';
+  const upgraded=migrateReferences(original,yaml);
+  const reverted=migrateReferences(upgraded.text,yaml,upgraded.changes);
+  const edited=reverted.text.replace('custom: 1','custom: 2');
+  const restored=migrateReferences(edited,yaml,reverted.changes);
+  assert.equal(restored.text,upgraded.text.replace('custom: 1','custom: 2'));
+  assert.throws(()=>migrateReferences(original,yaml,[{id:'dsh-purge',from:'evil',to:'dsh-purge'}]),/迁移记录无效/);
+});

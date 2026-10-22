@@ -39,10 +39,16 @@ assert.equal((composed.match(/name: dsh-purge-community\s/g)||[]).length,1);
 assert.match(composed,/PRIVATE SENTINEL/);preserved();
 // User changes after migration must survive rollback and re-upgrade.
 fs.appendFileSync(config,'\n# later user edit\n');
-await manager.rollback(installed.backup_id);
+const rolledBack=await manager.rollback(installed.backup_id);
 await verifyInstalledPackage(profile,oldPkg);
 assert.equal(fs.readFileSync(config,'utf8'),original.replace('name: dsh-purge\n','name: "dsh-purge"\n')+'\n# later user edit\n');
 preserved();
+// The safety snapshot must also support undoing a rollback, with references intact.
+await manager.rollback(rolledBack.backup_id);
+await verifyInstalledPackage(profile,newMeta);
+assert.match(fs.readFileSync(config,'utf8'),/name: "dsh-purge-community"/);
+assert.match(fs.readFileSync(config,'utf8'),/# later user edit/);preserved();
+await manager.rollback(installed.backup_id);preserved();
 await manager.install(candidate,{reason:'before-migration'});preserved();
 const manifest=fs.readFileSync(path.join(profile,'package.json')),lock=fs.readFileSync(path.join(profile,'pnpm-lock.yaml')),patch=fs.readFileSync(config);
 manager.verifier=async()=>{throw Error('injected post-install validation failure');};
@@ -51,4 +57,4 @@ assert.deepEqual(fs.readFileSync(path.join(profile,'package.json')),manifest);
 assert.deepEqual(fs.readFileSync(path.join(profile,'pnpm-lock.yaml')),lock);
 assert.deepEqual(fs.readFileSync(config),patch);
 await verifyInstalledPackage(profile,newMeta);preserved();
-console.log(JSON.stringify({platform:process.platform,home,legacy:oldPkg.version,candidate:newMeta.version,realCli:true,composed:true,migration:true,rollback:true,reupgrade:true,failedInstallRecovery:true,settingsPreserved:true,restart:false}));
+console.log(JSON.stringify({platform:process.platform,home,legacy:oldPkg.version,candidate:newMeta.version,realCli:true,composed:true,migration:true,rollback:true,undoRollback:true,reupgrade:true,failedInstallRecovery:true,settingsPreserved:true,restart:false}));
