@@ -116,3 +116,19 @@ test("injectPosition=both registers head and tail with the same text", () => {
     assert(names.includes("dsh-purge-tail"));
   });
 });
+
+test("boost order can be pinned for A/B runs", async () => {
+  const prev = process.env.PURGE_BOOST_ORDER;
+  process.env.PURGE_BOOST_ORDER = "-50000";
+  try {
+    const mod = await import(`../lib/index.js?ab=${Date.now()}`);
+    const sections = [];
+    const ctx = { systemPrompt: { section: (s) => (sections.push(s), () => {}) }, logger: { warn() {} } };
+    mod.registerPromptSections(ctx, { enabled: true, capabilityProtocol: false, injectOnce: false, postPrompt: "", postPromptOrder: 5100 });
+    const boost = sections.find((s) => s.name === "dsh-purge-boost");
+    assert.equal(boost.order, -50000);
+  } finally {
+    if (prev === undefined) delete process.env.PURGE_BOOST_ORDER;
+    else process.env.PURGE_BOOST_ORDER = prev;
+  }
+});
