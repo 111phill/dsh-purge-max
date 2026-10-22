@@ -59,6 +59,37 @@ test("default tuning registers the inject at the head and the boost at the tail"
   });
 });
 
+// 宿主 rc.2 的 SECTION_ORDERS：persona-prefix 0、工具段 1000–3000、MCP 3100、
+// TOOLS_SDK 5000、DELIVERABLE 9000、STRUCTURED_OUTPUT 9900、HARNESS_SOURCE 10000、
+// WEB_SURFACE 10100、persona-suffix 10200。低于 0 的 order 排在 persona 之前，
+// 所以"尾部"段不能用 GLOBAL_PROMPT_ORDER + n（仍是负数）。
+const HOST_TOOL_SECTIONS_MAX = 5000;
+const HOST_PERSONA_SUFFIX = 10200;
+
+test("tail inject and boost land inside the host tail range, not ahead of the persona", () => {
+  withHome((home) => {
+    writeTuning({ injectPosition: "tail" }, home);
+    const h = harness();
+    registerPromptSections(h.ctx, h.config);
+    const byName = Object.fromEntries(h.sections.map((s) => [s.name, s]));
+    for (const name of ["dsh-purge-tail", "dsh-purge-boost"]) {
+      const order = byName[name].order;
+      assert(
+        order > HOST_TOOL_SECTIONS_MAX,
+        `${name} must sort after the tool sections, got ${order}`,
+      );
+      assert(
+        order < HOST_PERSONA_SUFFIX,
+        `${name} must sort before the persona suffix, got ${order}`,
+      );
+    }
+    assert(
+      byName["dsh-purge-tail"].order > byName["dsh-purge-boost"].order,
+      "the inject sits closest to the output, after the boost block",
+    );
+  });
+});
+
 test("injectPosition=tail moves the text and keeps a named placeholder", () => {
   withHome((home) => {
     writeTuning({ injectPosition: "tail" }, home);
