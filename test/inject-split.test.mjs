@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { splitRedteamInject, withoutCtfContract } from "../lib/identity.js";
 
-const REAL = "前言段落\n\nCTF Core Contract\n\n竞赛沙箱约定\n";
+const REAL = "前言段落\n\nCTF Core Contract\n\nCTF Scope and Evidence\n\n竞赛沙箱约定\n";
 
 test("the real mixed-case heading is split off", () => {
   const { common, ctfTail } = splitRedteamInject(REAL);
