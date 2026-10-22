@@ -263,10 +263,16 @@ export const zh = {
   "surface.desktop": "桌面端",
   "surface.gui": "GUI",
   "surface.tui": "TUI",
-  "restart.incomplete": "提示词已写入。{detail}",
+  "restart.incomplete": "应用未完成。{detail}",
   "restart.incomplete.patches":
-    "还有 {failed} 项代码补丁没对上当前版本（#{ids}），不影响这段提示词",
-  "restart.incomplete.flash": "CMD 无感未钉入（{entry}）",
+    "有 {failed} 项处理失败（#{ids}），请查看补丁明细",
+  "restart.incomplete.flash": "终端窗口抑制检查未通过（{entry}）",
+  "restart.incomplete.host":
+    "未确认目标宿主写入完成，请核对客户端、宿主版本和目标路径",
+  "restart.incomplete.restore": "配置恢复未完成，请查看诊断记录",
+  "restart.incomplete.runtime": "CLI 运行时检查或修复失败，请查看诊断记录",
+  "restart.incomplete.unknown":
+    "当前后端未返回具体原因，请查看宿主版本、补丁明细和诊断结果",
   "restart.later": "以后",
   "group.prompt": "提示词",
   "group.code": "代码",
@@ -660,10 +666,19 @@ export const en = {
   "surface.desktop": "Desktop",
   "surface.gui": "GUI",
   "surface.tui": "TUI",
-  "restart.incomplete": "The prompt is in. {detail}",
+  "restart.incomplete": "Apply did not complete. {detail}",
   "restart.incomplete.patches":
-    "{failed} code patch(es) did not match this host (#{ids}). The prompt is unaffected",
-  "restart.incomplete.flash": "CMD silence not pinned ({entry})",
+    "{failed} item(s) failed (#{ids}); inspect the item details",
+  "restart.incomplete.flash":
+    "Console-window suppression check failed ({entry})",
+  "restart.incomplete.host":
+    "Target host writes are not confirmed; check the client, host version and target path",
+  "restart.incomplete.restore":
+    "Configuration restoration did not complete; inspect diagnostics",
+  "restart.incomplete.runtime":
+    "CLI runtime check or repair failed; inspect diagnostics",
+  "restart.incomplete.unknown":
+    "The backend did not provide a specific cause; inspect the host version, item details and diagnostics",
   "restart.later": "Later",
   "group.prompt": "Prompt",
   "group.code": "Code",
