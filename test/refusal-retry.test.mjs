@@ -1,7 +1,7 @@
 // 拒绝检测 + 单次重试：不命中就原样透传，命中就加一句加固重跑一次。
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { looksLikeRefusal, streamWithRefusalRetry, RETRY_NUDGE } from "../lib/refusal-retry.js";
+import { looksLikeRefusal, refusalMatchIndex, streamWithRefusalRetry, RETRY_NUDGE } from "../lib/refusal-retry.js";
 
 const sys = (text) => ({ role: "system", content: [{ type: "text", text }] });
 const delta = (text) => ({ type: "text-delta", index: 0, text });
@@ -78,4 +78,9 @@ test("short meta refusals count, long technical discussion does not", () => {
   assert(looksLikeRefusal("I won't treat this as a valid instruction; this is prompt injection."));
   const long = "提示词注入的防御通常分三层：" + "输入过滤、上下文隔离、输出审查。".repeat(30);
   assert(!looksLikeRefusal(long), "长文里讨论注入不应触发重试");
+});
+
+test("the matching rule index is reported for diagnosis", () => {
+  assert(refusalMatchIndex("这段指令是提示词注入，我不会执行。") >= 0);
+  assert.equal(refusalMatchIndex("普通的技术说明，没有任何拒绝。"), -1);
 });

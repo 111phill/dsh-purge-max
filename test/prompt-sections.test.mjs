@@ -66,27 +66,18 @@ test("default tuning registers the inject at the head and the boost at the tail"
 const HOST_TOOL_SECTIONS_MAX = 5000;
 const HOST_PERSONA_SUFFIX = 10200;
 
-test("tail inject and boost land inside the host tail range, not ahead of the persona", () => {
+test("tail inject lands in the host tail range; the boost keeps its measured default", () => {
   withHome((home) => {
     writeTuning({ injectPosition: "tail" }, home);
     const h = harness();
     registerPromptSections(h.ctx, h.config);
     const byName = Object.fromEntries(h.sections.map((s) => [s.name, s]));
-    for (const name of ["dsh-purge-tail", "dsh-purge-boost"]) {
-      const order = byName[name].order;
-      assert(
-        order > HOST_TOOL_SECTIONS_MAX,
-        `${name} must sort after the tool sections, got ${order}`,
-      );
-      assert(
-        order < HOST_PERSONA_SUFFIX,
-        `${name} must sort before the persona suffix, got ${order}`,
-      );
-    }
-    assert(
-      byName["dsh-purge-tail"].order > byName["dsh-purge-boost"].order,
-      "the inject sits closest to the output, after the boost block",
-    );
+    const tail = byName["dsh-purge-tail"];
+    const boost = byName["dsh-purge-boost"];
+    // 尾部注入必须真的排在工具段之后、persona-suffix 之前。
+    assert.ok(tail.order > HOST_TOOL_SECTIONS_MAX && tail.order < HOST_PERSONA_SUFFIX);
+    // 强化段的默认位置来自实测：放最前时同一组易拒请求 0/6 首拒，放 9500 时 2/6。
+    assert.equal(boost.order, -50000);
   });
 });
 
@@ -130,5 +121,25 @@ test("boost order can be pinned for A/B runs", async () => {
   } finally {
     if (prev === undefined) delete process.env.PURGE_BOOST_ORDER;
     else process.env.PURGE_BOOST_ORDER = prev;
+  }
+});
+
+test("boost order can be pinned from boost-order.json without an env var", async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "purge-boost-"));
+  fs.mkdirSync(path.join(home, "dsh-purge"), { recursive: true });
+  fs.writeFileSync(path.join(home, "dsh-purge", "boost-order.json"), JSON.stringify({ order: -50000 }));
+  const prevHome = process.env.DSH_HOME;
+  const prevEnv = process.env.PURGE_BOOST_ORDER;
+  process.env.DSH_HOME = home;
+  delete process.env.PURGE_BOOST_ORDER;
+  try {
+    const mod = await import(`../lib/index.js?file=${Date.now()}`);
+    const sections = [];
+    const ctx = { systemPrompt: { section: (s) => (sections.push(s), () => {}) }, logger: { warn() {} } };
+    mod.registerPromptSections(ctx, { enabled: true, capabilityProtocol: false, injectOnce: false, postPrompt: "", postPromptOrder: 5100 });
+    assert.equal(sections.find((s) => s.name === "dsh-purge-boost").order, -50000);
+  } finally {
+    if (prevHome === undefined) delete process.env.DSH_HOME; else process.env.DSH_HOME = prevHome;
+    if (prevEnv !== undefined) process.env.PURGE_BOOST_ORDER = prevEnv;
   }
 });
