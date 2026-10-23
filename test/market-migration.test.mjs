@@ -34,3 +34,8 @@ test('rollback safety records restore community references without losing later 
   assert.equal(restored.text,upgraded.text.replace('custom: 1','custom: 2'));
   assert.throws(()=>migrateReferences(original,yaml,[{id:'dsh-purge',from:'evil',to:'dsh-purge'}]),/迁移记录无效/);
 });
+test('manual alias rollback restores known entry names without touching prompt or custom entries',async()=>{
+  const {aliasRollbackReferences}=await import('../lib/market-migration.js');
+  const text='- id: dsh-purge\n  name: dsh-purge-community\n  config:\n    postPrompt: dsh-purge-community\n- id: other\n  name: custom-plugin\n';
+  assert.equal(migrateReferences(text,yaml,aliasRollbackReferences()).text,text.replace('name: dsh-purge-community','name: "dsh-purge"'));
+});

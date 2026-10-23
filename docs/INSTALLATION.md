@@ -1,6 +1,6 @@
 # 安装、升级与故障排查
 
-当前版本 **1.6.47**。面向用户与协助安装的 Agent。支持的安装器环境：Linux CLI/Web；macOS Desktop；Windows 11 的 PowerShell 5.1/7。完整 Windows 宿主补丁及界面验收与安装器测试分开，不能因安装通过就宣称全部功能正常。
+当前版本 **1.6.48**。面向用户与协助安装的 Agent。支持的安装器环境：Linux CLI/Web；macOS Desktop；Windows 11 的 PowerShell 5.1/7。完整 Windows 宿主补丁及界面验收与安装器测试分开，不能因安装通过就宣称全部功能正常。
 
 ## 安装前
 
@@ -23,7 +23,7 @@
 
 macOS 默认要求 `/Applications/DeepSeek Harness.app`。自定义安装位置用 `DSH_APP`（指向 `.app`），自定义数据目录用 `DSH_HOME`；两次调用都传相同的 `--profile=实际名称`。Windows 支持 `-DshExe`（实际 exe 的完整路径）、`-DshHome`、`-Profile`、`-Version`。路径不唯一应停止并明确指定，不能猜测另一个副本。
 
-`--dry-run` / `-DryRun` 会检查 profile、定位 CLI、下载发行包并核对 SHA256；**不会运行 pnpm、迁移、回滚或完整启动验证**。去掉该参数才正式安装。默认读取最新稳定 Release；要固定本次发行，shell 两次均加 `--version=1.6.47`，PowerShell 两次均加 `-Version 1.6.47`。入口脚本及 bootstrap 仍来自本仓库 master，不应把版本参数解释为固定所有下载脚本。
+`--dry-run` / `-DryRun` 会检查 profile、定位 CLI、下载发行包并核对 SHA256；**不会运行 pnpm、迁移、回滚或完整启动验证**。去掉该参数才正式安装。默认读取最新稳定 Release；要固定本次发行，shell 两次均加 `--version=1.6.48`，PowerShell 两次均加 `-Version 1.6.48`。入口脚本及 bootstrap 仍来自本仓库 master，不应把版本参数解释为固定所有下载脚本。
 
 正式安装后检查退出码、返回版本、`backup_id`、目标 profile 的依赖/bundle 和包入口；已有进程继续运行旧代码不等于安装失败。保持进程不动，用户方便时手动重开再检查运行版本。
 

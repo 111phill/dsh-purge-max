@@ -8,7 +8,7 @@ A self-hosted add-on for DeepSeek Harness (known in the community as a 破甲 / 
 
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 
-Current version 1.6.47 · targets **DSH Desktop 0.2.1-rc.2** (rc.1 also passes)
+Current version 1.6.48 · targets **DSH Desktop 0.2.1-rc.2** (rc.1 also passes)
 
 </div>
 
@@ -49,7 +49,7 @@ Local learning, personal projects, automation experiments and maintenance work. 
 - CLI/Web users who already have `dsh` on PATH and use the `web` profile can use the official command below. Desktop users should not download another npx host to install into their existing desktop profile.
 
 ```sh
-dsh plugin --profile web add "https://github.com/kingcharleslzy-ai/dsh-purge/releases/download/v1.6.47/dsh-purge-community-1.6.47.tgz"
+dsh plugin --profile web add "https://github.com/kingcharleslzy-ai/dsh-purge/releases/download/v1.6.48/dsh-purge-community-1.6.48.tgz"
 ```
 
 Use the actual instance's profile and `DSH_HOME`. This project distributes via GitHub; do not substitute bare npm package names. The official command does not run our extra Release SHA256 check, migration snapshot or rollback wrapper.
@@ -74,7 +74,7 @@ Two separate preferences (check / install), default check-only every six hours. 
 
 ## Compatibility
 
-Plugin `dsh-purge-community` 1.6.47 · verified on DSH Desktop 0.2.1-rc.1 / rc.2 · Node ≥ 18.
+Plugin `dsh-purge-community` 1.6.48 · verified on DSH Desktop 0.2.1-rc.1 / rc.2 · Node ≥ 18.
 
 ## Troubleshooting
 

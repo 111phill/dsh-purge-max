@@ -9,9 +9,9 @@
 [![Release](https://img.shields.io/github/v/release/kingcharleslzy-ai/dsh-purge?label=release)](https://github.com/kingcharleslzy-ai/dsh-purge/releases)
 [![Checks](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml/badge.svg)](https://github.com/kingcharleslzy-ai/dsh-purge/actions/workflows/community.yml)
 
-当前版本 **1.6.47** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
+当前版本 **1.6.48** · 适配 **DSH Desktop 0.2.1-rc.2**（rc.1 同样通过） · [English](docs/README.en.md)
 
-1.6.47 修复 electron-vite 桌面入口定位遗漏，统一自检、诊断和补丁应用的目标文件；真正缺失或损坏仍会报错。包含 1.6.46 的链接清理修复：1.6.45 及以前的 Windows 用户请使用新版独立安装器升级。[升级与恢复说明](docs/maintenance-issue-67.md)。[发行说明](docs/releases/1.6.47.md) · [市场安装与迁移指南](docs/MARKET-MIGRATION.md)。
+1.6.48 修复自定义提示词被误判为默认值，以及安装别名导致版本对账与备份失败的问题；未知正文保留，真实安装错误继续显示。包含既有 Windows 链接清理修复，1.6.45 及以前请使用新版独立安装器升级。[发行说明](docs/releases/1.6.48.md) · [市场安装与迁移指南](docs/MARKET-MIGRATION.md)。
 
 </div>
 
@@ -68,7 +68,7 @@ Purge Community 是一个跑在你自己机器上的 Harness 附加组件。它�
 
 ## 1.6.39 更新
 
-修复独立安装器只显示 `fetch failed` 的问题：分阶段诊断、有限重试和系统 curl 备用下载，继续严格校验官方来源、证书和 SHA256。下载失败不触碰现有安装。[发行说明](docs/releases/1.6.47.md) · [配置与验收](docs/maintenance-issue-52.md)
+修复独立安装器只显示 `fetch failed` 的问题：分阶段诊断、有限重试和系统 curl 备用下载，继续严格校验官方来源、证书和 SHA256。下载失败不触碰现有安装。[发行说明](docs/releases/1.6.48.md) · [配置与验收](docs/maintenance-issue-52.md)
 
 ## 安装
 
@@ -87,7 +87,7 @@ Purge Community 是一个跑在你自己机器上的 Harness 附加组件。它�
 下面命令适用于**已经安装 `dsh` 命令、且使用 `web` profile 的 CLI/Web 用户**，在 macOS/Linux 终端或 Windows PowerShell 中运行。桌面版用户优先用上面的界面；不要为了安装插件再用 `npx` 下载另一套宿主。
 
 ```sh
-dsh plugin --profile web add "https://github.com/kingcharleslzy-ai/dsh-purge/releases/download/v1.6.47/dsh-purge-community-1.6.47.tgz"
+dsh plugin --profile web add "https://github.com/kingcharleslzy-ai/dsh-purge/releases/download/v1.6.48/dsh-purge-community-1.6.48.tgz"
 ```
 
 `web` 必须与实际启动的 profile 一致；自定义数据目录需要沿用该实例的 `DSH_HOME`。命令使用本次发行的固定版本 URL；不是 `npm install -g`，也不是安装裸 npm 包名。本项目通过 GitHub 发行，**不要替换成 `add dsh-purge` 或 `add dsh-purge-community`**。官方 CLI 的安装不会额外运行我们安装器的 Release SHA256 比对及迁移快照；需要这些功能时选方式三。[官方 CLI 安装说明](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/publish.zh.md)
@@ -189,7 +189,7 @@ sh "$PURGE_INSTALL_DIR/install.sh" --dry-run
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.47 |
+| 插件 | `dsh-purge-community` 1.6.48 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许安装，自检会标「未验证」；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
