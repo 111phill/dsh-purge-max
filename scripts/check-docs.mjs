@@ -28,7 +28,7 @@ if (!readme.includes(`**${version}**`)) {
   problems.push(`README.md 首屏缺少版本号 **${version}**`);
 }
 if (!readme.includes("raw.githubusercontent.com/kingcharleslzy-ai/dsh-purge/master/scripts/install.sh")) {
-  problems.push("README.md 缺少一行安装命令");
+  problems.push("README.md 缺少安装器下载命令");
 }
 if (!readmeEn.includes(`Current version ${version}`)) {
   problems.push(`docs/README.en.md 缺少 "Current version ${version}"`);
@@ -41,6 +41,17 @@ if (!agents.includes(`\`dsh-purge-community\` ${version}`)) {
 }
 const hostLine = readme.match(/适配 \*\*DSH Desktop ([0-9a-z.\-]+)\*\*/i);
 if (!hostLine) problems.push("README.md 缺少「适配 DSH Desktop …」的版本行");
+
+// Copyable release commands must move with the package version, not retain an old TGZ.
+for (const file of ["README.md", "docs/README.en.md"]) {
+  const doc = read(file);
+  const links = [...doc.matchAll(/releases\/download\/v([0-9.]+)\/dsh-purge-community-([0-9.]+)\.tgz/g)];
+  if (!links.length) problems.push(`${file} 缺少固定版本的官方 CLI 安装来源`);
+  for (const [, tag, archive] of links) if (tag !== version || archive !== version)
+    problems.push(`${file} CLI 安装链接版本必须为 ${version}`);
+}
+if (/安装器不会改动 DSH 本体|installer leaves DSH itself untouched/.test(readme + readmeEn))
+  problems.push("安装说明不能承诺安装器完全不写宿主目录");
 
 if (problems.length) {
   console.error("✗ 文档与版本不一致：");

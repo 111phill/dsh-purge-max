@@ -5,19 +5,27 @@
 ## 安装前
 
 - 确认用户授权，读取实际 DSH 版本和应用路径，先打开一次完成 profile 初始化。
-- 默认数据目录 `~/.dsh`、profile `desktop`。不同目录/profile 必须显式指定，不能自动选另一个实例。
+- 默认数据目录 `~/.dsh`；Desktop 默认 profile `desktop`，Linux CLI/Web 安装器默认 `web`。不同目录/profile 必须显式指定，不能自动选另一个实例。
 - 保留正在运行的任务；安装不会停止进程或自动重启。用户在任务结束后手动重开。
 - 不需要管理员权限或全局 Node/pnpm；Desktop 入口使用该应用的 Electron 运行时和 CLI。遇到权限问题先核对路径，不建议盲目提权。
 
-## 命令
+## 先区分官方入口和社区安装器
 
-macOS：下载 README 中的 `scripts/install.sh`，`sh /tmp/purge-install.sh --dry-run` 只校验，去掉 `--dry-run` 才安装。可以设置 `DSH_APP`、`DSH_HOME`、`PURGE_VERSION`，传入 `--version=1.6.26`、`--profile=desktop`。
+- **DSH 官方方式**：插件界面的安装确认框，或 `dsh plugin --profile <实际名称> add <包来源>`。它管理 profile 依赖与 bundle；第三方市场提供目录，安装动作仍由宿主完成。
+- **Purge 社区安装器**：本仓库的 `scripts/install.sh` / `scripts/install.ps1` 与 bootstrap。它在官方 CLI 外增加 Release 下载/SHA256、持久归档、快照、旧包迁移和失败恢复，不是 DeepSeek 官方脚本。
+- 第一次安装可任选；原来已安装 `dsh-purge` 或拆分面板时用社区安装器迁移，避免重复入口。不要先卸载，也不要安装同名 npm 包。
 
-Windows：下载 README 中的 `scripts/install.ps1`，`& "$env:TEMP\purge-install.ps1" -DryRun` 只校验。正式安装去掉 `-DryRun`。支持 `-DshExe 'C:\path\DeepSeek Harness.exe' -DshHome 'C:\path\home' -Profile desktop -Version 1.6.26`。应用路径不唯一会停止。默认先读取运行进程、卸载注册表中的安装位置，再检查常见目录；只读注册表，不写 PATH。
+官方来源：[CLI 与 bundle](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/publish.zh.md)、[插件市场](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/guide/plugin-market.zh.md)。
 
-若 PowerShell 执行策略阻止，先审阅脚本，再用独立进程 `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\purge-install.ps1"`；不需要 `Set-ExecutionPolicy` 修改全局/持久策略。不用 `iex` 执行返回内容。
+## 可复制命令与前提
 
-Web/Headless：下载本仓库发行 `.tgz` 与 SHA256SUMS，校验**该文件对应的那一行**后解包，用当前服务的 Node 执行 `package/bin/community.js migrate <绝对tgz路径>`；设置 `PURGE_DSH_CLI`、`DSH_HOME`、`DSH_PROFILE` 指向该实例。不要使用 Desktop 自动发现。维护定位见 [WEB-MAINTENANCE.md](WEB-MAINTENANCE.md)。
+[README 的安装章节](../README.md#安装)给出从下载开始的 macOS、Windows、Linux 命令和固定发行 TGZ 的官方 CLI 命令。它们不需要 clone 本仓库。不要把仓库内相对路径命令贴给没有源码目录的用户。
+
+macOS 默认要求 `/Applications/DeepSeek Harness.app`。自定义安装位置用 `DSH_APP`（指向 `.app`），自定义数据目录用 `DSH_HOME`；两次调用都传相同的 `--profile=实际名称`。Windows 支持 `-DshExe`（实际 exe 的完整路径）、`-DshHome`、`-Profile`、`-Version`。路径不唯一应停止并明确指定，不能猜测另一个副本。
+
+`--dry-run` / `-DryRun` 会检查 profile、定位 CLI、下载发行包并核对 SHA256；**不会运行 pnpm、迁移、回滚或完整启动验证**。去掉该参数才正式安装。默认读取最新稳定 Release；要固定本次发行，shell 两次均加 `--version=1.6.47`，PowerShell 两次均加 `-Version 1.6.47`。入口脚本及 bootstrap 仍来自本仓库 master，不应把版本参数解释为固定所有下载脚本。
+
+正式安装后检查退出码、返回版本、`backup_id`、目标 profile 的依赖/bundle 和包入口；已有进程继续运行旧代码不等于安装失败。保持进程不动，用户方便时手动重开再检查运行版本。
 
 ### Linux CLI / Web
 
@@ -31,10 +39,12 @@ Web/Headless：下载本仓库发行 `.tgz` 与 SHA256SUMS，校验**该文件�
 
 1. 仅从本仓库稳定 GitHub Release 下载，限制跳转来源、下载大小和等待时间。
 2. SHA256 只匹配下载的版本包，不要求清单中的稳定别名也已下载；重复条目或校验不符停止。
-3. 解包前检查文件路径，安装前核对 package name/version/repository，再调用发行包迁移器。
+3. 正式安装解包前检查文件路径，核对 package name/version/repository，再调用发行包迁移器。dry-run 在 SHA256 校验后结束，不执行这些安装阶段。
 4. 迁移器先建快照，将包保存在持久目录后交给 DSH CLI，避免下次解析指向已清理的临时文件。
 5. 现有提示词、规则和其他插件配置不被重写；Purge 的依赖版本与启用入口会更新，profile 锁文件由 DSH 包管理器维护。
 6. 退出码非零就是失败，临时下载会清理，持久快照保留。不自动 apply、不重新启动 DSH。
+7. 解包桌面的 `app/runtime` 缺失/损坏时，可能保留旧链接并创建指向同一安装 runtime 的链接；工作中的其他目标或不完整实体目录会报冲突。Linux 系统宿主只读时的用户副本/启动器行为见上节。不要承诺“安装器从不写宿主目录”。
+8. SHA256 对应 Release TGZ；入口脚本和 bootstrap 通过本仓库 HTTPS master 下载，不具备独立签名保证。
 
 ## Issue #7：镜像缺版本
 
@@ -57,6 +67,56 @@ Web/Headless：下载本仓库发行 `.tgz` 与 SHA256SUMS，校验**该文件�
 - `purge-community backup` 显式备份；`purge-community rollback <id>` 验证快照后回滚插件代码与入口，保留当前用户内容。原锁文件保存在快照供核对，不盲目覆盖其他插件的新依赖。
 - 如果失败导致插件无法启动，可用已验证发行包的 `bin/community.js rollback <id>` 配合明确的当前 CLI/home/profile。见 [维护文档](MAINTENANCE.md)。
 - 禁止通用“修复”动作：删全部锁文件、清空全局缓存、关闭 minimumReleaseAge/trust/integrity、全局换源、自动重启或自动重打宿主补丁。
+
+<a id="cli-rollback"></a>
+## CLI 回滚与命令定位
+
+回滚恢复快照中的已有插件版本，不等于卸载。首次安装前的空快照没有可恢复的 Purge 包，CLI 会明确报错；不能把它写成“可一键回到未安装状态”。已有版本的升级/迁移快照才用于恢复旧版。
+
+有面板时优先选择「Purge → 状态 → 本机备份」中的备份，确认记录对应本次安装。面板不可用时，使用下列方式运行当前 profile 安装的 CLI。`purge-community` 是 profile 内的 bin，不保证在全局 PATH；**不要 `npm install -g` 来补命令**。
+
+CLI/Web（macOS、Linux；已有 Node ≥18 和该实例的 `dsh` 命令）：
+
+```sh
+export DSH_HOME="${DSH_HOME:-$HOME/.dsh}"
+export DSH_PROFILE="${DSH_PROFILE:-web}"
+export PURGE_DSH_CLI="$(command -v dsh)"
+node "$DSH_HOME/profiles/$DSH_PROFILE/node_modules/dsh-purge-community/bin/community.js" status
+```
+
+`status` 返回维护状态中的 `backups` 数组。选定实际存在的 `id` 后，把同一命令末尾的 `status` 换成 `rollback "实际备份ID"`；不要使用示例/其他实例的 ID。回滚后核对版本和 bundle，保留回滚后新增的用户配置；旧进程仍需要用户手动重开。
+
+macOS Desktop（默认应用路径；自定义路径先修改 `DSH_APP`）：
+
+```sh
+export DSH_APP="${DSH_APP:-/Applications/DeepSeek Harness.app}"
+export DSH_HOME="${DSH_HOME:-$HOME/.dsh}"
+export DSH_PROFILE="${DSH_PROFILE:-desktop}"
+ELECTRON_RUN_AS_NODE=1 "$DSH_APP/Contents/MacOS/DeepSeek Harness" "$DSH_HOME/profiles/$DSH_PROFILE/node_modules/dsh-purge-community/bin/community.js" status
+```
+
+选定该实例的备份后，将末尾的 `status` 换成 `rollback "实际备份ID"`。这里使用 Electron 的 Node 模式运行维护命令，不打开或重启 DSH 窗口。若原安装已损坏，先按 README 下载并校验发行包，将其解包到保留的恢复目录，再用其中的 `bin/community.js` 替换上面的插件脚本路径；不要指向另一个 home。
+
+Windows Desktop：先按安装器错误提示或实际安装位置确定 exe，下面只需填写第一行真实路径。此处使用明确的进程等待，不能用 `& exe` 之后的 `$LASTEXITCODE` 判断 GUI 子系统程序已完成。
+
+```powershell
+$DshExe = Read-Host '输入当前 DSH 的 exe 完整路径（不用加引号）'
+if (-not (Test-Path -LiteralPath $DshExe -PathType Leaf)) { throw 'DSH exe 不存在' }
+$env:DSH_HOME = if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $env:USERPROFILE '.dsh' }
+$env:DSH_PROFILE = if ($env:DSH_PROFILE) { $env:DSH_PROFILE } else { 'desktop' }
+$PurgeCli = Join-Path $env:DSH_HOME "profiles\$env:DSH_PROFILE\node_modules\dsh-purge-community\bin\community.js"
+if (-not (Test-Path -LiteralPath $PurgeCli)) { throw '当前 profile 未找到社区版 CLI；按说明使用校验后的恢复包' }
+$PurgeLog = Join-Path $env:TEMP ('purge-status-' + [guid]::NewGuid().ToString('N'))
+$PreviousElectronMode = $env:ELECTRON_RUN_AS_NODE
+try {
+    $env:ELECTRON_RUN_AS_NODE = '1'
+    $p = Start-Process -FilePath $DshExe -ArgumentList @(('"' + $PurgeCli + '"'), 'status') -Wait -PassThru -NoNewWindow -RedirectStandardOutput "$PurgeLog.out" -RedirectStandardError "$PurgeLog.err"
+    Get-Content -LiteralPath "$PurgeLog.out", "$PurgeLog.err" -Encoding UTF8
+    if ($p.ExitCode -ne 0) { throw "维护命令失败：$($p.ExitCode)" }
+} finally { $env:ELECTRON_RUN_AS_NODE = $PreviousElectronMode }
+```
+
+从输出选定备份 ID；将 `-ArgumentList` 中的 `'status'` 改成 `'rollback', '实际备份ID'` 后运行同一段。只接受输出中本实例的备份 ID，不照抄示例。CLI 损坏时使用校验后的恢复包 `bin/community.js`，仍沿用当前实例 exe、home、profile。不要代替用户重启。
 
 ## 开发验收
 
@@ -85,3 +145,18 @@ Web/Headless：下载本仓库发行 `.tgz` 与 SHA256SUMS，校验**该文件�
 ## 1.6.41：更新状态核对
 
 运行版本与当前 profile 磁盘版本分开核对；旧 pendingVersion 不代表当前安装。未知版本或读取失败继续告警，安装失败不会被成功检查掩盖。旧版已卡住时先手动安装新版，由用户手动退出重开一次；不要删除设置、改更新开关或自动重启。详见 [状态迁移与测试说明](maintenance-update-state.md)。
+
+<a id="isolated-acceptance"></a>
+## 安装命令的隔离验收（2026-10-23）
+
+维护者使用 `scripts/check-install-instructions-runtime.mjs` 验证本文的安装协议。它要求显式的测试运行时、同一副本的官方 CLI、旧版归档、已校验发行归档与测试根目录；不接受正式应用作为 macOS 测试运行时。
+
+```sh
+node scripts/check-install-instructions-runtime.mjs "$TEST_RUNTIME" "$TEST_DSH_CLI" "$LEGACY_TGZ" "$RELEASE_TGZ" "$TEST_FIXTURE_ROOT"
+```
+
+这是**开发验收命令**，变量必须是测试资源的真实路径，不是用户安装命令。Windows 使用独立 Desktop 副本，根目录需有 `.purge-install-test-fixture` 标记；测试不启动桌面窗口。macOS 先用 `node scripts/prepare-install-cli-fixture.mjs "/测试源/Contents"` 创建命令行副本，再使用输出的路径。源应为已经准备好的测试宿主，不对正式应用解包。
+
+macOS 不复制顶层 `Info.plist`，不创建 `.app` 路径，不通过 Finder、`open` 或 LaunchServices 启动；只对新建的测试可执行文件使用独立标识的本地开发签名，不修改正式应用或系统安全策略。验收脚本通过操作系统沙箱禁止写入 `/Applications`、默认 `.dsh`、DSH 的 Application Support 与日志目录，所有安装子进程继承该限制。不得用“只读正式运行时”选项回退运行用户的 DSH。若测试被系统拦截，应停止检查测试副本，不能移除正式应用的隔离属性、重签正式应用或让用户重装。
+
+本次实际验收：macOS / Windows 11，Electron 44.7.0，DSH CLI 0.2.1-rc.2，社区版 1.6.47，旧包 1.1.71。两平台覆盖官方 CLI 首装、下载的社区安装器 dry-run 与正式安装、旧包迁移、快照列表与回滚，核对包版本、bundle 和迁移前后的配置内容，并验证回滚保留安装后追加的用户配置。每个场景使用新建的 `DSH_HOME` 和可由 CLI 初始化的 `web` profile；这验证 Desktop 携带的 CLI/运行时及安装器路径，**不代表本轮测试了桌面登录、市场点击流程或宿主补丁功能**。真实用户的 Desktop profile 仍使用 `desktop`，不要照搬验收 profile。

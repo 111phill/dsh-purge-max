@@ -27,7 +27,7 @@
 ## 2. 生命周期：装 → 应用 → 重开
 
 ```
-安装插件（curl 一行）
+通过官方界面/CLI 首次安装，或社区安装器备份迁移
    ↓
 点「应用」→ 解包 host / 写 80 条补丁 / 建快照
    ↓
@@ -46,6 +46,8 @@ selfcheck 全绿 = 可以开工
 一句话：**「应用」是幂等的**，不确定就点它，然后退出重开。
 
 ## 3. CLI 参考（全部命令 + 退出码）
+
+下表的 `purge-community` 是命令简称，不保证安装进 profile 后已在系统 PATH。先按[CLI 回滚与定位说明](docs/INSTALLATION.md#cli-rollback)使用当前 profile 的 `bin/community.js` 与正确运行时；不要为了找命令再安装另一份 npm 包。安装验证看版本、bundle 和配置合成；不能把模型是否拒绝当作安装成功判据。
 
 | 命令 | 作用 | 退出码 |
 | --- | --- | --- |
@@ -89,7 +91,7 @@ purge-community probe new
 | 模型开始推脱/要求确认 | `probe new` | 回显否 | 回显：调人设/强化段；不回显：检查注入层 |
 | 工具被拒绝执行 | `selfcheck` | 沙箱/审批层是否绿 | 绿 → 属工具自身限制；红 → 点应用 |
 | DSH 刚更新过 | `status` | `asar_still_sealed` | 点应用 → 重开 → `selfcheck` |
-| 面板显示版本不一致 | 面板顶部黄条 | 界面与后端不同版本 | 重装同一版本（README 一行命令） |
+| 面板显示版本不一致 | 面板顶部黄条 | 界面与后端不同版本 | 先核对磁盘与运行版本；按 README 选择正确安装/迁移入口 |
 | 想撤销一切 | — | — | `revert`（只撤补丁）/ `rollback <id>`（回滚插件） |
 
 ## 6. 状态与文件（你可以安全读，不要乱写）
@@ -150,23 +152,26 @@ purge-community probe new
 
 Electron 的 app.asar 本体必须用 `diskFs()` 读取；不要把普通 Node 自检通过当作 Electron 运行时通过。`npm run test:electron` 在临时目录内运行真实 Electron 测试，不改动安装或用户设置。
 
-## 12. 安装 / 更新失败：Agent 必读（1.6.13）
+<a id="installation"></a>
+## 12. 安装 / 更新失败：Agent 必读（1.6.47）
 
-1. 读取 DSH 版本、实际 Desktop 可执行文件、`DSH_HOME`、目标 profile。不要猜测另一台设备的路径。首次安装要求 profile 已初始化；Windows 用 `scripts/install.ps1`，macOS 用 `scripts/install.sh`，细节见 [安装指南](docs/INSTALLATION.md)。Web/Headless 继续使用当前实例的 CLI 与发行包迁移，不能套 Desktop 自动发现。
-2. 默认先 `--dry-run`（PowerShell `-DryRun`）确认来源与 SHA256，再按用户授权安装。更新/迁移前安装器自动快照；不要为了安装去改提示词、权限、更新偏好或其他插件。安装、宿主补丁应用与手动重启是三个独立动作。不要安装后自动 apply/restart。
+1. **先选入口，不把社区脚本称为官方方法**。首次安装：DSH 官方插件界面/市场确认框，或该实例的 `dsh plugin --profile <实际名称> add <固定版本TGZ URL>`。官方管理器维护 `dsh.bundle`；我们的索引、TGZ 和 `scripts/install.sh` / `scripts/install.ps1` 是社区内容。本项目没有供此流程使用的裸 npm 包名，不运行 `add dsh-purge`、`add dsh-purge-community` 或全局 npm 安装。已有 `dsh-purge`/独立面板时选社区安装器迁移，不能先卸载旧包。完整可复制命令见 [README](README.md#安装) 与 [安装指南](docs/INSTALLATION.md)。
+2. 读取目标 DSH 版本、可执行文件、`DSH_HOME`、profile，先确认已经初始化。Desktop 默认 `desktop`，CLI/Web 示例为 `web`，不能混用；不要下载另一套 npx 宿主来安装到当前桌面实例。先下载脚本到独立临时路径，审阅后 dry-run，再按已有授权执行。dry-run 只验证前置条件、下载与 SHA256，不安装依赖、不验证完整启动。正式安装会备份、调用官方 CLI、迁移旧包引用并验证磁盘版本；它可能修复解包桌面的 `app/runtime` 链接，Linux 可能准备用户宿主副本，并非完全不写宿主目录。脚本与 bootstrap 来自 master，SHA256 校验的对象是发行 TGZ，不能声称脚本也经过独立签名校验。不改提示词、权限、代理、更新偏好或其他插件；不要安装后自动 apply/restart。
 3. `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` 不是一律“发布太新”。若同时明确报 `@dsh-ops/bash-win32-x64@<版本> ... version not present in registry manifest`，先比较当前公开镜像与 npm 官方元数据。本版安装器仅对这一公开包、明确的公开镜像执行一次 scoped registry 重试；官方 name/version/time/integrity/tarball 不完整则停止。其余依赖保持原源，不改变全局设置。
 4. 市场 JSON 首次安装失败时插件尚未加载，插件运行时无法修复宿主安装器。先让用户选择 npm 官方源，或用独立安装入口。不要承诺“升级插件就能让旧宿主市场自动重试”；换 tgz 仍会触发宿主锁文件校验。
 5. 真实的发布时间不足、integrity/trust 错误、私有源、未知错误：保持失败，保留日志与快照；不要设 minimumReleaseAge=0、trustLockfile，也不要删锁文件、全局清缓存、修改全局 npm 源或把所有错误都归为镜像问题。GitHub `UND_ERR_DESTROYED` 是独立的网络线索，不能承诺换 npm 源会解决。
 6. 失败时查看返回的 backup_id，确认 package.json/锁文件/安装状态。需要恢复时走 `rollback <id>`，保留当前用户内容。不能把失败说成安装成功；不能自动重启。公开 issue 只附脱敏错误，不上传配置、凭证、提示词或完整备份。
 7. 版本核对以 package.json / release-notes 为准。README.md 与 README.zh-CN.md 必须一致，维护文档不能再停在 1.2.0/1.3.0。安装器测试与完整 Windows DSH 界面/宿主补丁验收分开记录，不混为“全部 Windows 功能已验证”。
 
-Linux CLI/Web 可用 `sh scripts/install.sh`，默认选择当前 PATH 的 `node` / `dsh` 与 `web` profile，显式指定实例可用 `DSH_NODE` / `PURGE_DSH_CLI` / `DSH_HOME` / `--profile=名称`。系统 npm 宿主只读时准备用户副本，插件迁移成功后才激活 `~/.local/bin/dsh`；失败保留原入口，完整但未激活的副本供重试复用。入口被用户并发修改时停止，不覆盖。不要自行重启、修改系统目录权限或代理。卸载仅清理本 home 内插件目录及链接本身，外部源码/共享包保留。验收边界见 [PR #42 维护说明](docs/maintenance-pr-42.md)。
+Linux CLI/Web 先按 README 下载脚本再运行；只有已进入仓库根目录时才可用 `sh scripts/install.sh`，默认选择当前 PATH 的 `node` / `dsh` 与 `web` profile，显式指定实例可用 `DSH_NODE` / `PURGE_DSH_CLI` / `DSH_HOME` / `--profile=名称`。系统 npm 宿主只读时准备用户副本，插件迁移成功后才激活 `~/.local/bin/dsh`；失败保留原入口，完整但未激活的副本供重试复用。入口被用户并发修改时停止，不覆盖。不要自行重启、修改系统目录权限或代理。卸载仅清理本 home 内插件目录及链接本身，外部源码/共享包保留。验收边界见 [PR #42 维护说明](docs/maintenance-pr-42.md)。
 
 ## 13. Windows Electron 安装验收（1.6.13）
 
 Windows Desktop 的 exe 是 GUI 子系统。PowerShell 的 `& exe ...` 可能在子进程结束前返回，不能用它后面的 `$LASTEXITCODE` 推断已完成。安装器必须等待明确的进程对象、检查其真实 ExitCode、收集 UTF-8 输出后再清理 bootstrap。回归必须同时覆盖普通 Node 控制台进程与真正 GUI 子系统进程；只用 node.exe 模拟 Desktop 不够。
 
 `desktop` profile 由 Electron 应用初始化；普通 `--profile desktop --dump-config` 会报 managed exclusively，不能因此判断程序坏了，也不能手造“已接受协议/已登录”的记录。隔离实测明确设置 DSH_HOME 与独立 user-data-dir，不碰默认用户目录，不自动应用宿主补丁。界面/登录/完整补丁能力与安装、备份、回滚分别记录；遇到协议或登录确认交给用户决定。
+
+macOS 开发验收不能再复制同名 `.app` 后直接运行，也不能回退使用正式 DSH 可执行文件。使用命令行专用副本、独立测试标识和操作系统写入限制；完整安装/迁移/回滚方法与测试边界见 [隔离验收](docs/INSTALLATION.md#isolated-acceptance)。这条是维护者测试规则，不改变用户正常安装入口。
 
 PowerShell 5.1 读取 UTF-8 JSON/文档应使用 `Get-Content -Raw -Encoding UTF8`，不要把默认 ANSI 解码造成的中文乱码误判为安装包损坏。
 
