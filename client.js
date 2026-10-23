@@ -9132,9 +9132,13 @@ var zh = {
   "surface.desktop": "\u684C\u9762\u7AEF",
   "surface.gui": "GUI",
   "surface.tui": "TUI",
-  "restart.incomplete": "\u63D0\u793A\u8BCD\u5DF2\u5199\u5165\u3002{detail}",
-  "restart.incomplete.patches": "\u8FD8\u6709 {failed} \u9879\u4EE3\u7801\u8865\u4E01\u6CA1\u5BF9\u4E0A\u5F53\u524D\u7248\u672C\uFF08#{ids}\uFF09\uFF0C\u4E0D\u5F71\u54CD\u8FD9\u6BB5\u63D0\u793A\u8BCD",
-  "restart.incomplete.flash": "CMD \u65E0\u611F\u672A\u9489\u5165\uFF08{entry}\uFF09",
+  "restart.incomplete": "\u5E94\u7528\u672A\u5B8C\u6210\u3002{detail}",
+  "restart.incomplete.patches": "\u6709 {failed} \u9879\u5904\u7406\u5931\u8D25\uFF08#{ids}\uFF09\uFF0C\u8BF7\u67E5\u770B\u8865\u4E01\u660E\u7EC6",
+  "restart.incomplete.flash": "\u7EC8\u7AEF\u7A97\u53E3\u6291\u5236\u68C0\u67E5\u672A\u901A\u8FC7\uFF08{entry}\uFF09",
+  "restart.incomplete.host": "\u672A\u786E\u8BA4\u76EE\u6807\u5BBF\u4E3B\u5199\u5165\u5B8C\u6210\uFF0C\u8BF7\u6838\u5BF9\u5BA2\u6237\u7AEF\u3001\u5BBF\u4E3B\u7248\u672C\u548C\u76EE\u6807\u8DEF\u5F84",
+  "restart.incomplete.restore": "\u914D\u7F6E\u6062\u590D\u672A\u5B8C\u6210\uFF0C\u8BF7\u67E5\u770B\u8BCA\u65AD\u8BB0\u5F55",
+  "restart.incomplete.runtime": "CLI \u8FD0\u884C\u65F6\u68C0\u67E5\u6216\u4FEE\u590D\u5931\u8D25\uFF0C\u8BF7\u67E5\u770B\u8BCA\u65AD\u8BB0\u5F55",
+  "restart.incomplete.unknown": "\u5F53\u524D\u540E\u7AEF\u672A\u8FD4\u56DE\u5177\u4F53\u539F\u56E0\uFF0C\u8BF7\u67E5\u770B\u5BBF\u4E3B\u7248\u672C\u3001\u8865\u4E01\u660E\u7EC6\u548C\u8BCA\u65AD\u7ED3\u679C",
   "restart.later": "\u4EE5\u540E",
   "group.prompt": "\u63D0\u793A\u8BCD",
   "group.code": "\u4EE3\u7801",
@@ -9479,9 +9483,13 @@ var en = {
   "surface.desktop": "Desktop",
   "surface.gui": "GUI",
   "surface.tui": "TUI",
-  "restart.incomplete": "The prompt is in. {detail}",
-  "restart.incomplete.patches": "{failed} code patch(es) did not match this host (#{ids}). The prompt is unaffected",
-  "restart.incomplete.flash": "CMD silence not pinned ({entry})",
+  "restart.incomplete": "Apply did not complete. {detail}",
+  "restart.incomplete.patches": "{failed} item(s) failed (#{ids}); inspect the item details",
+  "restart.incomplete.flash": "Console-window suppression check failed ({entry})",
+  "restart.incomplete.host": "Target host writes are not confirmed; check the client, host version and target path",
+  "restart.incomplete.restore": "Configuration restoration did not complete; inspect diagnostics",
+  "restart.incomplete.runtime": "CLI runtime check or repair failed; inspect diagnostics",
+  "restart.incomplete.unknown": "The backend did not provide a specific cause; inspect the host version, item details and diagnostics",
   "restart.later": "Later",
   "group.prompt": "Prompt",
   "group.code": "Code",
@@ -10255,7 +10263,9 @@ function maintenanceNotice(op, result) {
       return result.note || "\u672A\u5B89\u88C5\u65B0\u7248\u672C\uFF0C\u5F53\u524D\u5B89\u88C5\u672A\u66F4\u65B0\u3002";
     if (result.applied || result.needRestart || result.restart_required) {
       const version = result.release?.version || result.localVersion || result.remoteVersion;
-      return `\u63D2\u4EF6\u5DF2\u5B89\u88C5${version ? "\uFF1A" + version : ""}\u3002\u8BF7\u91CD\u542F DSH \u8FDB\u7A0B\uFF1B\u4EC5\u5237\u65B0\u6D4F\u89C8\u5668\u4E0D\u4F1A\u52A0\u8F7D\u65B0\u7248\u540E\u7AEF\u3002`;
+      const warnings = result.cleanup_warnings || [];
+      const cleanup = warnings.length ? `\u6E05\u7406\u672A\u5B8C\u6210\uFF08${warnings.map((w) => `${w.stage}:${w.code}`).join("\uFF0C")}\uFF09\uFF0C\u6B8B\u7559\u5DF2\u4FDD\u7559\u3002` : "";
+      return `${cleanup}\u63D2\u4EF6\u5DF2\u5B89\u88C5${version ? "\uFF1A" + version : ""}\u3002\u8BF7\u91CD\u542F DSH \u8FDB\u7A0B\uFF1B\u4EC5\u5237\u65B0\u6D4F\u89C8\u5668\u4E0D\u4F1A\u52A0\u8F7D\u65B0\u7248\u540E\u7AEF\u3002`;
     }
     return result.note || "\u66F4\u65B0\u8BF7\u6C42\u5DF2\u5B8C\u6210\uFF0C\u8BF7\u5237\u65B0\u72B6\u6001\u6838\u5BF9\u5B89\u88C5\u7ED3\u679C\u3002";
   }
@@ -10538,6 +10548,32 @@ function CommunityMaintenance() {
     ),
     notice ? h("p", { role: "status" }, notice) : null
   );
+}
+
+// src/shared/apply-result.js
+function incompleteApplyDetail(result, t) {
+  const parts = [];
+  if (result.failed > 0) {
+    const ids = (Array.isArray(result.failed_items) ? result.failed_items : []).map((item) => item?.id).filter((id) => id != null).join(",");
+    parts.push(
+      t("restart.incomplete.patches", {
+        failed: String(result.failed),
+        ids: ids || "?"
+      })
+    );
+  }
+  if (result.cmd_flash?.ok === false)
+    parts.push(
+      t("restart.incomplete.flash", {
+        entry: String(result.cmd_flash.entry || "unknown")
+      })
+    );
+  if (result.host_written === false) parts.push(t("restart.incomplete.host"));
+  if (result.hook_restore_failed === true)
+    parts.push(t("restart.incomplete.restore"));
+  if (result.cli_repair?.ok === false)
+    parts.push(t("restart.incomplete.runtime"));
+  return parts.length ? parts.join("\uFF1B") : t("restart.incomplete.unknown");
 }
 
 // src/components/advanced.js
@@ -11182,30 +11218,11 @@ function PurgifySection({ page = "status", onStatus } = {}) {
             }
           }
           if (action === "apply" && d.complete === false) {
-            const parts = [];
-            if (d.failed > 0) {
-              const ids = (d.failed_items || []).map((x) => x.id).filter((id) => id != null).join(",");
-              parts.push(
-                tr("restart.incomplete.patches", {
-                  failed: String(d.failed || 0),
-                  ids: ids || "?"
-                })
-              );
-            }
-            if (d.cmd_flash && d.cmd_flash.ok === false) {
-              parts.push(
-                tr("restart.incomplete.flash", {
-                  entry: String(d.cmd_flash.entry || "fail")
-                })
-              );
-            }
-            if (parts.length === 0)
-              parts.push(
-                tr("restart.incomplete.flash", { entry: "unknown" })
-              );
             setNotice({
               kind: "error",
-              text: tr("restart.incomplete", { detail: parts.join("\uFF1B") })
+              text: tr("restart.incomplete", {
+                detail: incompleteApplyDetail(d, tr)
+              })
             });
             loadAll();
             if (d.restarting || d.needs_full_quit) {
