@@ -20,7 +20,12 @@ done
 case "$(uname -s)" in
   Darwin)
     APP="${DSH_APP:-/Applications/DeepSeek Harness.app}"
-    RUNTIME="$APP/Contents/MacOS/DeepSeek Harness"
+    if [ -f "$APP/Contents/Info.plist" ]; then
+      EXE_NAME="$(defaults read "$APP/Contents/Info.plist" CFBundleExecutable 2>/dev/null || echo "DeepSeek Harness")"
+      RUNTIME="$APP/Contents/MacOS/$EXE_NAME"
+    else
+      RUNTIME="$APP/Contents/MacOS/DeepSeek Harness"
+    fi
     PURGE_INSTALL_MODE=desktop ;;
   Linux)
     if [ -n "${DSH_APP:-}" ]; then
