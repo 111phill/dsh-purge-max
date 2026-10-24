@@ -1,3 +1,21 @@
+# 1.6.53
+
+## DSH 0.2.1-rc.3：验证通过，加入已核验清单
+
+rc.3 更新后实测：
+
+- `diagnose`：**80 条补丁全部命中**（checked 80 / drifted 0 / missing 0），唯一 `optionalDrift` 是第三方目标；
+- 更新时宿主被重新解包（`app.asar` 移走 + 补丁重写），`applied.json` 记录到 1.6.50，进程随后以 rc.3 启动；
+- 逐条对照 rc.2 与 rc.3 的操作面字符串，没有发现新的拒绝话术：`file access denied`、`do not retry another way`、
+  `rejected automatically` 这些位置要么已被本插件覆盖，要么只剩 UI/工具描述里的无关文本；
+- `dsh-user-approval` 的审批句、`dsh-tool-bash`/`dsh-tool-pwsh` 的沙箱话术仍在原来的锚点上，补丁继续生效。
+
+因此把 `0.2.1-rc.3` 加入 `QUALIFIED_HOST_VERSIONS`，自检不再对它报「未在已验证清单内」。
+
+## 验证
+
+`npm test` 320 通过 / 0 失败；rc.3 上 `selfcheck` 25/25 ok。
+
 # 1.6.52
 
 ## 移除「公网目标一律拒绝」的门禁
