@@ -12843,12 +12843,7 @@ function SettingsRoot(props = {}) {
     h(
       "header",
       { className: "dshpp-native-head" },
-      h(
-        "div",
-        null,
-        h("h2", null, "Purge"),
-        h("p", null, "\u63D2\u4EF6\u8BBE\u7F6E")
-      ),
+      h("div", null, h("h2", null, "Purge"), h("p", null, "\u63D2\u4EF6\u8BBE\u7F6E")),
       h(
         "span",
         { className: "dshpp-native-badge" },

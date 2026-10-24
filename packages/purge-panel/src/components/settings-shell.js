@@ -104,12 +104,7 @@ export function SettingsRoot(props = {}) {
     h(
       "header",
       { className: "dshpp-native-head" },
-      h(
-        "div",
-        null,
-        h("h2", null, "Purge"),
-        h("p", null, "插件设置"),
-      ),
+      h("div", null, h("h2", null, "Purge"), h("p", null, "插件设置")),
       h(
         "span",
         { className: "dshpp-native-badge" },
