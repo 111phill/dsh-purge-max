@@ -1,4 +1,5 @@
 // UI derived from YuJunZhiXue/dsh-purge 1.1.71 (MIT). See LICENSE.
+import { runtimeRepairDetails } from "../shared/runtime-error.js";
 
 export function clientGuessSurface() {
   try {
@@ -91,16 +92,20 @@ export async function apiJson(p, init) {
     } catch {
       throw apiError(r.status + " non-json: " + text.slice(0, 120), r.status);
     }
-    if (!r.ok)
-      throw apiError(
-        (data && (data.error || data.message)) || r.status + " " + r.statusText,
-        r.status,
+    if (!r.ok) {
+      const runtimeDetails = runtimeRepairDetails(data?.cli_repair);
+      const message =
+        (data && (data.error || data.message)) || r.status + " " + r.statusText;
+      throw Object.assign(
+        apiError([message, ...runtimeDetails].join("\n"), r.status),
+        { runtimeDetails },
       );
+    }
     return data;
   } catch (e) {
     if (isAbortError(e)) throw new Error("timeout");
     const msg = String((e && e.message) || e || "");
-    if (/failed to fetch|networkerror|load failed/i.test(msg)) {
+    if (!e?.status && /failed to fetch|networkerror|load failed/i.test(msg)) {
       throw new Error("连不上接口，请确认 dsh 还在跑后 Ctrl+F5");
     }
     throw e;

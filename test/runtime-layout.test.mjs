@@ -57,13 +57,16 @@ test('fresh runtime supports current-architecture layout and is idempotent',()=>
   assert.equal(ensureAppRuntimeLink(f.resources).already,true);
  }finally{fs.rmSync(f.root,{recursive:true,force:true});}
 });
-test('architecture-container link is retained and reported as incompatible with CLI',()=>{
+test('same-install architecture-container link is backed up and migrated for CLI',()=>{
  const f=fixture();try {
   fs.symlinkSync(path.join(f.resources,'runtime'),f.link,process.platform==='win32'?'junction':'dir');
   const before=fs.readlinkSync(f.link);toArchLayout(f);
-  assert.equal(ensureAppRuntimeLink(f.resources).reason,'runtime_conflict');
-  assert.equal(fs.readlinkSync(f.link),before);
-  assert.equal(fs.existsSync(path.join(f.link,PNPM_ENTRY)),false);
+  const result=ensureAppRuntimeLink(f.resources);
+  assert.equal(result.ok,true);assert.equal(result.migration,'architecture_container');
+  assert.equal(fs.readlinkSync(result.backup),before);
+  assert.equal(fs.realpathSync(f.link),fs.realpathSync(path.join(f.resources,'runtime',process.arch)));
+  assert.equal(fs.existsSync(path.join(f.link,PNPM_ENTRY)),true);
+  assert.equal(ensureAppRuntimeLink(f.resources).already,true);
  }finally{fs.rmSync(f.root,{recursive:true,force:true});}
 });
 test('layout migration retains an existing flat runtime directory',()=>{
@@ -132,5 +135,70 @@ test('unreadable link target is not treated as a dangling link',()=>{
   assert.throws(()=>ensureAppRuntimeLink(f.resources),{code:'EACCES'});
   assert.equal(fs.readlinkSync(f.link),before);
   assert.deepEqual(fs.readdirSync(path.dirname(f.link)).sort(),['dsh','runtime']);
+ }finally{hostFs.realpathSync=realpath;fs.rmSync(f.root,{recursive:true,force:true});}
+});
+
+function oldArchLink(f) {
+ fs.symlinkSync(path.join(f.resources,'runtime'),f.link,process.platform==='win32'?'junction':'dir');
+ toArchLayout(f);return fs.readlinkSync(f.link);
+}
+test('architecture migration backup failure preserves the original link and runtime',()=>{
+ const f=fixture(),rename=hostFs.renameSync;try {
+  const before=oldArchLink(f);
+  hostFs.renameSync=(src,...args)=>{if(src===f.link)throw Object.assign(Error('backup denied'),{code:'EACCES'});return rename(src,...args);};
+  const result=ensureAppRuntimeLink(f.resources);
+  assert.equal(result.reason,'backup_failed');assert.equal(result.originalRetained,true);
+  assert.equal(fs.readlinkSync(f.link),before);
+ }finally{hostFs.renameSync=rename;fs.rmSync(f.root,{recursive:true,force:true});}
+});
+test('architecture migration creation failure restores original link and can retry',()=>{
+ const f=fixture(),create=hostFs.symlinkSync;try {
+  const before=oldArchLink(f);
+  hostFs.symlinkSync=()=>{throw Object.assign(Error('create denied'),{code:'EPERM'});};
+  const result=ensureAppRuntimeLink(f.resources);
+  assert.equal(result.reason,'link_repair_failed');assert.equal(result.rollback.ok,true);
+  assert.equal(fs.readlinkSync(f.link),before);
+  hostFs.symlinkSync=create;assert.equal(ensureAppRuntimeLink(f.resources).ok,true);
+ }finally{hostFs.symlinkSync=create;fs.rmSync(f.root,{recursive:true,force:true});}
+});
+test('architecture migration verification failure restores old link without touching targets',()=>{
+ const f=fixture(),create=hostFs.symlinkSync;try {
+  const before=oldArchLink(f);const sentinel=path.join(f.root,'external/user-file');
+  fs.mkdirSync(path.dirname(sentinel));fs.writeFileSync(sentinel,'KEEP');
+  hostFs.symlinkSync=(target,link,type)=>create(path.dirname(sentinel),link,type);
+  const result=ensureAppRuntimeLink(f.resources);
+  assert.equal(result.ok,false);assert.equal(result.rollback.ok,true);
+  assert.equal(fs.readlinkSync(f.link),before);assert.equal(fs.readFileSync(sentinel,'utf8'),'KEEP');
+  assert(fs.lstatSync(result.failedLink).isSymbolicLink());
+ }finally{hostFs.symlinkSync=create;fs.rmSync(f.root,{recursive:true,force:true});}
+});
+test('failed rollback is explicit and original backup remains available',()=>{
+ const f=fixture(),create=hostFs.symlinkSync,rename=hostFs.renameSync;try {
+  const before=oldArchLink(f);
+  hostFs.symlinkSync=()=>{throw Error('create denied');};
+  hostFs.renameSync=(src,dest)=>{if(dest===f.link)throw Error('restore denied');return rename(src,dest);};
+  const result=ensureAppRuntimeLink(f.resources);
+  assert.equal(result.reason,'rollback_failed');assert.equal(result.rollback.ok,false);
+  assert.match(result.rollback.error,/restore denied/);assert.equal(fs.readlinkSync(result.backup),before);
+ }finally{hostFs.symlinkSync=create;hostFs.renameSync=rename;fs.rmSync(f.root,{recursive:true,force:true});}
+});
+test('architecture root outside sibling runtime is not migrated',()=>{
+ const f=fixture();try {
+  fs.unlinkSync(f.pnpm);
+  const outside=path.join(f.root,'outside');fs.mkdirSync(path.dirname(path.join(outside,PNPM_ENTRY)),{recursive:true});
+  fs.writeFileSync(path.join(outside,PNPM_ENTRY),'external');
+  fs.symlinkSync(outside,path.join(f.resources,'runtime',process.arch),process.platform==='win32'?'junction':'dir');
+  fs.symlinkSync(path.join(f.resources,'runtime'),f.link,process.platform==='win32'?'junction':'dir');
+  const before=fs.readlinkSync(f.link),result=ensureAppRuntimeLink(f.resources);
+  assert.equal(result.reason,'runtime_conflict');assert.equal(fs.readlinkSync(f.link),before);
+ }finally{fs.rmSync(f.root,{recursive:true,force:true});}
+});
+
+test('missing new target during canonical verification does not reclassify a live old link',()=>{
+ const f=fixture(),realpath=hostFs.realpathSync;try {
+  const before=oldArchLink(f),target=path.join(f.resources,'runtime',process.arch);
+  hostFs.realpathSync=(file,...args)=>{if(file===target)throw Object.assign(Error('target disappeared'),{code:'ENOENT'});return realpath(file,...args);};
+  assert.throws(()=>ensureAppRuntimeLink(f.resources),/target disappeared/);
+  assert.equal(fs.readlinkSync(f.link),before);
  }finally{hostFs.realpathSync=realpath;fs.rmSync(f.root,{recursive:true,force:true});}
 });

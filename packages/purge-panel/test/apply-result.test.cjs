@@ -17,7 +17,7 @@ const code = buildSync({
   platform: "browser",
   external: ["react", "react-dom"],
 }).outputFiles[0].text;
-function harness(result) {
+function harness(result, applyStatus = 200) {
   const calls = [];
   const context = {
     module: { exports: {} },
@@ -49,8 +49,8 @@ function harness(result) {
               }
             : { ok: true, content: "", versions: [] };
       return {
-        ok: true,
-        status: 200,
+        ok: !String(url).endsWith("/apply") || applyStatus < 400,
+        status: String(url).endsWith("/apply") ? applyStatus : 200,
         text: async () => JSON.stringify(body),
         json: async () => body,
       };
@@ -176,3 +176,70 @@ for (const [name, result, expected] of [
       await act(async () => tree.unmount());
     }
   });
+
+test("runtime reason is visible for HTTP-success incomplete results too", () => {
+  const h = harness();
+  const message = h.incompleteApplyDetail(
+    {
+      complete: false,
+      cli_repair: {
+        ok: false,
+        symlink: {
+          ok: false,
+          reason: "runtime_conflict",
+          error: "different link retained",
+        },
+      },
+    },
+    h.tr,
+  );
+  assert.match(message, /runtime_conflict/);
+  assert.match(message, /different link retained/);
+});
+
+test("Apply HTTP 500 displays runtime details without restart or leaking response fields", async () => {
+  const h = harness(
+    {
+      ok: false,
+      error: "Desktop CLI runtime repair failed; original archive retained.",
+      cli_repair: {
+        ok: false,
+        symlink: {
+          ok: false,
+          reason: "rollback_failed",
+          error: "EPERM create",
+          rollback: { ok: false, error: "restore denied" },
+        },
+      },
+      prompt: "PRIVATE PROMPT",
+    },
+    500,
+  );
+  let tree;
+  const flush = () => new Promise((r) => setImmediate(r));
+  await act(async () => {
+    tree = create(React.createElement(h.PurgifySection));
+    await flush();
+  });
+  try {
+    const apply = tree.root
+      .findAllByType("button")
+      .find((b) => b.children.join("") === "应用");
+    await act(async () => {
+      apply.props.onClick();
+      await flush();
+      await flush();
+    });
+    const text = JSON.stringify(tree.toJSON());
+    assert.match(text, /rollback_failed/);
+    assert.match(text, /restore denied/);
+    assert.doesNotMatch(text, /PRIVATE PROMPT/);
+    assert.deepEqual(
+      h.calls.filter((c) => c.method === "POST").map((c) => c.url),
+      ["/dsh-purge/apply"],
+    );
+    assert(!h.calls.some((c) => c.url.includes("/restart")));
+  } finally {
+    await act(async () => tree.unmount());
+  }
+});

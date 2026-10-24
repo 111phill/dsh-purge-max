@@ -1,5 +1,6 @@
 // UI derived from YuJunZhiXue/dsh-purge 1.1.71 (MIT). See LICENSE.
 import { incompleteApplyDetail } from "../shared/apply-result.js";
+import { runtimeRepairDetails } from "../shared/runtime-error.js";
 import {
   h,
   useState,
@@ -410,7 +411,13 @@ export function PurgifySection({ page = "status", onStatus } = {}) {
             if (!d.ok) {
               setNotice({
                 kind: "error",
-                text: tr("err.action", { action: label, error: d.error || "" }),
+                text: tr("err.action", {
+                  action: label,
+                  error: [
+                    d.error || "",
+                    ...runtimeRepairDetails(d.cli_repair),
+                  ].join("\n"),
+                }),
               });
               return;
             }
