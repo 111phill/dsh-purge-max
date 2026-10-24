@@ -173,6 +173,8 @@ Windows Desktop 的 exe 是 GUI 子系统。PowerShell 的 `& exe ...` 可能在
 
 macOS 开发验收不能再复制同名 `.app` 后直接运行，也不能回退使用正式 DSH 可执行文件。使用命令行专用副本、独立测试标识和操作系统写入限制；完整安装/迁移/回滚方法与测试边界见 [隔离验收](docs/INSTALLATION.md#isolated-acceptance)。这条是维护者测试规则，不改变用户正常安装入口。
 
+通用安装验收使用实际 CLI/pnpm 执行首次安装、旧包/旧别名迁移、升级、回滚及失败恢复，校验备份后追加的用户内容。`scripts/check-install-lifecycle-runtime.mjs` 必须由隔离 Electron 的 Node 模式执行，不能拿正式 DSH 或手写 profile 冒充；说明见 [PR #78 验收记录](docs/pr78-runtime-integrity.md)。报告需区分组件模拟、实际 CLI 事务、缓存复用和未测的 UI/宿主功能，不能以一种通过代替另一种。
+
 PowerShell 5.1 读取 UTF-8 JSON/文档应使用 `Get-Content -Raw -Encoding UTF8`，不要把默认 ANSI 解码造成的中文乱码误判为安装包损坏。
 
 ## 14. Windows 换包与设置接口（1.6.13）
