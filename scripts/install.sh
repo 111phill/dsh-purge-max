@@ -20,7 +20,22 @@ done
 case "$(uname -s)" in
   Darwin)
     APP="${DSH_APP:-/Applications/DeepSeek Harness.app}"
-    RUNTIME="$APP/Contents/MacOS/DeepSeek Harness"
+    APP="$(CDPATH= cd -P "$APP" && pwd -P)" || { echo 'Selected application does not exist.' >&2; exit 1; }
+    PLIST="$APP/Contents/Info.plist"
+    [ -f "$PLIST" ] && [ ! -L "$PLIST" ] || { echo 'Selected application needs a regular Info.plist; no fallback used.' >&2; exit 1; }
+    EXE_NAME="$(/usr/bin/plutil -extract CFBundleExecutable raw -expect string -n -o - "$PLIST" && printf '.')" || {
+      echo 'Cannot read CFBundleExecutable; no fallback used.' >&2; exit 1;
+    }
+    EXE_NAME=${EXE_NAME%.}
+    case "$EXE_NAME" in ''|.|..|*/*|*\\*|*'
+'*) echo 'Invalid CFBundleExecutable.' >&2; exit 1 ;; esac
+    if printf '%s' "$EXE_NAME" | LC_ALL=C grep '[[:cntrl:]]' >/dev/null; then
+      echo 'Invalid control character in CFBundleExecutable.' >&2; exit 1
+    fi
+    EXEC_DIR="$(CDPATH= cd -P "$APP/Contents/MacOS" && pwd -P)" || exit 1
+    [ "$EXEC_DIR" = "$APP/Contents/MacOS" ] || { echo 'Executable directory escapes the application.' >&2; exit 1; }
+    RUNTIME="$EXEC_DIR/$EXE_NAME"
+    [ ! -L "$RUNTIME" ] || { echo 'Symlinked executable requires explicit manual verification; no fallback used.' >&2; exit 1; }
     PURGE_INSTALL_MODE=desktop ;;
   Linux)
     if [ -n "${DSH_APP:-}" ]; then

@@ -21,7 +21,7 @@
 
 [README 的安装章节](../README.md#安装)给出从下载开始的 macOS、Windows、Linux 命令和固定发行 TGZ 的官方 CLI 命令。它们不需要 clone 本仓库。不要把仓库内相对路径命令贴给没有源码目录的用户。
 
-macOS 默认要求 `/Applications/DeepSeek Harness.app`。自定义安装位置用 `DSH_APP`（指向 `.app`），自定义数据目录用 `DSH_HOME`；两次调用都传相同的 `--profile=实际名称`。Windows 支持 `-DshExe`（实际 exe 的完整路径）、`-DshHome`、`-Profile`、`-Version`。路径不唯一应停止并明确指定，不能猜测另一个副本。
+macOS 默认要求 `/Applications/DeepSeek Harness.app`。自定义安装位置用 `DSH_APP`（指向 `.app`），自定义数据目录用 `DSH_HOME`；两次调用都传相同的 `--profile=实际名称`。Windows 支持 `-DshExe`（实际 exe 的完整路径）、`-DshHome`、`-Profile`、`-Version`。路径不唯一应停止并明确指定，不能猜测另一个副本。 macOS 安装器通过系统 `plutil` 读取 XML 或二进制 plist，要求 `CFBundleExecutable` 是包内有效的文件名；缺失、损坏、路径越界或符号链接会报错，不会回退到猜测的可执行文件。改名的应用可通过 `DSH_APP` 显式选择。应用身份依据 DSH 宿主包及 CLI 文件，不依据窗口名称或仅有 `app.asar`。这属于布局校验，不代表签名或发布者认证。
 
 `--dry-run` / `-DryRun` 会检查 profile、定位 CLI、下载发行包并核对 SHA256；**不会运行 pnpm、迁移、回滚或完整启动验证**。去掉该参数才正式安装。默认读取最新稳定 Release；要固定本次发行，shell 两次均加 `--version=1.6.48`，PowerShell 两次均加 `-Version 1.6.48`。入口脚本及 bootstrap 仍来自本仓库 master，不应把版本参数解释为固定所有下载脚本。
 
@@ -86,7 +86,7 @@ node "$DSH_HOME/profiles/$DSH_PROFILE/node_modules/dsh-purge-community/bin/commu
 
 `status` 返回维护状态中的 `backups` 数组。选定实际存在的 `id` 后，把同一命令末尾的 `status` 换成 `rollback "实际备份ID"`；不要使用示例/其他实例的 ID。回滚后核对版本和 bundle，保留回滚后新增的用户配置；旧进程仍需要用户手动重开。
 
-macOS Desktop（默认应用路径；自定义路径先修改 `DSH_APP`）：
+macOS Desktop（下列示例用于可执行文件仍叫 `DeepSeek Harness` 的安装；自定义应用路径先修改 `DSH_APP`，改名的可执行文件须使用该应用 plist 中已核实的名称，不能猜测另一份安装）：
 
 ```sh
 export DSH_APP="${DSH_APP:-/Applications/DeepSeek Harness.app}"
@@ -149,6 +149,8 @@ try {
 <a id="isolated-acceptance"></a>
 ## 安装命令的隔离验收（2026-10-23）
 
+PR #78 的候选包增加了五条实际 CLI 生命周期验收：官方首装、社区引导器首装、原版迁移、社区版升级及旧别名升级；每条继续测试回滚、再次升级、失败恢复和用户后续修改保留。执行方式、候选包摘要与未覆盖范围见 [PR #78 安装完整性记录](pr78-runtime-integrity.md)。这些结果不能替代市场界面、冷缓存下载或宿主功能验收，也不能消除该 PR 尚未解决的目标识别问题。
+
 维护者使用 `scripts/check-install-instructions-runtime.mjs` 验证本文的安装协议。它要求显式的测试运行时、同一副本的官方 CLI、旧版归档、已校验发行归档与测试根目录；不接受正式应用作为 macOS 测试运行时。
 
 ```sh
@@ -160,3 +162,9 @@ node scripts/check-install-instructions-runtime.mjs "$TEST_RUNTIME" "$TEST_DSH_C
 macOS 不复制顶层 `Info.plist`，不创建 `.app` 路径，不通过 Finder、`open` 或 LaunchServices 启动；只对新建的测试可执行文件使用独立标识的本地开发签名，不修改正式应用或系统安全策略。验收脚本通过操作系统沙箱禁止写入 `/Applications`、默认 `.dsh`、DSH 的 Application Support 与日志目录，所有安装子进程继承该限制。不得用“只读正式运行时”选项回退运行用户的 DSH。若测试被系统拦截，应停止检查测试副本，不能移除正式应用的隔离属性、重签正式应用或让用户重装。
 
 本次实际验收：macOS / Windows 11，Electron 44.7.0，DSH CLI 0.2.1-rc.2，社区版 1.6.47，旧包 1.1.71。两平台覆盖官方 CLI 首装、下载的社区安装器 dry-run 与正式安装、旧包迁移、快照列表与回滚，核对包版本、bundle 和迁移前后的配置内容，并验证回滚保留安装后追加的用户配置。每个场景使用新建的 `DSH_HOME` 和可由 CLI 初始化的 `web` profile；这验证 Desktop 携带的 CLI/运行时及安装器路径，**不代表本轮测试了桌面登录、市场点击流程或宿主补丁功能**。真实用户的 Desktop profile 仍使用 `desktop`，不要照搬验收 profile。
+
+### 应用定位边界（PR #78）
+
+明确指定 `DSH_APP` / `DSH_EXE` 的目标校验失败后即停止，不会自动换到另一份应用。维护代码不遍历挂载卷、工作目录或任意参数的父目录；自定义安装请提供实际路径。显式请求自动发现时，仍可查询已知默认位置和系统登记，但多个有效目标需要用户选择。
+
+架构分目录运行时按当前执行进程的 `process.arch` 选择，不跨架构猜测。官方 CLI 需要 `app/runtime/primary-runtime/...`，因此新链接直接指向有效的架构子目录。已有真实目录或指向其他有效目录的链接保留；冲突明确报错，不自动覆盖。实测范围和复现步骤见 [PR #78 验收记录](pr78-runtime-integrity.md)。

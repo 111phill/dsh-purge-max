@@ -173,6 +173,8 @@ Windows Desktop 的 exe 是 GUI 子系统。PowerShell 的 `& exe ...` 可能在
 
 macOS 开发验收不能再复制同名 `.app` 后直接运行，也不能回退使用正式 DSH 可执行文件。使用命令行专用副本、独立测试标识和操作系统写入限制；完整安装/迁移/回滚方法与测试边界见 [隔离验收](docs/INSTALLATION.md#isolated-acceptance)。这条是维护者测试规则，不改变用户正常安装入口。
 
+通用安装验收使用实际 CLI/pnpm 执行首次安装、旧包/旧别名迁移、升级、回滚及失败恢复，校验备份后追加的用户内容。`scripts/check-install-lifecycle-runtime.mjs` 必须由隔离 Electron 的 Node 模式执行，不能拿正式 DSH 或手写 profile 冒充；说明见 [PR #78 验收记录](docs/pr78-runtime-integrity.md)。报告需区分组件模拟、实际 CLI 事务、缓存复用和未测的 UI/宿主功能，不能以一种通过代替另一种。
+
 PowerShell 5.1 读取 UTF-8 JSON/文档应使用 `Get-Content -Raw -Encoding UTF8`，不要把默认 ANSI 解码造成的中文乱码误判为安装包损坏。
 
 ## 14. Windows 换包与设置接口（1.6.13）
@@ -353,3 +355,9 @@ Windows Electron 的递归删除可能进入 Junction。清理使用 `removeTree
 不要把用户正文包含模板标记当成默认值。自定义、手改、记录缺失或损坏的非空正文保留；仅精确匹配可证明来源的默认内容允许自动刷新。读取失败保留错误，不把失败当空文件。已丢内容只能从用户确认的稿件或备份恢复，不自动回滚整份配置。
 
 版本对账只读当前 profile 的启用入口及真实包身份，支持 `dsh-purge-community` 与 `dsh-purge` 别名；pnpm 的 YAML 从物理包目录解析。缺包、错误身份、多个不同副本继续报错；不要改名目录、删锁文件或清空 update-status.json 来消除告警。旧版对账失败会阻止自动安装，使用新版独立安装器原地升级，之后由用户手动重启。别名回滚保留原依赖名与用户后续编辑；回滚旧版会带回其旧缺陷。详见 [维护说明](docs/maintenance-issues-72-74.md)。
+
+## PR #78：安装目标与架构运行时
+
+目标应用使用显式路径和包结构校验；不要仅凭 `app.asar` 存在或名称含 DSH 判定为宿主。自定义位置先设置 `DSH_APP` / `DSH_EXE`，多个有效目标请让用户明确选择。不要遍历挂载卷或任意父目录，不要在目标校验失败后改用另一份应用。macOS 的 XML/二进制 plist 均经系统解析；无效字段、越界路径和符号链接保持报错，不用猜测的可执行文件消除错误。
+
+按实际运行进程的架构定位运行时。架构目录存在不等于 CLI 可以加载；需要实际执行 pnpm 和安装事务。已有有效链接或真实目录不能为迁就新布局被直接覆盖。测试必须使用带标记的新隔离副本；`scripts/check-architecture-runtime.mjs` 会调整测试副本的布局，只能用于一次性验收环境，不能对正式应用运行。具体证据和边界见 [PR #78 验收记录](docs/pr78-runtime-integrity.md)。

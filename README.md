@@ -112,7 +112,7 @@ sh "$PURGE_INSTALL_DIR/install.sh" --dry-run
 sh "$PURGE_INSTALL_DIR/install.sh"
 ```
 
-自定义应用或 home 时，先设置 `DSH_APP` / `DSH_HOME`；自定义 profile 对两次命令都加 `--profile=实际名称`。不要照抄别人的路径。
+自定义应用或 home 时，先设置 `DSH_APP` / `DSH_HOME`；自定义 profile 对两次命令都加 `--profile=实际名称`。不要照抄别人的路径。 macOS 支持从 XML/二进制 plist 读取真实可执行文件名；元数据无效会停止，不会换用其他应用。详见[定位边界](docs/INSTALLATION.md#应用定位边界pr-78)。
 
 #### Windows Desktop · PowerShell 5.1 / 7
 
