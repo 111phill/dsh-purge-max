@@ -67,7 +67,7 @@ export const zh = {
   "envGate.skipYes": "确认暂不配置",
   "envGate.go": "去环境适配",
   "compat.host":
-    "Purge Community {version} · 宿主 DSH {host} · 兼容级别：{level}",
+    "dsh-purge Community {version} · 宿主 DSH {host} · 兼容级别：{level}",
   "compat.loading": "正在读取宿主版本…",
   "compat.unavailable": "读不到宿主兼容信息：{error}",
   "compat.level.qualified": "已回归验证",
@@ -457,7 +457,7 @@ export const en = {
   "envGate.skipYes": "Continue without tools",
   "envGate.go": "Open Env adapt",
   "compat.host":
-    "Purge Community {version} · host DSH {host} · compatibility: {level}",
+    "dsh-purge Community {version} · host DSH {host} · compatibility: {level}",
   "compat.loading": "Reading the host version…",
   "compat.unavailable": "Host compatibility is unavailable: {error}",
   "compat.level.qualified": "regression verified",

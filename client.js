@@ -8952,7 +8952,7 @@ var zh = {
   "envGate.skipNo": "\u8FD4\u56DE",
   "envGate.skipYes": "\u786E\u8BA4\u6682\u4E0D\u914D\u7F6E",
   "envGate.go": "\u53BB\u73AF\u5883\u9002\u914D",
-  "compat.host": "Purge Community {version} \xB7 \u5BBF\u4E3B DSH {host} \xB7 \u517C\u5BB9\u7EA7\u522B\uFF1A{level}",
+  "compat.host": "dsh-purge Community {version} \xB7 \u5BBF\u4E3B DSH {host} \xB7 \u517C\u5BB9\u7EA7\u522B\uFF1A{level}",
   "compat.loading": "\u6B63\u5728\u8BFB\u53D6\u5BBF\u4E3B\u7248\u672C\u2026",
   "compat.unavailable": "\u8BFB\u4E0D\u5230\u5BBF\u4E3B\u517C\u5BB9\u4FE1\u606F\uFF1A{error}",
   "compat.level.qualified": "\u5DF2\u56DE\u5F52\u9A8C\u8BC1",
@@ -9303,7 +9303,7 @@ var en = {
   "envGate.skipNo": "Back",
   "envGate.skipYes": "Continue without tools",
   "envGate.go": "Open Env adapt",
-  "compat.host": "Purge Community {version} \xB7 host DSH {host} \xB7 compatibility: {level}",
+  "compat.host": "dsh-purge Community {version} \xB7 host DSH {host} \xB7 compatibility: {level}",
   "compat.loading": "Reading the host version\u2026",
   "compat.unavailable": "Host compatibility is unavailable: {error}",
   "compat.level.qualified": "regression verified",
@@ -12829,13 +12829,13 @@ function SettingsRoot(props = {}) {
       h(
         "div",
         null,
-        h("h2", null, true ? "Purge Community" : "Purge"),
+        h("h2", null, true ? "dsh-purge Community" : "Purge"),
         h("p", null, "\u63D2\u4EF6\u8BBE\u7F6E")
       ),
       h(
         "span",
         { className: "dshpp-native-badge" },
-        (true ? "\u793E\u533A\u7248 " : "\u72EC\u7ACB\u754C\u9762 ") + "1.6.50"
+        (true ? "\u793E\u533A\u7248 " : "\u72EC\u7ACB\u754C\u9762 ") + "1.6.51"
       )
     ),
     h(CompatibilityNote, { status: backendStatus }),
@@ -12991,7 +12991,7 @@ function StatusStrip({ info }) {
       "span",
       { className: "dshpp-strip-item" },
       "\u63D2\u4EF6 ",
-      h("b", null, info?.plugin_version || "1.6.50")
+      h("b", null, info?.plugin_version || "1.6.51")
     )
   );
 }
@@ -13026,11 +13026,11 @@ function VersionNotice({ info }) {
     );
   }
   const backend = info?.plugin_version;
-  if (!backend || backend === "1.6.50") return null;
+  if (!backend || backend === "1.6.51") return null;
   return h(
     "p",
     { className: "dshpp-warn", role: "status" },
-    `\u5B98\u65B9\u7248\u672C ${backend}\uFF1B\u754C\u9762 ${"1.6.50"}\u3002\u4E24\u8005\u4E0D\u4E00\u81F4\u65F6\u8BBE\u7F6E\u53EF\u80FD\u4E0D\u751F\u6548\uFF0C\u8BF7\u66F4\u65B0\u5230\u540C\u4E00\u7248\u672C\u540E\u91CD\u542F DSH\u3002`
+    `\u5B98\u65B9\u7248\u672C ${backend}\uFF1B\u754C\u9762 ${"1.6.51"}\u3002\u4E24\u8005\u4E0D\u4E00\u81F4\u65F6\u8BBE\u7F6E\u53EF\u80FD\u4E0D\u751F\u6548\uFF0C\u8BF7\u66F4\u65B0\u5230\u540C\u4E00\u7248\u672C\u540E\u91CD\u542F DSH\u3002`
   );
 }
 function PurgePage() {
@@ -13087,7 +13087,7 @@ function PurgePage() {
           true ? h(
             "span",
             { className: "dshpp-page-ver" },
-            "\u793E\u533A\u7248 1.6.50"
+            "\u793E\u533A\u7248 1.6.51"
           ) : null
         )
       )
@@ -14445,7 +14445,7 @@ function apply(ctx) {
         name: "sidebar.panellist",
         id: "dsh-purge",
         order: 30,
-        label: true ? "Purge" : "Purge",
+        label: true ? "dsh-purge Community" : "Purge",
         inject: () => ({ t })
       },
       PurgeGlyphIcon
