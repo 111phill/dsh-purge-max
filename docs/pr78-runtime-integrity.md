@@ -61,12 +61,37 @@ These are maintenance-only variables pointing to disposable resources, not end-u
 
 The fresh profile is `web`, initialized by the Desktop's real CLI. This validates CLI installation, migration and recovery, not desktop onboarding/login, UI market clicks, model behaviour or host-patch functionality. Existing package-manager caches may be reused; there is no forced offline mode, but this is not proof of a cold-cache network installation. The candidate is supplied locally with its checksum, so these results also do not validate public Release downloading or the published PowerShell wrapper. Those untested paths must remain explicit.
 
-## Still required before approval
+## Follow-up: explicit targets and actual architecture loading
 
-- Resolve the PR's broad Electron recognition: merely finding `app.asar` must not identify an unrelated application as DSH.
-- Replace volume-wide discovery and additional branding guesses with explicit target selection and bounded evidence.
-- Validate macOS executable metadata, including binary plists, path boundaries and malformed metadata; do not silently fall back to another executable.
-- Test the actual loader/CLI with the architecture layout; file existence alone is insufficient.
-- Published download/wrapper and Desktop UI acceptance remain distinct from the local candidate CLI route.
+The remaining identification, path scanning and plist findings are addressed:
 
-Do not infer that all PR changes or all DSH variants passed from the installation results. The outstanding target-identification and metadata issues still block approval; no merge, version bump or release is warranted by this report alone.
+- An Electron archive or a DSH-like executable name is insufficient. Read bounded package evidence for the bundled DSH host and its CLI, or the legacy community shell. Both sealed ASAR and unpacked forms are supported; a damaged preferred archive cannot fall through to a stale unpacked copy. Manifest sizes and archive offsets are bounded. This establishes layout identity, not publisher authenticity.
+- Explicit application selection takes precedence and invalid selection stops. Arbitrary parent walks, mounted-volume enumeration and additional branding guesses were removed. Discovery of known default locations and OS registrations is opt-in; ambiguous valid targets are rejected.
+- Native macOS `plutil` parses XML and binary metadata. Empty, non-string, traversal and control-character executable names, missing metadata and symlink escapes fail instead of falling back to a guessed executable. Positive shell tests use an inert executable marker; they are component tests, not installation acceptance.
+- A current-architecture runtime link points directly to `runtime/<process.arch>`. The real CLI expects `app/runtime/primary-runtime/...`, so pointing to the containing `runtime` directory is insufficient. Existing live links and directories are preserved and conflicting layouts remain explicit errors.
+
+### New acceptance results, 2026-10-24
+
+The follow-up candidate archive SHA256 is `9684f926173569aec9c06efdd9371ec86082aacf548266ba2f32d18f45417643` (unpublished version 1.6.50). Documentation was expanded after this archive was tested; the runtime and installer payload was unchanged.
+
+| Check | macOS ARM64 | Windows 11 x64 / 4090 |
+| --- | --- | --- |
+| Real Electron / pnpm loading | Electron 44.7.0, pnpm 11.28.5 | Electron 44.7.0, pnpm 11.28.5 |
+| Reconstructed architecture layout | `runtime/arm64` | `runtime/x64` |
+| Real CLI lifecycle scenarios above | 5 passed, process exit 0 | 5 passed, process exit 0 |
+| Target / plist / runtime / atomic component tests under Electron | 26 passed | 21 passed, 5 macOS/POSIX-only skips |
+| Actual isolated host identity and explicit executable lookup | Passed | Passed |
+| Production configuration SHA256 comparison | 16 checked, 0 changed | 3 checked, 0 changed |
+
+The complete repository automated suite on macOS also passed: 328 passed, 0 failed, 12 platform/conditional skips. The installation-focused subset passed 127 with 5 skips. These automated counts are separate from the actual CLI transaction scenarios.
+
+A Windows test initially attempted to create malformed ASAR fixtures through Electron's virtual `node:fs` interface and failed. The test now uses `original-fs` through `diskFs()` for physical archive bytes; it was rerun successfully on both real Electron runtimes. The failed run was not counted as acceptance.
+
+`scripts/check-architecture-runtime.mjs` deliberately rearranges a **new disposable marked CLI fixture** into its executing architecture's layout, preserves its copied old link, creates the corrected link, then executes the real pnpm loader. Run it with that fixture's Electron in Node mode before running the lifecycle command above. Never run it against an installed application. The lifecycle harness then exercises actual official CLI/pnpm transactions, import/dependency resolution, migration, rollback, re-upgrade and injected verification-failure recovery. No installer or package-manager mock is used.
+
+### Boundaries that remain
+
+- These are native ARM64 and x64 executions on separate machines with reconstructed architecture directory layouts. No cross-architecture emulation, universal-binary switching or every independently distributed DSH variant was tested.
+- Public Release downloading, the published PowerShell wrapper, Desktop onboarding and UI market clicks are distinct from this local candidate CLI route and were not part of this follow-up.
+- No production DSH restart, host patch application, model generation or prompt-effect evaluation occurred. Existing feature payloads and user settings were not edited.
+- PR #78 is updated for review only. No merge, version bump or release is performed.

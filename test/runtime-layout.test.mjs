@@ -10,6 +10,9 @@ import {hostFs} from '../lib/extract-asar.js';
 function fixture() {
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'purge runtime 中文 ')),resources=path.join(root,'resources');
  fs.mkdirSync(path.join(resources,'app'),{recursive:true});
+ const host=path.join(resources,'app/dsh/node_modules/@deepseek-ai/dsh-desktop-host');
+ fs.mkdirSync(path.join(host,'lib'),{recursive:true});fs.writeFileSync(path.join(host,'lib/cli.js'),'// fixture');
+ fs.writeFileSync(path.join(host,'package.json'),JSON.stringify({name:'@deepseek-ai/dsh-desktop-host'}));
  const pnpm=path.join(resources,'runtime',PNPM_ENTRY);fs.mkdirSync(path.dirname(pnpm),{recursive:true});fs.writeFileSync(pnpm,"console.log('runtime fixture');");
  return {root,resources,pnpm,link:path.join(resources,'app/runtime')};
 }
@@ -50,8 +53,17 @@ test('fresh runtime supports current-architecture layout and is idempotent',()=>
   const target=toArchLayout(f);
   assert.equal(findPnpmEntry(path.join(f.resources,'runtime')),path.join(process.arch,PNPM_ENTRY));
   assert.equal(ensureAppRuntimeLink(f.resources).created,true);
-  assert.equal(fs.readFileSync(path.join(f.link,process.arch,PNPM_ENTRY),'utf8'),fs.readFileSync(target,'utf8'));
+  assert.equal(fs.readFileSync(path.join(f.link,PNPM_ENTRY),'utf8'),fs.readFileSync(target,'utf8'));
   assert.equal(ensureAppRuntimeLink(f.resources).already,true);
+ }finally{fs.rmSync(f.root,{recursive:true,force:true});}
+});
+test('architecture-container link is retained and reported as incompatible with CLI',()=>{
+ const f=fixture();try {
+  fs.symlinkSync(path.join(f.resources,'runtime'),f.link,process.platform==='win32'?'junction':'dir');
+  const before=fs.readlinkSync(f.link);toArchLayout(f);
+  assert.equal(ensureAppRuntimeLink(f.resources).reason,'runtime_conflict');
+  assert.equal(fs.readlinkSync(f.link),before);
+  assert.equal(fs.existsSync(path.join(f.link,PNPM_ENTRY)),false);
  }finally{fs.rmSync(f.root,{recursive:true,force:true});}
 });
 test('layout migration retains an existing flat runtime directory',()=>{
@@ -74,7 +86,7 @@ test('layout migration never replaces another live runtime link or its target',(
   fs.unlinkSync(entry);
   assert.equal(ensureAppRuntimeLink(f.resources).reason,'runtime_conflict');
   assert.equal(fs.readlinkSync(f.link),before);
-  assert.deepEqual(fs.readdirSync(path.dirname(f.link)),['runtime']);
+  assert.deepEqual(fs.readdirSync(path.dirname(f.link)).sort(),['dsh','runtime']);
  }finally{fs.rmSync(f.root,{recursive:true,force:true});}
 });
 test('wrong architecture and directory masquerading as pnpm fail without creating a link',()=>{
@@ -105,7 +117,7 @@ test('failed link creation restores the previous dangling link',()=>{
   const result=ensureAppRuntimeLink(f.resources);
   assert.equal(result.ok,false);assert.match(result.error,/fixture create denied/);
   assert.equal(fs.readlinkSync(f.link),before);
-  assert.deepEqual(fs.readdirSync(path.dirname(f.link)),['runtime']);
+  assert.deepEqual(fs.readdirSync(path.dirname(f.link)).sort(),['dsh','runtime']);
   assert.equal(fs.readFileSync(f.pnpm,'utf8'),"console.log('runtime fixture');");
  }finally{hostFs.symlinkSync=create;fs.rmSync(f.root,{recursive:true,force:true});}
 });
@@ -119,6 +131,6 @@ test('unreadable link target is not treated as a dangling link',()=>{
   };
   assert.throws(()=>ensureAppRuntimeLink(f.resources),{code:'EACCES'});
   assert.equal(fs.readlinkSync(f.link),before);
-  assert.deepEqual(fs.readdirSync(path.dirname(f.link)),['runtime']);
+  assert.deepEqual(fs.readdirSync(path.dirname(f.link)).sort(),['dsh','runtime']);
  }finally{hostFs.realpathSync=realpath;fs.rmSync(f.root,{recursive:true,force:true});}
 });
