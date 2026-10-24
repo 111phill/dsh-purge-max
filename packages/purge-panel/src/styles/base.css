@@ -633,6 +633,8 @@ body[data-ds-dark-theme]
 }
 .dshpp-notice.is-bad {
   color: var(--dshpp-bad);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .dshpp-skel {
   height: 12px;

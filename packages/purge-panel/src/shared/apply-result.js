@@ -1,3 +1,5 @@
+import { runtimeRepairDetails } from "./runtime-error.js";
+
 // Presentation of apply results only. Never converts unknown or failed work into success.
 export function incompleteApplyDetail(result, t) {
   const parts = [];
@@ -23,6 +25,9 @@ export function incompleteApplyDetail(result, t) {
   if (result.hook_restore_failed === true)
     parts.push(t("restart.incomplete.restore"));
   if (result.cli_repair?.ok === false)
-    parts.push(t("restart.incomplete.runtime"));
+    parts.push(
+      t("restart.incomplete.runtime"),
+      ...runtimeRepairDetails(result.cli_repair),
+    );
   return parts.length ? parts.join("；") : t("restart.incomplete.unknown");
 }

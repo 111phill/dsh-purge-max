@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.52** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
+> 当前版本：**1.6.53** · 适配 DSH Desktop **0.2.1-rc.2**（rc.1 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -133,7 +133,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.52 |
+| 插件 | `dsh-purge-community` 1.6.53 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
@@ -368,3 +368,9 @@ Windows Electron 的递归删除可能进入 Junction。清理使用 `removeTree
 - 不要以「靶场限制」「公网门禁」为由恢复这段代码；需要限制范围由操作者自己声明，插件不替用户判断目标归属。
 - `lib/net-scope.js` 只剩白名单文件 API（`readAllowText` / `writeAllowText` / `normalizeAllowText`）与 `ownServerNote()`（空实现）；`test/no-region-gate.test.mjs` 会在有人重新引入安装器或 `严令禁止` 时直接失败。
 - 上游的 ReDoS 窗口扫描只为那个门禁服务，未采纳；`already queued` 的补丁改写与 pnpm postinstall 也未采纳，原因见 1.6.52 发行说明。
+
+## 1.6.53：旧运行时链接与应用失败诊断（#79 / #77）
+
+升级遇到 `Desktop CLI runtime repair failed` 时，查看同一次响应的 `cli_repair`，不要断言用户没点应用。只有同一安装的 `app/runtime` 链接指向外层 `runtime`，且当前架构目录及 pnpm 加载器均解析在该运行时内，才备份链接并迁移。真实目录、其他活链接、越界与权限错误仍停止；不删除目标目录。创建/校验失败恢复原链接；恢复失败保留备份并显式报错。
+
+界面显示具体 reason、错误码、启动器错误与恢复结果，不上传整份响应、提示词或配置。用户仍报错时收集操作系统/架构、客户端发行名称/版本、插件实际运行版本、详细错误；预设消失需单独确认，不能仅凭总报错认定同源。不自动 apply 或重启。实际验证范围见 [#79 维护记录](docs/maintenance-issue-79.md)。
