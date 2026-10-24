@@ -206,7 +206,7 @@ export function PurgePage() {
       h(
         "div",
         { className: "dshpp-page-title" },
-        h("h1", null, __COMMUNITY__ ? "Purge" : "Purge"),
+        h("h1", null, __COMMUNITY__ ? "dsh-purge Community" : "Purge"),
         h(
           "p",
           null,

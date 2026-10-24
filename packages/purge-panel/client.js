@@ -13046,7 +13046,7 @@ function PurgePage() {
       h(
         "div",
         { className: "dshpp-page-title" },
-        h("h1", null, false ? "Purge" : "Purge"),
+        h("h1", null, false ? "dsh-purge Community" : "Purge"),
         h(
           "p",
           null,
