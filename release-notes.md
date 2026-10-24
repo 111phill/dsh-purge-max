@@ -1,20 +1,29 @@
-# 1.6.51
+# 1.6.52
 
-## 桌面定位与安装兼容性（PR #78）
+## 移除「公网目标一律拒绝」的门禁
 
-- 改名或自定义路径安装按 DSH 宿主包和 CLI 结构识别，普通 Electron 应用不会仅因存在 app.asar 被误认为 DSH；损坏的优先归档不会回退到过期副本。
-- 显式选择的目标无效就停止，不偷偷选择另一份应用；移除挂载卷遍历和任意父目录扫描，多个有效目标要求明确选择。
-- macOS 使用系统 plutil 读取 XML/二进制 plist，拒绝缺失或无效字段、路径越界、控制字符及符号链接逃逸，不再猜测可执行文件名。
-- 多架构运行时链接指向当前进程架构的有效目录，保证官方 CLI 能加载 pnpm。已有真实目录、有效链接及恢复备份保留；冲突、权限错误和运行时修复失败继续显示，缺少 CLI shim 不再被当作成功。
-- README 首屏补充原作者小杨 / YuJunZhiXue 与已恢复的原仓库链接；保留原有许可证和来源说明。感谢 @5hux1n 的兼容性贡献。
+上游 1.1.74–1.1.77 的 `net-scope` 会在 `agent/pre-step` 里判断：任务像攻击 + 目标解析到公网 IP →
+直接塞一句「不行，这是严令禁止的」并把这一轮消息清空。本 fork 一直带着这段代码（1.1.71 遗产），
+等于把破甲限制成「只能打内网/靶场」。
 
-- 项目展示名统一为 **dsh-purge Community**；包名 `dsh-purge-community`、内部插件 ID、配置及备份路径保持不变。
+本版把门禁连同判定逻辑一起删除：`installRegionGate`、`isAttackTask`、`taskTargetHit`、
+`DENIAL` 与配套的 chunks 全部移除。白名单文件 API（`readAllowText` / `writeAllowText` /
+`normalizeAllowText` / `ownServerNote`）保留，设置卡不受影响。
 
-## 测试与范围
+新增 `test/no-region-gate.test.mjs` 钉住：`net-scope` 不再导出安装器，`lib/index.js` 不再引用它。
 
-PR #78 的 8 项 GitHub 检查全部通过。合入前完整自动测试 328 通过、0 失败、12 项平台或条件跳过；Mac ARM64 与 Windows 11 x64 的隔离 Electron 分别完成 5 组真实官方 CLI/pnpm 安装、旧版迁移、升级、回滚、再次升级及失败恢复。架构目录中的 pnpm 实际执行，核对的正式配置文件未变。详细证据见 [验收记录](docs/pr78-runtime-integrity.md)。
+## 上游修复的评估（未采纳项）
 
-本版变更限通用定位、安装和运行时加载；不删除原有功能，不修改用户提示词、设置或预设，不自动重启 DSH。实测不等于所有第三方 DSH 变体、跨架构模拟和市场 UI 均已覆盖。安装新版后，用户在方便时自行完整退出并重开 DSH。
+- **1.1.77 的 ReDoS 窗口扫描**：只服务于上面那个门禁，门禁删掉后没有意义。
+- **1.1.74/1.1.75 的「already queued」补丁改写**：上游改成只 patch 已入队行、不再 insert；
+  我们的安装器会主动把包从 `bundles` 里移除并用 insert 建行，改成上游写法会让安装器路径失效，
+  暂不采纳。本机 profile 同时存在 bundle 与 insert 也未报错，风险未在 0.2.1-rc.2 上复现。
+- **1.1.76 的 pnpm postinstall 写 bundles**：我们的安装器已负责写 bundles；市场安装由宿主写，
+  不额外加 postinstall。
+
+## 验证
+
+`npm test` 312 通过 / 0 失败；`check:docs` / `check:client` / `smoke` 通过。
 
 # 1.6.50
 
