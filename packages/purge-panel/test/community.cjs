@@ -237,7 +237,7 @@ win.confirm = () => true;
   assert(
     root
       .findAllByType("h1")
-      .some((x) => x.children.join("") === "dsh-purge Community"),
+      .some((x) => x.children.join("") === "Purge"),
     "page title renders",
   );
   assert(root.findAllByProps({ "aria-label": "社区版维护" }).length);

@@ -1,3 +1,19 @@
+# 1.6.55
+
+## 侧栏与面板标题改回「Purge」
+
+1.6.51 把界面上显示的名字改成了「dsh-purge Community」，侧栏条目也跟着变了。本版改回 **Purge**：
+
+- 侧栏条目 `label`：`Purge`
+- 面板主标题 `h1`：`Purge`
+- 设置页分组标题 `h2`：`Purge`
+
+包名、命令名、数据目录都不变，仍是 `dsh-purge-community` / `purge-community`，只是显示名回到大字写。
+
+## 验证
+
+`npm test` 320 通过 / 0 失败；两份 bundle 重建后 `check:client` 通过。
+
 # 1.6.54
 
 ## 旧运行时链接迁移与错误详情（#79 / #77）

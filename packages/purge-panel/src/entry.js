@@ -86,7 +86,7 @@ export function apply(ctx) {
         name: "sidebar.panellist",
         id: "dsh-purge",
         order: 30,
-        label: __COMMUNITY__ ? "dsh-purge Community" : "Purge",
+        label: "Purge",
         inject: () => ({ t }),
       },
       PurgeGlyphIcon,

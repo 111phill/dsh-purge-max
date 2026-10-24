@@ -12846,7 +12846,7 @@ function SettingsRoot(props = {}) {
       h(
         "div",
         null,
-        h("h2", null, false ? "dsh-purge Community" : "Purge"),
+        h("h2", null, "Purge"),
         h("p", null, "\u63D2\u4EF6\u8BBE\u7F6E")
       ),
       h(
@@ -13096,7 +13096,7 @@ function PurgePage() {
       h(
         "div",
         { className: "dshpp-page-title" },
-        h("h1", null, false ? "dsh-purge Community" : "Purge"),
+        h("h1", null, "Purge"),
         h(
           "p",
           null,
@@ -14462,7 +14462,7 @@ function apply(ctx) {
         name: "sidebar.panellist",
         id: "dsh-purge",
         order: 30,
-        label: false ? "dsh-purge Community" : "Purge",
+        label: "Purge",
         inject: () => ({ t })
       },
       PurgeGlyphIcon
