@@ -7,7 +7,7 @@ import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 
-export async function runInstallLifecycle({runtime,cli,legacy,previous,archive,temp}) {
+export async function runInstallLifecycle({runtime,cli,legacy,previous,archive,temp,scenarios=['official-first-install','bootstrap-first-install','legacy-migration','community-upgrade','alias-upgrade'],beforeInstall,afterInstall}) {
   const run=(exe,args,env,label)=>{
     console.log('STEP '+label);
     try {
@@ -25,7 +25,7 @@ export async function runInstallLifecycle({runtime,cli,legacy,previous,archive,t
   const sha256=createHash('sha256').update(fs.readFileSync(archive)).digest('hex');
   const bootstrap=path.join(root,'scripts/bootstrap-install.mjs');
   const originalEnv={...process.env},reports=[];
-  for(const scenario of ['official-first-install','bootstrap-first-install','legacy-migration','community-upgrade','alias-upgrade']) {
+  for(const scenario of scenarios) {
     const home=path.join(temp,scenario,'home');fs.mkdirSync(home,{recursive:true});
     const env={...originalEnv,DSH_HOME:home,DSH_PROFILE:'web',DSH_SURFACE:'web',PURGE_DSH_CLI:cli,
       ELECTRON_RUN_AS_NODE:'1',PURGE_INSTALL_MODE:'desktop',DSH_BASE:'',PURGE_PROFILE_DIR:'',
@@ -69,10 +69,12 @@ export async function runInstallLifecycle({runtime,cli,legacy,previous,archive,t
     const manifest=path.join(profile,'package.json'),before=fs.readFileSync(manifest);
     assert.match(boot('--dry-run'),/SHA256 verified; dry run, nothing installed/);
     assert.deepEqual(fs.readFileSync(manifest),before);preserved();
+    await beforeInstall?.({scenario});
     let output;
     if(scenario==='official-first-install')command(['plugin','--profile','web','add',archive]);
     else output=boot();
     await verifyInstalledPackage(profile,meta);preserved();
+    await afterInstall?.({scenario});
     const bundles=JSON.parse(fs.readFileSync(manifest)).dsh.profile.bundles;
     assert(bundles.includes(meta.name));assert(!bundles.includes('dsh-purge'));
     const manager=new Maintenance({home,profile});
