@@ -1,3 +1,30 @@
+# 1.6.59
+
+## 把 1.6.58 里那 4 条「部分命中」逐个查清（#85 收尾）
+
+1.6.58 只给 #57 开了逐目标核算，另外 4 条老补丁仍是聚合状态。本版逐条核对 rc.3 的真实
+文件后分别处理，不再让它们悬着：
+
+| 补丁 | 未命中的目标 | 结论 | 处理 |
+|---|---|---|---|
+| #32 | `dsh-harness-dev-context` | 那句是 `legacyParagraph` 的**匹配常量**，用来识别并剥离历史身份段落；改写它反而会让旧段漏进提示词 | `fileOptional`，只核对不改写 |
+| #36 | `dsh-tool-fs` | 相同措辞已由审批补丁写成句首大写 `Approval is auto-granted.`，本补丁原文案在新版不存在 | `fileOptional` |
+| #50 | `dsh-session-reference/lib/types/index.js` | rc.3 原生就是 `untrusted, read-only snapshot` 措辞，已经是我们想要的状态 | 加等价的"已达成"标记 |
+| #62 | `dsh-tools/lib/index.js` | 0.2.1-rc.3 把 deny 判断只留在 `lib/types/index.js`，`lib/index.js` 里整段消失 | `fileOptional` |
+
+新增 `fileOptional: [key]` 语义：列出的目标不参与 `partial` 判定，但**仍然逐文件报告**
+状态，需要在面板里看得到。真机结果：72 applied / 0 pending / 0 partial / 0 unknown。
+
+## 为什么重要
+
+`fileOptional` 不是"忽略失败"的开关：只有确认过「这个目标在新版宿主里已经不承载该行为」
+才能加，并要在注释里写清依据。否则就是拿绿点换安心。
+
+## 验证
+
+`npm test` 359 通过 / 0 失败；新增 fileOptional 用例；真实宿主 4 条补丁均 `applied`，
+`partial` 为 0。
+
 # 1.6.58
 
 ## 逐文件补丁状态（#85）

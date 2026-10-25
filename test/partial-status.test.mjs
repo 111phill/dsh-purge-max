@@ -155,3 +155,29 @@ test("patches without the opt-in keep the old aggregate behaviour", async () => 
     f.close();
   }
 });
+
+test("fileOptional keeps a knowingly stale target from turning the patch red", async () => {
+  // #32/#36/#62 in rc.3: one target no longer carries the behaviour at all
+  // (legacy matching constant, wording owned by another patch, code moved).
+  // Those keys are declared fileOptional so the remaining target still decides.
+  const f = fixture({
+    completions: PATCHED_LINE,
+    responses: "export const unrelated = 1;\n",
+  });
+  try {
+    const opts = { dshHome: f.home, surface: "desktop" };
+    const declared = [
+      {
+        ...patches[0],
+        id: 958,
+        fileAllRequired: true,
+        fileOptional: ["pi-ai-responses-shared"],
+      },
+    ];
+    const status = await patchStatus(f.host, declared, opts);
+    assert.equal(status[958], "applied");
+    assert.equal(patchStatusReady(status[958], declared[0]), true);
+  } finally {
+    f.close();
+  }
+});
