@@ -575,3 +575,36 @@ test('install recovery refuses to erase concurrent unrelated dependency changes'
     assert.equal(fs.readdirSync(path.join(f.manager.base,'install-recovery')).length,1);
   } finally {f.close();}
 });
+
+test('install ownership loss preserves concurrent changes and recovery checkpoint', async () => {
+  const f = setup();
+  try {
+    f.manager.installer = async () => {
+      fs.writeFileSync(path.join(f.manager.base, 'maintenance.lock'), 'replacement-owner');
+      fs.writeFileSync(path.join(f.profile, 'cordis.patch.yml'), 'NEW OWNER SETTINGS');
+      const manifest=path.join(f.profile,'package.json');
+      const pkg=JSON.parse(fs.readFileSync(manifest,'utf8'));pkg.concurrentWriter=true;
+      fs.writeFileSync(manifest,JSON.stringify(pkg));
+    };
+    await assert.rejects(f.manager.install(f.candidate), /维护锁归属无法确认/);
+    assert.equal(fs.readFileSync(path.join(f.profile,'cordis.patch.yml'),'utf8'),'NEW OWNER SETTINGS');
+    assert.equal(JSON.parse(fs.readFileSync(path.join(f.profile,'package.json'),'utf8')).concurrentWriter,true);
+    assert.equal(fs.readFileSync(path.join(f.manager.base,'maintenance.lock'),'utf8'),'replacement-owner');
+    assert(fs.readdirSync(path.join(f.manager.base,'install-recovery')).length>0);
+  } finally { f.close(); }
+});
+
+test('rollback ownership loss never restores over a new writer', async () => {
+  const f=setup();
+  try {
+    const backup=await f.manager.backup();
+    f.manager.installer=async()=>{
+      fs.writeFileSync(path.join(f.manager.base,'maintenance.lock'),'replacement-owner');
+      fs.writeFileSync(path.join(f.profile,'cordis.patch.yml'),'NEW OWNER SETTINGS');
+    };
+    await assert.rejects(f.manager.rollback(backup.id),/维护锁归属无法确认/);
+    assert.equal(fs.readFileSync(path.join(f.profile,'cordis.patch.yml'),'utf8'),'NEW OWNER SETTINGS');
+    assert.equal(fs.readFileSync(path.join(f.manager.base,'maintenance.lock'),'utf8'),'replacement-owner');
+    assert(f.manager.list().some(item=>item.id===backup.id));
+  } finally { f.close(); }
+});
