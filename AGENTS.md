@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.59** · 适配 DSH Desktop **0.2.1-rc.3**（rc.1 / rc.2 同样通过）
+> 当前版本：**1.6.60** · 适配 DSH Desktop **0.2.1-rc.3**（rc.1 / rc.2 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -133,7 +133,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.59 |
+| 插件 | `dsh-purge-community` 1.6.60 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 / 0.2.1-rc.3 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
@@ -391,3 +391,11 @@ Windows Electron 的递归删除可能进入 Junction。清理使用 `removeTree
 - `fileOptional: ["key"]` 表示这个目标**在新版宿主里已不承载该行为**，不参与 `partial` 判定；它仍然逐文件出现在 `patchStatusDetail().files` 里，状态照实显示。
 - 加之前必须核对：目标文件是真没有这段逻辑，还是只是换了写法。说不清就不加。
 - 当前名单与依据：#32 `harness-dev-context`（`legacyParagraph` 匹配常量，改了会漏历史段落）、#36 `tool-fs`（措辞已由审批补丁写成 `Approval is auto-granted.`）、#62 `dsh-tools`（rc.3 把判断只留在 `types/index.js`）。#50 不是 optional，而是补了等价的"已达成"标记。
+
+## 1.6.60：缺目标异常与遗留维护锁（#86 / #87）
+
+1.6.58–1.6.59 的 `detail is not defined` 是缺目标分支的异常，不能据此断言宿主版本不兼容。升级修复后继续检查具体 missing_file / partial / unknown，不隐藏真正缺失。
+
+维护锁不按超龄强删。新版通过非空互斥目录协调回收，并保留旧版识别的 maintenance.lock；确认进程已结束或 PID 被复用后才回收。活着的旧版长任务、跨机或不可读/无效锁继续阻止写入并给出诊断。丢锁时停止安装/回滚后续提交及 checkpoint 自动恢复，保留恢复目录，不能手工删除锁强行继续。
+
+#89 的 Windows 助手退出故障已在受控 Job Object 环境重建，尚未确认报告者现场的启动/Job 机制，本版不宣称已修复。操作边界及脚本见 [维护记录](docs/maintenance-issues-86-89.md)。不自动 apply/restart，不修改提示词、配置或代理。

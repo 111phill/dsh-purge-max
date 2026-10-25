@@ -17,6 +17,9 @@
 | [SimonQvQ / Simon](https://github.com/SimonQvQ) | [PR #42](https://github.com/kingcharleslzy-ai/dsh-purge/pull/42)：Linux CLI/Web 安装、用户宿主副本支持及 CachyOS 实机验证。 |
 | [alexopenfan-xiaxin / alex.xin](https://github.com/alexopenfan-xiaxin) | [#44](https://github.com/kingcharleslzy-ai/dsh-purge/issues/44) 慢网更新实测与分析；[PR #45](https://github.com/kingcharleslzy-ai/dsh-purge/pull/45) 重复配置清理、[PR #46](https://github.com/kingcharleslzy-ai/dsh-purge/pull/46) 审计属主修复提案、[PR #47](https://github.com/kingcharleslzy-ai/dsh-purge/pull/47) 可选镜像下载提案。集成版补充完整性、权限与安装回滚验收。 |
 
+| [Minervaowl7](https://github.com/Minervaowl7) | [PR #88](https://github.com/kingcharleslzy-ai/dsh-purge/pull/88)：缺文件异常及遗留维护锁修复提案、回归测试；#87 / #89 的 Windows 故障证据。 |
+| [ShiTan-677](https://github.com/ShiTan-677) | PR #88 讨论中的 macOS 独立复核及缺文件异常版本定位。 |
+
 第三方代码来源另见 [NOTICE.md](NOTICE.md)。欢迎通过 issue 提供复现与验证反馈，或通过 PR 贡献代码。
 
 ## 头像名单维护
