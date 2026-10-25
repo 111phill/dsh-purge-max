@@ -66,3 +66,108 @@ test("0.2.1 ask_user_question keeps the requested wait and caps only -1", () => 
   assert.ok(!out.text.includes("const timeout = 1;"));
   assert.equal(applyReplacementsToText(out.text, patch(89)).changed, false);
 });
+
+// The responses path names its role variable `instructionRole`, not `role`.
+// Pinning the real host text keeps the #57 anchor from silently drifting to a
+// name no host version ever used — the failure mode is invisible because the
+// patch is `optional`, so a miss still reports as applied.
+const RESPONSES_INSTRUCTION_ROLE =
+	'    const instructionRole = model.reasoning && compat?.supportsDeveloperRole !== false ? "developer" : "system";';
+
+test("#57 responses anchor matches the real instructionRole line and gates on the gateway", () => {
+  const out = applyReplacementsToText(RESPONSES_INSTRUCTION_ROLE, patch(57));
+  assert.equal(out.changed, true);
+  assert.ok(out.text.includes("const instructionRole = model.reasoning"));
+  assert.ok(out.text.includes('includes("api.openai.com")'));
+  assert.ok(out.text.includes('includes("azure.com")'));
+  assert.ok(out.text.includes("// [dsh-purge] developer role allowlist: openai/azure"));
+  // The rewrite must keep the role variable name, or the host stops compiling.
+  assert.ok(out.text.includes('? "developer" : "system";'));
+  assert.equal(applyReplacementsToText(out.text, patch(57)).changed, false);
+});
+
+test("#57 responses anchor leaves the vendor-native decision intact", () => {
+  const apply = (baseUrl) =>
+    eval(
+      `((model, compat) => ${applyReplacementsToText(RESPONSES_INSTRUCTION_ROLE, patch(57)).text
+        .trim()
+        .replace(/^const instructionRole = /, "")
+        .replace(/;\s*(\/\/.*)?$/, "")})`,
+    )({ reasoning: true, baseUrl }, undefined);
+  assert.equal(apply("https://api.openai.com/v1"), "developer");
+  assert.equal(apply("https://foo.azure.com"), "developer");
+  assert.equal(apply("https://gateway.example.com/v1"), "system");
+  assert.equal(apply("https://relay.example.net/v1"), "system");
+});
+
+// --- #57: real-host verification and legacy upgrade -------------------------
+// Everything above uses a single pinned line. The bug this guards against was
+// invisible precisely because nobody ran the patch against the real file, so
+// this block reads the installed host when it is available and checks the
+// whole-file rewrite, its syntax, and idempotency.
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+
+const HOST_ROOTS = [
+  process.env.PURGE_TEST_HOST,
+  "/Applications/DeepSeek Harness.app/Contents/Resources/app/dsh/node_modules",
+].filter(Boolean);
+
+function responsesFile() {
+  for (const root of HOST_ROOTS) {
+    for (const base of [root, path.join(root, "@deepseek-ai")]) {
+      const candidate = path.join(base, "@earendil-works/pi-ai/dist/api/openai-responses-shared.js");
+      if (fs.existsSync(candidate)) return candidate;
+      const direct = path.join(base, "pi-ai/dist/api/openai-responses-shared.js");
+      if (fs.existsSync(direct)) return direct;
+    }
+  }
+  return "";
+}
+
+function nodeCheck(source) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "purge-syntax-"));
+  const file = path.join(dir, "probe.mjs");
+  fs.writeFileSync(file, source);
+  const result = spawnSync(process.execPath, ["--check", file], { encoding: "utf8" });
+  fs.rmSync(dir, { recursive: true, force: true });
+  return result;
+}
+
+test("#57 rewrites the real responses file, keeps it parseable, and is idempotent", () => {
+  const file = responsesFile();
+  if (!file) return; // host not installed on this machine: pinned-line tests still cover the shape
+  const original = fs.readFileSync(file, "utf8");
+  // The anchor must exist in the shipped file, not merely in our fixture.
+  assert.ok(original.includes('const instructionRole = model.reasoning && compat?.supportsDeveloperRole !== false'));
+  assert.equal(original.includes("const role = model.reasoning"), false);
+
+  // The host may already be patched on a developer machine, so the assertion is
+  // state-agnostic: either the rewrite happens now, or it happened in an earlier
+  // apply and must be a no-op. Both states must stay parseable.
+  const marked = original.includes("// [dsh-purge] developer role allowlist: openai/azure");
+  const once = applyReplacementsToText(original, patch(57));
+  assert.equal(once.changed, !marked, marked ? "already patched host must be a no-op" : "unpatched host must be rewritten");
+  assert.ok(once.text.includes("// [dsh-purge] developer role allowlist: openai/azure"));
+  assert.ok(once.text.includes("const instructionRole = model.reasoning"));
+  assert.equal(nodeCheck(once.text).status, 0, "rewritten host file must still parse");
+  assert.equal(applyReplacementsToText(once.text, patch(57)).changed, false, "a second apply must be a no-op");
+});
+
+test("#57 upgrades a file that still carries the old deepseek-only marker", () => {
+  const legacy =
+    '    const instructionRole = model.reasoning && compat?.supportsDeveloperRole !== false && !String(model.baseUrl || "").toLowerCase().includes("deepseek.com") ? "developer" : "system"; // [dsh-purge] deepseek.com keeps system role';
+  const out = applyReplacementsToText(legacy, patch(57));
+  assert.equal(out.changed, true);
+  assert.ok(out.text.includes('includes("api.openai.com")'));
+  assert.ok(out.text.includes("// [dsh-purge] developer role allowlist: openai/azure"));
+  assert.equal(out.text.includes("deepseek.com"), false);
+  assert.equal(applyReplacementsToText(out.text, patch(57)).changed, false);
+});
+
+test("#57 covers both pi-ai paths that decide the developer role", () => {
+  const files = patch(57).file;
+  assert.deepEqual([...files].sort(), ["pi-ai-completions", "pi-ai-responses-shared"]);
+});
