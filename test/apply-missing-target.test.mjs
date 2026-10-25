@@ -15,8 +15,20 @@ import { removeTreeNoFollowSync } from "../lib/remove-tree.js";
 // 一条真能打上的补丁（单宿主、两个目标文件都在 fixture 里），用它的 applied
 // 结果证明"前一条目标缺失"没有把后面的补丁连坐。
 const APPLIES = ALL_PATCHES.find((p) => p.id === 90);
+assert.ok(APPLIES, "补丁 90 必须存在于 ALL_PATCHES，否则下面全部断言失去意义");
 const fixtureSource = JSON.parse(
   fs.readFileSync(new URL("./fixtures/steering-rc2.json", import.meta.url), "utf8"),
+);
+// fixtures 里的 controller 是"已打补丁"的样式，还原成宿主原文才是待打状态；
+// replace 未命中时会静默返回原文，那样测试会得到莫名其妙的 already，所以先断言。
+const RESTORED_CONTROLLER = fixtureSource.controller.replace(
+  NATIVE_QUEUE_GUARD,
+  OLD_QUEUE_FALLBACK,
+);
+assert.notEqual(
+  RESTORED_CONTROLLER,
+  fixtureSource.controller,
+  "fixture 里应含 NATIVE_QUEUE_GUARD，否则无法还原成待打补丁的宿主原文",
 );
 
 function fixture({ withHostFiles = false }) {
@@ -33,11 +45,7 @@ function fixture({ withHostFiles = false }) {
     for (const file of Object.values(targets)) {
       fs.mkdirSync(path.dirname(file), { recursive: true });
     }
-    // fixtures 里的 controller 是"已打补丁"的样式，先还原成宿主原文才是待打状态。
-    fs.writeFileSync(
-      targets.controller,
-      fixtureSource.controller.replace(NATIVE_QUEUE_GUARD, OLD_QUEUE_FALLBACK),
-    );
+    fs.writeFileSync(targets.controller, RESTORED_CONTROLLER);
     fs.writeFileSync(targets.loop, fixtureSource.agentMethods);
   }
   return { root, home, aiBase, targets, close: () => removeTreeNoFollowSync(root) };

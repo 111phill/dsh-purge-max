@@ -12,6 +12,8 @@ import { removeTreeNoFollowSync } from "../lib/remove-tree.js";
 // locked() 的判定阈值是 30 分钟；给它留足余量，避免测试机器时钟抖动。
 const STALE = new Date(Date.now() - 45 * 60 * 1000);
 const FRESH = new Date();
+// 超出常见 PID 范围：process.kill 会 ESRCH。
+const DEAD_PID = 4194304;
 
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "purge-stale-lock-"));
@@ -32,11 +34,11 @@ function plant(lock, contents, when) {
   fs.utimesSync(lock, when, when);
 }
 
-test("a lock written by a dead process is reclaimed", async () => {
+test("a lock written by a dead process is reclaimed even when it looks fresh", async () => {
   const f = fixture();
   try {
-    // 4194304 超出常见 PID 范围：process.kill 会 ESRCH。
-    plant(f.lock, 4194304, STALE);
+    // 崩溃往往就发生在刚刚：只靠 mtime 超龄不够，必须能认出"写者已不在"。
+    plant(f.lock, DEAD_PID, FRESH);
     assert.equal(await f.maintenance.locked(async () => "ran"), "ran");
     assert.equal(fs.existsSync(f.lock), false, "用完后锁必须删除");
   } finally {
@@ -61,7 +63,7 @@ test("a live writer with a fresh lock still blocks", async () => {
 test("a reused PID cannot keep a stale lock alive forever", async () => {
   const f = fixture();
   try {
-    // 进程还活着，但锁已经放了 45 分钟：占用者只可能是被复用的 PID。
+    // 进程还活着，但锁已经 45 分钟没人续命：占用者只可能是被复用的 PID。
     plant(f.lock, process.ppid, STALE);
     assert.equal(await f.maintenance.locked(async () => "ran"), "ran");
   } finally {
@@ -69,17 +71,19 @@ test("a reused PID cannot keep a stale lock alive forever", async () => {
   }
 });
 
-test("an unreadable PID in the lock is treated as stale", async () => {
+test("a stale lock carrying this very PID is reclaimed", async () => {
   const f = fixture();
   try {
-    plant(f.lock, "not-a-pid", FRESH);
+    // 崩溃后重启，Windows 可能把同一个 PID 交给新进程：不能因为"就是我自己"
+    // 就永久拒绝，否则 #87 的卡死会原样复现。
+    plant(f.lock, process.pid, STALE);
     assert.equal(await f.maintenance.locked(async () => "ran"), "ran");
   } finally {
     f.close();
   }
 });
 
-test("the same process re-entering its own lock is still refused", async () => {
+test("this process re-entering its own fresh lock is still refused", async () => {
   const f = fixture();
   try {
     plant(f.lock, process.pid, FRESH);
@@ -87,6 +91,32 @@ test("the same process re-entering its own lock is still refused", async () => {
       () => f.maintenance.locked(async () => "ran"),
       /已有维护操作或遗留锁/,
     );
+  } finally {
+    f.close();
+  }
+});
+
+test("an unreadable fresh lock is not stolen", async () => {
+  const f = fixture();
+  try {
+    // locked() 先 open 再写内容：这里模拟"刚创建还没写完"的窗口，
+    // 读不懂内容 + 锁很新，不能当成遗留锁抢走。
+    plant(f.lock, "not-a-pid", FRESH);
+    await assert.rejects(
+      () => f.maintenance.locked(async () => "ran"),
+      /已有维护操作或遗留锁/,
+    );
+    assert.equal(fs.existsSync(f.lock), true);
+  } finally {
+    f.close();
+  }
+});
+
+test("an unreadable stale lock is reclaimed", async () => {
+  const f = fixture();
+  try {
+    plant(f.lock, "not-a-pid", STALE);
+    assert.equal(await f.maintenance.locked(async () => "ran"), "ran");
   } finally {
     f.close();
   }
@@ -100,6 +130,21 @@ test("locked() removes the lock even when the body throws", async () => {
       /boom/,
     );
     assert.equal(fs.existsSync(f.lock), false);
+  } finally {
+    f.close();
+  }
+});
+
+test("a lock rewritten by someone else survives our release", async () => {
+  const f = fixture();
+  try {
+    // 我们持锁期间锁被别人（回收者）换掉了：finally 不能无条件 unlink，
+    // 否则会把别人的锁删掉，第三个写入者就能进来。
+    await f.maintenance.locked(async () => {
+      fs.writeFileSync(f.lock, "999999:someone-else");
+    });
+    assert.equal(fs.existsSync(f.lock), true, "别人的锁不能被我们释放掉");
+    assert.equal(fs.readFileSync(f.lock, "utf8"), "999999:someone-else");
   } finally {
     f.close();
   }
