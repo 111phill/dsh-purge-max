@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { ALL_PATCHES, applyPatches, patchAppliesHere } from "../lib/core.js";
+import { ALL_PATCHES, applyPatches, patchStatus } from "../lib/core.js";
 import { NATIVE_QUEUE_GUARD, OLD_QUEUE_FALLBACK } from "../lib/steering.js";
 import { removeTreeNoFollowSync } from "../lib/remove-tree.js";
 
@@ -61,18 +61,24 @@ async function withFixture(options, fn) {
   }
 }
 
-/** 第一条在本 fixture 里"目标文件全都不存在"的补丁。 */
-function absentPatch() {
+/**
+ * 取一条"目标文件在本 fixture 里全都不存在"的补丁，用 patchStatus 实证，
+ * 而不是按 ALL_PATCHES 的顺序假定第一条就缺——#74/#87 这类补丁的目标恰好是
+ * fixture 里建出来的 agent-loop，靠顺序撞运气会在补丁重排后误判。
+ */
+async function absentPatch(f) {
+  const opts = { dshHome: f.home, surface: "desktop" };
+  const status = await patchStatus(f.aiBase, ALL_PATCHES, opts);
   const found = ALL_PATCHES.find(
-    (p) => p.id !== APPLIES.id && patchAppliesHere(p, "desktop"),
+    (p) => p.id !== APPLIES.id && status[p.id] === "missing_file",
   );
-  assert.ok(found, "ALL_PATCHES 里应至少还有一条适用于 desktop 的补丁");
+  assert.ok(found, "本 fixture 里应至少有一条目标文件全缺的补丁");
   return found;
 }
 
 test("a patch whose target files are all absent is reported, not thrown", async () => {
   await withFixture({}, async (f) => {
-    const absent = absentPatch();
+    const absent = await absentPatch(f);
     const report = await applyPatches(f.aiBase, [absent]);
     assert.equal(report.length, 1);
     assert.equal(report[0].patch_id, absent.id);
@@ -87,7 +93,7 @@ test("a patch whose target files are all absent is reported, not thrown", async 
 
 test("a missing target does not stop the patches that follow it", async () => {
   await withFixture({ withHostFiles: true }, async (f) => {
-    const absent = absentPatch();
+    const absent = await absentPatch(f);
     const report = await applyPatches(f.aiBase, [absent, APPLIES]);
     assert.equal(report.length, 2, "第二条补丁必须也被处理");
     assert.equal(report[0].patch_id, absent.id);
@@ -104,7 +110,7 @@ test("a missing target does not stop the patches that follow it", async () => {
 
 test("re-applying after a missing target stays idempotent", async () => {
   await withFixture({ withHostFiles: true }, async (f) => {
-    const absent = absentPatch();
+    const absent = await absentPatch(f);
     await applyPatches(f.aiBase, [absent, APPLIES]);
     const once = fs.readFileSync(f.targets.controller, "utf8");
     const report = await applyPatches(f.aiBase, [absent, APPLIES]);
