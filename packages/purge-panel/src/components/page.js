@@ -4,7 +4,7 @@
 import { h, useState, useEffect, useCallback } from "../shared/react.js";
 import { PURGE_CSS, NATIVE_CSS, PAGE_CSS } from "../styles/index.js";
 import { useT } from "../shared/locale.js";
-import { apiJson } from "../api/client.js";
+import { apiJson, unavailableStatus } from "../api/client.js";
 import { Btn, HelpTip } from "./primitives.js";
 import { PurgifySection } from "./settings-form.js";
 import { RulesSection } from "./rules.js";
@@ -39,7 +39,7 @@ function PurgeGlyph({ size = 18 } = {}) {
   );
 }
 
-function StatusStrip({ info }) {
+export function StatusStrip({ info }) {
   const compat = info?.compatibility || {};
   const level = compat.level || "";
   const ok = level === "qualified";
@@ -70,7 +70,9 @@ function StatusStrip({ info }) {
               ? "组件版本不一致"
               : level
                 ? "未定位宿主"
-                : "检测中",
+                : info?.ok === false
+                  ? "读取失败"
+                  : "检测中",
       ),
       h(
         HelpTip,
@@ -138,12 +140,12 @@ export function LayoutNotice({ info }) {
 }
 
 /** 界面与后端不是同一份包时，必须显眼提示——否则用户会以为设置没生效。 */
-function VersionNotice({ info }) {
+export function VersionNotice({ info }) {
   if (info && info.ok === false) {
     return h(
       "p",
       { className: "dshpp-warn", role: "status" },
-      `无法确认官方 Purge 接口：${info.error || "接口不可用"}。设置可能不生效，请检查插件是否已启用后重启 DSH。`,
+      `状态读取失败：${info.error || "接口不可用"}。当前宿主与补丁状态未知，请点「刷新」重试；持续失败时请提供操作系统、DSH/插件版本和此错误。`,
     );
   }
   const backend = info?.plugin_version;
@@ -167,15 +169,9 @@ export function PurgePage() {
   const loadInfo = () =>
     apiJson("/dsh-purge/status")
       .then(setInfo)
-      .catch(() => {});
+      .catch((error) => setInfo(unavailableStatus(error)));
   // 子组件的 onStatus 在依赖里，必须是稳定引用，否则每次渲染都会再 setInfo 一次。
-  const mergeInfo = useCallback(
-    (s) => s && setInfo((prev) => Object.assign({}, prev || {}, s)),
-    [],
-  );
-  useEffect(() => {
-    loadInfo();
-  }, []);
+  const mergeInfo = useCallback((s) => s && setInfo(s), []);
   useEffect(() => {
     if (tab === "status") loadInfo();
   }, [tab]);

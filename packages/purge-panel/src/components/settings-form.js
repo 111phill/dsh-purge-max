@@ -14,6 +14,7 @@ import {
   hostSurfaceOf,
   hostText,
   apiJson,
+  unavailableStatus,
   promptBoxEmpty,
   responseNeedsPrompt,
   bothInjectEmpty,
@@ -290,41 +291,30 @@ export function PurgifySection({ page = "status", onStatus } = {}) {
       .then((d) => {
         if (d && d.ok) {
           setState(d);
+          setNotice((previous) =>
+            previous?.source === "status"
+              ? { kind: "idle", text: "" }
+              : previous,
+          );
           if (d.channel) setChannel(d.channel);
           if (d.update && d.update.ok && !d.update.error)
             setUpdateInfo(d.update);
           if (d.boot_full_quit && !suppressRestartAsk.current)
             setAskRestart(true);
         } else {
-          setState({
-            ok: false,
-            patches_total: 0,
-            patches_applied: 0,
-            patch_status: {},
-            shim_cmd: "n/a",
-            shim_ps1: "n/a",
-            shim_bin: "n/a",
-            has_backup: false,
-          });
+          setState(unavailableStatus(d?.error || "bad response"));
           setNotice({
             kind: "error",
+            source: "status",
             text: tr("err.status", { error: (d && d.error) || "bad response" }),
           });
         }
       })
       .catch((e) => {
-        setState({
-          ok: false,
-          patches_total: 0,
-          patches_applied: 0,
-          patch_status: {},
-          shim_cmd: "n/a",
-          shim_ps1: "n/a",
-          shim_bin: "n/a",
-          has_backup: false,
-        });
+        setState(unavailableStatus(e));
         setNotice({
           kind: "error",
+          source: "status",
           text: tr("err.status", { error: e.message }),
         });
       });
@@ -839,15 +829,19 @@ export function PurgifySection({ page = "status", onStatus } = {}) {
           h(
             "b",
             null,
-            !located
-              ? sealedReady
-                ? "宿主还没解开：点「应用」"
-                : "未定位到宿主：点「应用」重试"
-              : s?.asar_still_sealed
-                ? `${applied}/${total} 条磁盘补丁（退出重开后加载）`
-                : tally.pending
-                  ? `还有 ${tally.pending} 条待应用`
-                  : `${applied}/${total} 条补丁已生效`,
+            !s
+              ? "正在读取宿主状态…"
+              : s.ok === false
+                ? "状态读取失败，宿主与补丁状态未知"
+                : !located
+                  ? sealedReady
+                    ? "宿主还没解开：点「应用」"
+                    : "未定位到宿主：点「应用」重试"
+                  : s?.asar_still_sealed
+                    ? `${applied}/${total} 条磁盘补丁（退出重开后加载）`
+                    : tally.pending
+                      ? `还有 ${tally.pending} 条待应用`
+                      : `${applied}/${total} 条补丁已生效`,
           ),
           h(
             "span",
@@ -936,7 +930,13 @@ export function PurgifySection({ page = "status", onStatus } = {}) {
           h(
             "b",
             null,
-            s && s.ai_base ? `${applied}/${total} 已应用` : "未定位宿主",
+            !s
+              ? "读取中"
+              : s.ok === false
+                ? "状态未知"
+                : s.ai_base
+                  ? `${applied}/${total} 已应用`
+                  : "未定位宿主",
           ),
         ),
         h(PatchGroups, { state: s }),
@@ -1001,7 +1001,7 @@ export function PurgifySection({ page = "status", onStatus } = {}) {
         },
         t("apply.hint"),
       ),
-      s && !s.ai_base
+      s?.ok === true && !s.ai_base
         ? h(
             "p",
             {

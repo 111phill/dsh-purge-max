@@ -79,6 +79,12 @@ export function tallyPatches(rows) {
 export function PatchGroups({ state }) {
   const t = useT();
   const [open, setOpen] = useState({});
+  if (state?.ok === false)
+    return h(
+      "p",
+      { role: "status" },
+      "读取失败，补丁明细暂不可用；请刷新重试。",
+    );
   if (!state || !state.patch_status)
     return h("div", { className: "dshpp-skel", style: { height: 120 } });
   const located = !!state.ai_base;

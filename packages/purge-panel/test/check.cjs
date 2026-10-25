@@ -276,7 +276,7 @@ const test = async () => {
     assert(
       tree.root
         .findAll((x) => x.props.role === "status")
-        .some((x) => x.children.join("").includes("无法确认官方 Purge 接口")),
+        .some((x) => x.children.join("").includes("状态读取失败：unavailable")),
     );
     await act(async () => tree.unmount());
     assert.equal(writes.length, 0);
