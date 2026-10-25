@@ -1,3 +1,36 @@
+# 1.6.57
+
+## 修复 #57：responses 通路的锚点变量名写错（PR #84）
+
+补丁 #57 `DEEPSEEK_SYSTEM_ROLE` 的 responses 分支一直在找 `const role = ...`，但宿主 `@earendil-works/pi-ai`
+的两个文件里，这个变量从来没有叫过 `role`：
+
+- `openai-completions.js` 用的是 `instructionRole`，**那条 pattern 是对的，而且已经打上**；
+- `openai-responses-shared.js` 用的也是 `instructionRole`，而 pattern 写成了 `role` → **从落地起从未命中**。
+
+后果：走 Responses 通路的请求仍然把注入的系统提示词按 `developer` 角色发出去，第三方网关会静默丢弃
+（实测同内容 system 计 117 tokens、developer 只 87 tokens，差值就是被丢的指令）。状态页一直是绿的，
+因为补丁标了 `optional: true`，且状态按补丁聚合——completions 那半个命中就掩盖了 responses 的失败。
+
+本版把两处 responses 的 `pattern`/`replace` 改成 `instructionRole`：`api.openai.com` / `*.azure.com`
+仍用 `developer`，其余网关全部回退 `system`。
+
+## 验证（补齐了审查要求的两项）
+
+1. **真实宿主验证**：新增测试直接读已安装的 `openai-responses-shared.js`，断言锚点逐字存在、
+   整文件改写后 `node --check` 通过、变量名仍是 `instructionRole`、第二次应用是 no-op；
+   本机实测该文件已打上 `developer role allowlist: openai/azure` 标记并通过语法检查。
+2. **旧补丁迁移**：新增测试用带旧标记 `deepseek.com keeps system role` 的文本验证升级路径，
+   升级后不得残留 `deepseek.com` 字样，且幂等。
+
+`npm test` 353 通过 / 0 失败。
+
+## 范围（未解决的部分）
+
+多文件补丁的**聚合状态**问题仍在：一个文件命中、另一个未命中时，`patchStatus` 仍报 `applied`、
+`patchDrift` 仍返回空。这是 80 条补丁共用的盲区，本版不一起改，另开 issue 跟踪。
+另外，PR 作者「从落地起从未命中」的结论只在本机 rc.3 宿主上验证过，未对全部历史版本下结论。
+
 # 1.6.56
 
 - **状态页性能（PR #82）**：同一次只读诊断共享宿主身份、安装根与路径解析，减少重复磁盘调用。缓存不跨查询保留，避免换包、删除文件或链接改向后仍使用旧证据。
