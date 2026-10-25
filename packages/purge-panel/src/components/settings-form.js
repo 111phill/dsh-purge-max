@@ -291,6 +291,11 @@ export function PurgifySection({ page = "status", onStatus } = {}) {
       .then((d) => {
         if (d && d.ok) {
           setState(d);
+          setNotice((previous) =>
+            previous?.source === "status"
+              ? { kind: "idle", text: "" }
+              : previous,
+          );
           if (d.channel) setChannel(d.channel);
           if (d.update && d.update.ok && !d.update.error)
             setUpdateInfo(d.update);
@@ -300,6 +305,7 @@ export function PurgifySection({ page = "status", onStatus } = {}) {
           setState(unavailableStatus(d?.error || "bad response"));
           setNotice({
             kind: "error",
+            source: "status",
             text: tr("err.status", { error: (d && d.error) || "bad response" }),
           });
         }
@@ -308,6 +314,7 @@ export function PurgifySection({ page = "status", onStatus } = {}) {
         setState(unavailableStatus(e));
         setNotice({
           kind: "error",
+          source: "status",
           text: tr("err.status", { error: e.message }),
         });
       });

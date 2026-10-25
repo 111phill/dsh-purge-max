@@ -128,6 +128,7 @@ test("failed status can retry and does not fabricate zero patch counts or a miss
   });
   assert.equal(states.at(-1).ai_base, "/fixture");
   assert.equal(states.at(-1).patches_applied, 2);
+  assert.doesNotMatch(JSON.stringify(view.toJSON()), /timeout|状态未知/);
   await act(async () => view.unmount());
 });
 test("a confirmed missing host remains a visible diagnostic, not a read failure", () => {
