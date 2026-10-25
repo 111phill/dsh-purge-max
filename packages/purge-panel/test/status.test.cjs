@@ -9,7 +9,7 @@ const { buildSync } = require("esbuild");
 const code = buildSync({
   stdin: {
     contents:
-      'export * from "./src/api/client.js"; export { StatusStrip, VersionNotice } from "./src/components/page.js"; export { PurgifySection } from "./src/components/settings-form.js";',
+      'export * from "./src/api/client.js"; export {setTranslate,zh} from "./src/shared/locale.js"; export { StatusStrip, VersionNotice } from "./src/components/page.js"; export { PurgifySection } from "./src/components/settings-form.js";',
     resolveDir: path.join(__dirname, ".."),
   },
   bundle: true,
@@ -34,7 +34,11 @@ function harness(fetch) {
   };
   context.exports = context.module.exports;
   vm.runInNewContext(code, context);
-  return context.module.exports;
+  const api = context.module.exports;
+  api.setTranslate((key, values = {}) =>
+    (api.zh[key] || key).replace(/\{(\w+)\}/g, (_, name) => values[name] ?? ""),
+  );
+  return api;
 }
 const reply = (body) => ({
   ok: true,
@@ -118,7 +122,7 @@ test("failed status can retry and does not fabricate zero patch counts or a miss
   assert.doesNotMatch(markup, /0\/0|未定位宿主/);
   const text = JSON.stringify(view.toJSON());
   assert.match(text, /状态未知/);
-  assert.doesNotMatch(text, /未定位到宿主/);
+  assert.doesNotMatch(text, /未定位到.*宿主/);
   fail = false;
   const refresh = view.root
     .findAllByType("button")

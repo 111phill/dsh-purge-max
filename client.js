@@ -11785,7 +11785,7 @@ function PurgifySection({ page = "status", onStatus } = {}) {
         },
         t("apply.hint")
       ),
-      s && !s.ai_base ? h(
+      s?.ok === true && !s.ai_base ? h(
         "p",
         {
           className: "dshpp-hint",
