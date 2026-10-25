@@ -149,3 +149,69 @@ test("a lock rewritten by someone else survives our release", async () => {
     f.close();
   }
 });
+
+test("the lock is actually held while the body runs", async () => {
+  const f = fixture();
+  try {
+    // 只断言"跑过 + 事后删掉"会漏掉"回收了却没有重建锁"：必须在体内证明锁在。
+    await f.maintenance.locked(async () => {
+      const held = fs.readFileSync(f.lock, "utf8").trim();
+      assert.match(held, /^[^:]+:\d+:[0-9a-f]{16}$/, "持锁期间必须是 host:pid:nonce");
+      assert.throws(() => fs.writeFileSync(f.lock, "x", { flag: "wx" }), /EEXIST/);
+    });
+  } finally {
+    f.close();
+  }
+});
+
+test("a lock written on another host is not trusted on PID alone", async () => {
+  const f = fixture();
+  try {
+    // WSL 与 Windows 可能共用同一个 .dsh：那边的 PID 在这边查不到，
+    // 不能据此判定"写者已不在"，只能按 mtime 判断是否超龄。
+    plant(f.lock, `${os.hostname()}-elsewhere:${process.ppid}:${"0".repeat(16)}`, FRESH);
+    await assert.rejects(
+      () => f.maintenance.locked(async () => "ran", { maxAgeMs: 60 * 1000 }),
+      /已有维护操作或遗留锁/,
+    );
+    assert.equal(fs.existsSync(f.lock), true, "跨机的锁不能凭 PID 抢走");
+  } finally {
+    f.close();
+  }
+});
+
+test("the heartbeat keeps a held lock fresh past the age limit", async () => {
+  const f = fixture();
+  const opts = { maxAgeMs: 150, heartbeatMs: 20 };
+  try {
+    await f.maintenance.locked(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      // 没有心跳的话，此刻 mtime 已经超过 maxAgeMs，第二个写入者会判定遗留并抢走。
+      await assert.rejects(
+        () => f.maintenance.locked(async () => "stolen", opts),
+        /已有维护操作或遗留锁/,
+      );
+    }, opts);
+  } finally {
+    f.close();
+  }
+});
+
+test("a synchronous body keeps the lock fresh by calling beat()", async () => {
+  const f = fixture();
+  const opts = { maxAgeMs: 150, heartbeatMs: 20 };
+  try {
+    // 快照与哈希是纯同步递归，事件循环被占死，定时器进不来：
+    // 那种阶段只能靠循环里自己调 beat() 续命。
+    await f.maintenance.locked(async () => {
+      const until = Date.now() + 400;
+      while (Date.now() < until) f.maintenance.beat();
+      await assert.rejects(
+        () => f.maintenance.locked(async () => "stolen", opts),
+        /已有维护操作或遗留锁/,
+      );
+    }, opts);
+  } finally {
+    f.close();
+  }
+});
