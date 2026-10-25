@@ -74,7 +74,29 @@ function apiError(message, status) {
   return Object.assign(new Error(message), { status });
 }
 
-export async function apiJson(p, init) {
+// Share only an identical in-flight status GET; never reuse a settled result.
+// A mutation starts a new generation so its following refresh cannot join an old read.
+let pendingStatus = null;
+export function apiJson(p, init) {
+  const method = String(init?.method || "GET").toUpperCase();
+  if (method !== "GET") pendingStatus = null;
+  if (p !== "/dsh-purge/status" || init) return requestJson(p, init);
+  if (pendingStatus) return pendingStatus;
+  const request = requestJson(p, init);
+  pendingStatus = request;
+  const clear = () => {
+    if (pendingStatus === request) pendingStatus = null;
+  };
+  request.then(clear, clear);
+  return request;
+}
+export function unavailableStatus(error) {
+  return {
+    ok: false,
+    error: String(error?.message || error || "bad response"),
+  };
+}
+async function requestJson(p, init) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), apiTimeoutMs(p, init));
   try {

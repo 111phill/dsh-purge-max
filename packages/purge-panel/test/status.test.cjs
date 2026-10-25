@@ -1,0 +1,147 @@
+const { test } = require("node:test");
+const assert = require("node:assert/strict");
+const path = require("node:path");
+const vm = require("node:vm");
+const React = require("react");
+const { renderToStaticMarkup } = require("react-dom/server");
+const { create, act } = require("react-test-renderer");
+const { buildSync } = require("esbuild");
+const code = buildSync({
+  stdin: {
+    contents:
+      'export * from "./src/api/client.js"; export { StatusStrip, VersionNotice } from "./src/components/page.js"; export { PurgifySection } from "./src/components/settings-form.js";',
+    resolveDir: path.join(__dirname, ".."),
+  },
+  bundle: true,
+  write: false,
+  format: "cjs",
+  platform: "browser",
+  loader: { ".css": "text" },
+  external: ["react", "react-dom"],
+  define: { __PANEL_VERSION__: '"test"', __COMMUNITY__: "true" },
+}).outputFiles[0].text;
+function harness(fetch) {
+  const context = {
+    module: { exports: {} },
+    require,
+    console,
+    URL,
+    AbortController,
+    setTimeout,
+    clearTimeout,
+    window: { location: { origin: "http://test" } },
+    fetch,
+  };
+  context.exports = context.module.exports;
+  vm.runInNewContext(code, context);
+  return context.module.exports;
+}
+const reply = (body) => ({
+  ok: true,
+  status: 200,
+  text: async () => JSON.stringify(body),
+});
+test("concurrent status reads share work; settled responses and post-mutation reads are fresh", async () => {
+  const waiting = [],
+    calls = [];
+  const h = harness((url, init) => {
+    calls.push({ url, init });
+    return new Promise((resolve) => waiting.push(resolve));
+  });
+  const a = h.apiJson("/dsh-purge/status"),
+    b = h.apiJson("/dsh-purge/status");
+  assert.equal(a, b);
+  assert.equal(calls.length, 1);
+  const mutation = h.apiJson("/dsh-purge/apply", { method: "POST" });
+  const fresh = h.apiJson("/dsh-purge/status");
+  assert.notEqual(a, fresh);
+  assert.equal(calls.length, 3);
+  waiting[0](reply({ old: true }));
+  await a;
+  assert.equal(
+    h.apiJson("/dsh-purge/status"),
+    fresh,
+    "old completion cannot clear newer request",
+  );
+  waiting[1](reply({ ok: true }));
+  waiting[2](reply({ fresh: true }));
+  await Promise.all([mutation, fresh]);
+  const next = h.apiJson("/dsh-purge/status");
+  assert.equal(calls.length, 4);
+  waiting[3](reply({ next: true }));
+  await next;
+});
+test("failed status can retry and does not fabricate zero patch counts or a missing host", async () => {
+  let fail = true;
+  const h = harness(async (url) => {
+    if (String(url).endsWith("/status")) {
+      if (fail) throw Object.assign(Error("aborted"), { name: "AbortError" });
+      return reply({
+        ok: true,
+        ai_base: "/fixture",
+        patches: [],
+        patch_status: {},
+        patches_applied: 2,
+        patches_total: 3,
+      });
+    }
+    return reply({
+      ok: true,
+      versions: [],
+      content: "user draft",
+      defaultContent: "default",
+    });
+  });
+  const states = [];
+  let view;
+  await act(async () => {
+    view = create(
+      React.createElement(h.PurgifySection, {
+        onStatus: (s) => states.push(s),
+      }),
+    );
+  });
+  const failure = states.at(-1);
+  assert.equal(failure.ok, false);
+  assert.equal(failure.error, "timeout");
+  assert.equal(failure.patches_total, undefined);
+  const markup =
+    renderToStaticMarkup(
+      React.createElement(h.StatusStrip, { info: failure }),
+    ) +
+    renderToStaticMarkup(
+      React.createElement(h.VersionNotice, { info: failure }),
+    );
+  assert.match(markup, /读取失败/);
+  assert.match(markup, /timeout/);
+  assert.match(markup, /\?\/\?/);
+  assert.doesNotMatch(markup, /0\/0|未定位宿主/);
+  const text = JSON.stringify(view.toJSON());
+  assert.match(text, /状态未知/);
+  assert.doesNotMatch(text, /未定位到宿主/);
+  fail = false;
+  const refresh = view.root
+    .findAllByType("button")
+    .find((b) => b.children.includes("刷新"));
+  await act(async () => {
+    refresh.props.onClick();
+  });
+  assert.equal(states.at(-1).ai_base, "/fixture");
+  assert.equal(states.at(-1).patches_applied, 2);
+  await act(async () => view.unmount());
+});
+test("a confirmed missing host remains a visible diagnostic, not a read failure", () => {
+  const h = harness();
+  const markup = renderToStaticMarkup(
+    React.createElement(h.StatusStrip, {
+      info: {
+        ok: true,
+        compatibility: { level: "missing" },
+        patches_applied: 0,
+        patches_total: 0,
+      },
+    }),
+  );
+  assert.match(markup, /未定位宿主/);
+  assert.doesNotMatch(markup, /读取失败/);
+});

@@ -9862,7 +9862,27 @@ function isAbortError(e) {
 function apiError(message, status) {
   return Object.assign(new Error(message), { status });
 }
-async function apiJson(p, init) {
+var pendingStatus = null;
+function apiJson(p, init) {
+  const method = String(init?.method || "GET").toUpperCase();
+  if (method !== "GET") pendingStatus = null;
+  if (p !== "/dsh-purge/status" || init) return requestJson(p, init);
+  if (pendingStatus) return pendingStatus;
+  const request = requestJson(p, init);
+  pendingStatus = request;
+  const clear = () => {
+    if (pendingStatus === request) pendingStatus = null;
+  };
+  request.then(clear, clear);
+  return request;
+}
+function unavailableStatus(error) {
+  return {
+    ok: false,
+    error: String(error?.message || error || "bad response")
+  };
+}
+async function requestJson(p, init) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), apiTimeoutMs(p, init));
   try {
@@ -9995,6 +10015,12 @@ function tallyPatches(rows) {
 function PatchGroups({ state }) {
   const t = useT();
   const [open, setOpen] = useState({});
+  if (state?.ok === false)
+    return h(
+      "p",
+      { role: "status" },
+      "\u8BFB\u53D6\u5931\u8D25\uFF0C\u8865\u4E01\u660E\u7EC6\u6682\u4E0D\u53EF\u7528\uFF1B\u8BF7\u5237\u65B0\u91CD\u8BD5\u3002"
+    );
   if (!state || !state.patch_status)
     return h("div", { className: "dshpp-skel", style: { height: 120 } });
   const located = !!state.ai_base;
@@ -11146,32 +11172,14 @@ function PurgifySection({ page = "status", onStatus } = {}) {
         if (d.boot_full_quit && !suppressRestartAsk.current)
           setAskRestart(true);
       } else {
-        setState({
-          ok: false,
-          patches_total: 0,
-          patches_applied: 0,
-          patch_status: {},
-          shim_cmd: "n/a",
-          shim_ps1: "n/a",
-          shim_bin: "n/a",
-          has_backup: false
-        });
+        setState(unavailableStatus(d?.error || "bad response"));
         setNotice({
           kind: "error",
           text: tr("err.status", { error: d && d.error || "bad response" })
         });
       }
     }).catch((e) => {
-      setState({
-        ok: false,
-        patches_total: 0,
-        patches_applied: 0,
-        patch_status: {},
-        shim_cmd: "n/a",
-        shim_ps1: "n/a",
-        shim_bin: "n/a",
-        has_backup: false
-      });
+      setState(unavailableStatus(e));
       setNotice({
         kind: "error",
         text: tr("err.status", { error: e.message })
@@ -11618,7 +11626,7 @@ function PurgifySection({ page = "status", onStatus } = {}) {
           h(
             "b",
             null,
-            !located ? sealedReady ? "\u5BBF\u4E3B\u8FD8\u6CA1\u89E3\u5F00\uFF1A\u70B9\u300C\u5E94\u7528\u300D" : "\u672A\u5B9A\u4F4D\u5230\u5BBF\u4E3B\uFF1A\u70B9\u300C\u5E94\u7528\u300D\u91CD\u8BD5" : s?.asar_still_sealed ? `${applied}/${total} \u6761\u78C1\u76D8\u8865\u4E01\uFF08\u9000\u51FA\u91CD\u5F00\u540E\u52A0\u8F7D\uFF09` : tally.pending ? `\u8FD8\u6709 ${tally.pending} \u6761\u5F85\u5E94\u7528` : `${applied}/${total} \u6761\u8865\u4E01\u5DF2\u751F\u6548`
+            !s ? "\u6B63\u5728\u8BFB\u53D6\u5BBF\u4E3B\u72B6\u6001\u2026" : s.ok === false ? "\u72B6\u6001\u8BFB\u53D6\u5931\u8D25\uFF0C\u5BBF\u4E3B\u4E0E\u8865\u4E01\u72B6\u6001\u672A\u77E5" : !located ? sealedReady ? "\u5BBF\u4E3B\u8FD8\u6CA1\u89E3\u5F00\uFF1A\u70B9\u300C\u5E94\u7528\u300D" : "\u672A\u5B9A\u4F4D\u5230\u5BBF\u4E3B\uFF1A\u70B9\u300C\u5E94\u7528\u300D\u91CD\u8BD5" : s?.asar_still_sealed ? `${applied}/${total} \u6761\u78C1\u76D8\u8865\u4E01\uFF08\u9000\u51FA\u91CD\u5F00\u540E\u52A0\u8F7D\uFF09` : tally.pending ? `\u8FD8\u6709 ${tally.pending} \u6761\u5F85\u5E94\u7528` : `${applied}/${total} \u6761\u8865\u4E01\u5DF2\u751F\u6548`
           ),
           h(
             "span",
@@ -11707,7 +11715,7 @@ function PurgifySection({ page = "status", onStatus } = {}) {
           h(
             "b",
             null,
-            s && s.ai_base ? `${applied}/${total} \u5DF2\u5E94\u7528` : "\u672A\u5B9A\u4F4D\u5BBF\u4E3B"
+            !s ? "\u8BFB\u53D6\u4E2D" : s.ok === false ? "\u72B6\u6001\u672A\u77E5" : s.ai_base ? `${applied}/${total} \u5DF2\u5E94\u7528` : "\u672A\u5B9A\u4F4D\u5BBF\u4E3B"
           )
         ),
         h(PatchGroups, { state: s })
@@ -13008,7 +13016,7 @@ function StatusStrip({ info }) {
       h(
         "b",
         null,
-        level === "qualified" ? "\u5DF2\u56DE\u5F52\u9A8C\u8BC1" : level === "unverified" ? "\u672A\u9A8C\u8BC1\u7248\u672C" : level === "mixed" ? "\u7EC4\u4EF6\u7248\u672C\u4E0D\u4E00\u81F4" : level ? "\u672A\u5B9A\u4F4D\u5BBF\u4E3B" : "\u68C0\u6D4B\u4E2D"
+        level === "qualified" ? "\u5DF2\u56DE\u5F52\u9A8C\u8BC1" : level === "unverified" ? "\u672A\u9A8C\u8BC1\u7248\u672C" : level === "mixed" ? "\u7EC4\u4EF6\u7248\u672C\u4E0D\u4E00\u81F4" : level ? "\u672A\u5B9A\u4F4D\u5BBF\u4E3B" : info?.ok === false ? "\u8BFB\u53D6\u5931\u8D25" : "\u68C0\u6D4B\u4E2D"
       ),
       h(
         HelpTip,
@@ -13067,7 +13075,7 @@ function VersionNotice({ info }) {
     return h(
       "p",
       { className: "dshpp-warn", role: "status" },
-      `\u65E0\u6CD5\u786E\u8BA4\u5B98\u65B9 Purge \u63A5\u53E3\uFF1A${info.error || "\u63A5\u53E3\u4E0D\u53EF\u7528"}\u3002\u8BBE\u7F6E\u53EF\u80FD\u4E0D\u751F\u6548\uFF0C\u8BF7\u68C0\u67E5\u63D2\u4EF6\u662F\u5426\u5DF2\u542F\u7528\u540E\u91CD\u542F DSH\u3002`
+      `\u72B6\u6001\u8BFB\u53D6\u5931\u8D25\uFF1A${info.error || "\u63A5\u53E3\u4E0D\u53EF\u7528"}\u3002\u5F53\u524D\u5BBF\u4E3B\u4E0E\u8865\u4E01\u72B6\u6001\u672A\u77E5\uFF0C\u8BF7\u70B9\u300C\u5237\u65B0\u300D\u91CD\u8BD5\uFF1B\u6301\u7EED\u5931\u8D25\u65F6\u8BF7\u63D0\u4F9B\u64CD\u4F5C\u7CFB\u7EDF\u3001DSH/\u63D2\u4EF6\u7248\u672C\u548C\u6B64\u9519\u8BEF\u3002`
     );
   }
   const backend = info?.plugin_version;
@@ -13087,15 +13095,8 @@ function PurgePage() {
     setTab(id);
     setVisited((v) => Object.assign({}, v, { [id]: true }));
   };
-  const loadInfo = () => apiJson("/dsh-purge/status").then(setInfo).catch(() => {
-  });
-  const mergeInfo = useCallback(
-    (s) => s && setInfo((prev) => Object.assign({}, prev || {}, s)),
-    []
-  );
-  useEffect(() => {
-    loadInfo();
-  }, []);
+  const loadInfo = () => apiJson("/dsh-purge/status").then(setInfo).catch((error) => setInfo(unavailableStatus(error)));
+  const mergeInfo = useCallback((s) => s && setInfo(s), []);
   useEffect(() => {
     if (tab === "status") loadInfo();
   }, [tab]);
