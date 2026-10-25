@@ -226,7 +226,7 @@ if (LEGACY[op]) {
       backups: (() => { try { return maintenance().list(); } catch { return []; } })(),
     };
   else if (op === "backup") result = await maintenance().backup("cli");
-  else if (op === "prune") result = maintenance().prune();
+  else if (op === "prune") result = await maintenance().pruneLocked();
   else if (op === "usage") result = maintenance().usage();
   else if (op === "rollback") result = await maintenance().rollback(argument);
   else if (op === "install" || op === "migrate") {

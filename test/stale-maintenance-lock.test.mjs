@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {spawn} from 'node:child_process';
+import {spawn,spawnSync} from 'node:child_process';
 import {once} from 'node:events';
 import {setTimeout as wait} from 'node:timers/promises';
 import {acquireMaintenanceLock} from '../lib/maintenance-lock.js';
@@ -76,4 +76,19 @@ test('actual concurrent processes never overlap maintenance writes',async t=>{
  const code=`import fs from 'node:fs';import path from 'node:path';import{setTimeout as wait}from 'node:timers/promises';import{acquireMaintenanceLock}from ${JSON.stringify(moduleURL)};const root=process.argv[1];for(let n=0;n<5;n++){let g;for(let i=0;i<500;i++){try{g=acquireMaintenanceLock(root);break;}catch(e){if(e.code!=='MAINTENANCE_BUSY'&&e.code!=='ENOENT')throw e;await wait(10);}}if(!g)throw Error('timed out');const f=path.join(root,'critical');const fd=fs.openSync(f,'wx');await wait(10);g.check();fs.closeSync(fd);fs.unlinkSync(f);g.release();}`;
  await Promise.all(Array.from({length:4},()=>child(code,f.root).done));
  assert(!fs.existsSync(f.lock));
+});
+
+// Both public cleanup entries must participate in the same mutex as snapshots.
+test('public cleanup and actual CLI cannot prune during maintenance', async t=>{
+ const f=fixture(t);const profile=path.join(f.root,'profiles','web');fs.mkdirSync(profile,{recursive:true});fs.writeFileSync(path.join(profile,'package.json'),'{}');
+ const m=new Maintenance({home:f.root,profile,aiBase:''});
+ await m.locked(async()=>{
+   const other=new Maintenance({home:f.root,profile,aiBase:''});
+   await assert.rejects(other.pruneLocked(),{code:'MAINTENANCE_BUSY'});
+   const cli=new URL('../bin/community.js',import.meta.url);
+   const {fileURLToPath}=await import('node:url');
+   const result=spawnSync(process.execPath,[fileURLToPath(cli),'prune'],{encoding:'utf8',env:{...process.env,DSH_HOME:f.root,DSH_PROFILE:'web',PURGE_PROFILE_DIR:profile,DSH_BASE:f.root}});
+   assert.notEqual(result.status,0);assert.match(result.stderr+result.stdout,/已有维护操作/);
+ });
+ const result=await m.pruneLocked();assert.deepEqual(result.removed,[]);
 });
