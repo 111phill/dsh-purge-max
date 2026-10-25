@@ -1,7 +1,7 @@
 # AGENTS.md — 给 AI agent 的 Purge 使用说明书
 
 > 这份文件是写给**在 DSH 里干活的 agent** 的，不是营销文档。
-> 当前版本：**1.6.57** · 适配 DSH Desktop **0.2.1-rc.3**（rc.1 / rc.2 同样通过）
+> 当前版本：**1.6.58** · 适配 DSH Desktop **0.2.1-rc.3**（rc.1 / rc.2 同样通过）
 > 版本号由 `npm run check:docs` 与 `package.json` 校验，发版必须同步。
 
 ---
@@ -133,7 +133,7 @@ purge-community probe new
 
 | 组件 | 值 |
 | --- | --- |
-| 插件 | `dsh-purge-community` 1.6.57 |
+| 插件 | `dsh-purge-community` 1.6.58 |
 | 已验证宿主 | DSH Desktop 0.2.1-rc.1 / 0.2.1-rc.2 / 0.2.1-rc.3 |
 | 其它宿主 | 允许应用，但 `selfcheck` 会标"未验证"；先看 `diagnose` |
 | Node | ≥18（桌面版自带运行时即可） |
@@ -378,3 +378,10 @@ Windows Electron 的递归删除可能进入 Junction。清理使用 `removeTree
 ## 1.6.56：状态读取与缓存（#81 / #82 / #83）
 
 `读取失败: timeout` 表示本次请求未完成，不能据此判断宿主缺失、补丁为零或提示词丢失。先刷新，持续失败时收集操作系统/架构、DSH 发行名称和版本、插件运行版本、等待时间及脱敏错误。不要为消除错误卸载重装、删除配置或自动重启。缓存只在一次只读诊断内共享；下一次请求重新核对文件证据。真实 missing_file / unmatched / 错误仍需排查。性能与验收边界见 [维护记录](docs/maintenance-issues-81-83.md)。
+
+## 29. 逐文件补丁状态（1.6.58，#85）
+
+- `patchStatus` 仍按补丁聚合，但 `patchStatusDetail()` 会同时返回 `files[id] = [{key, path, status}]`，状态为 `applied|pending|skipped|unmatched|missing|unreadable`；接口字段名 `patch_files`。
+- 新状态 `partial`：只有声明了 `fileAllRequired: true` 的多文件补丁才会产生。含义是「至少一个**存在的**目标文件没命中，另一个已命中」。`patchStatusReady("partial")` 为 false，`patchDrift` 以 `partial_drift` 上报，自检计入 `partial` 并让所在层变成异常。
+- 没有 `fileAllRequired` 的老补丁保持原聚合行为：它们的目标文件可能随宿主版本增删（实测 #32/#36/#50/#62 在 rc.3 上各有一个目标逻辑已搬走），一律按部分命中会把真正的漂移淹掉。
+- 给某条补丁加这个标记前，先确认它的每个 `file` 在新版宿主里都必须落地；加完用 `diagnose` 确认真实宿主不再误报。

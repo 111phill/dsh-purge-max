@@ -1,3 +1,40 @@
+# 1.6.58
+
+## 逐文件补丁状态（#85）
+
+`patchStatus` 以前按补丁聚合：一条补丁声明两个文件，只要一个文件命中就报 `applied`，
+`patchDrift` 也因为 `hitAny` 不报漂移——#57 的 responses 分支就是这样被瞒了几个月。
+
+本版新增：
+
+- `patchStatusDetail()` 返回 `{status, files}`，`files[id]` 是逐目标结果
+  （`{key, path, status}`，状态为 `applied|pending|skipped|unmatched|missing|unreadable`）；
+- 状态接口新增 `patch_files`，面板在「部分命中」时显示 `（1/2 目标）`；
+- 新状态 `partial`：声明了 `fileAllRequired: true` 的多文件补丁，只要还有一个
+  **存在的目标文件**没命中，就不再报 `applied`；`patchDrift` 以 `partial_drift` 上报；
+  自检把该补丁计入 `partial` 并让所在层显示异常；
+- `patchStatusReady("partial")` 为 `false`。
+
+## 为什么是 opt-in，不是一律全开
+
+先按「凡是多文件就逐目标核算」实现后，在本机 rc.3 实测有 4 条老补丁被标成 `partial`：
+
+| 补丁 | 情况 |
+|---|---|
+| #32 / #36 / #50 / #62 | 另一个目标文件在新版宿主里**逻辑已搬走或删除**，锚点自然不存在 |
+
+其中 #62 的 `dsh-tools/lib/index.js` 连 `approval === undefined` 都不再存在（判断只留在
+`types/index.js`），属于"这条补丁对新版只需一个目标"。把这些全标红会把真正的漂移淹掉。
+
+因此本版只让**明确声明每个目标都必须落地**的补丁启用逐目标核算；#57 已声明。
+其余老补丁保持原聚合行为，需要时再逐个核对并加 `fileAllRequired: true`。
+
+## 验证
+
+- 新增 `test/partial-status.test.mjs`：部分命中 → `partial` + `optionalDrift` + 自检 `partial`/层异常；
+  全部命中 → `applied`；全部未命中 → `skipped`；未声明 opt-in 的补丁保持原行为；
+- `npm test` 358 通过 / 0 失败；真实宿主 `partial` 为空，#57 两个目标均 `applied`。
+
 # 1.6.57
 
 ## 修复 #57：responses 通路的锚点变量名写错（PR #84）

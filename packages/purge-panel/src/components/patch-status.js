@@ -7,6 +7,7 @@ export function statusKind(st) {
   if (st === "applied" || st === "already") return "ok";
   if (st === "pending") return "wait";
   if (st === "unmatched") return "bad";
+  if (st === "partial") return "bad";
   if (st === "na") return "ok";
   if (
     st === "missing_file" ||
@@ -23,6 +24,7 @@ export function statusLabel(st, t) {
   if (st === "off") return t("status.skipped");
   if (st === "pending") return t("status.pending");
   if (st === "unmatched") return t("status.unmatched");
+  if (st === "partial") return t("status.partial");
   if (st === "skipped") return t("status.skipped");
   if (st === "missing_file") return t("skip");
   if (st === "unlocated") return t("status.unlocated");
@@ -65,12 +67,20 @@ export function patchRowsOf(state) {
 }
 
 export function tallyPatches(rows) {
-  const out = { applied: 0, pending: 0, unmatched: 0, skipped: 0, total: 0 };
+  const out = {
+    applied: 0,
+    pending: 0,
+    unmatched: 0,
+    partial: 0,
+    skipped: 0,
+    total: 0,
+  };
   for (const row of rows || []) {
     out.total += 1;
     if (row.st === "applied" || row.st === "already") out.applied += 1;
     else if (row.st === "pending") out.pending += 1;
     else if (row.st === "unmatched") out.unmatched += 1;
+    else if (row.st === "partial") out.partial += 1;
     else out.skipped += 1;
   }
   return out;
@@ -107,6 +117,8 @@ export function PatchGroups({ state }) {
       notes.push(t("metric.pendingShort", { n: tally.pending }));
     if (tally.unmatched)
       notes.push(t("metric.unmatchedShort", { n: tally.unmatched }));
+    if (tally.partial)
+      notes.push(t("metric.partialShort", { n: tally.partial }));
     if (tally.skipped) notes.push(t("metric.skipShort", { n: tally.skipped }));
     const expanded = !!open[key];
     return h(
@@ -155,7 +167,23 @@ export function PatchGroups({ state }) {
                   { key: r.id },
                   h("td", { className: "dshpp-id" }, "#" + r.id),
                   h("td", null, t("patch." + r.id)),
-                  h("td", null, h(Pill, { value: r.st })),
+                  h(
+                    "td",
+                    null,
+                    h(Pill, { value: r.st }),
+                    r.st === "partial"
+                      ? h(
+                          "span",
+                          { className: "dshpp-sub" },
+                          t("status.partialDetail", {
+                            done: (state.patch_files?.[r.id] || []).filter(
+                              (f) => f.status === "applied",
+                            ).length,
+                            total: (state.patch_files?.[r.id] || []).length,
+                          }),
+                        )
+                      : null,
+                  ),
                 ),
               ),
             ),

@@ -8976,6 +8976,7 @@ var zh = {
   "metric.purged.skip": "\u5DF2\u5199\u5165\u3002\u8DF3\u8FC7 {n} \u9879\uFF0C\u672C\u673A\u6CA1\u6709\u8FD9\u4E9B\u6587\u4EF6",
   "metric.pendingShort": "\u5F85\u5904\u7406 {n}",
   "metric.unmatchedShort": "\u6CA1\u5BF9\u4E0A {n}",
+  "metric.partialShort": "\u90E8\u5206\u547D\u4E2D {n}",
   "metric.skipShort": "\u8DF3\u8FC7 {n}",
   "metric.unlocated.count": "\u2014",
   "metric.shim": "shim",
@@ -8989,6 +8990,8 @@ var zh = {
   "status.off": "\u5DF2\u5173\u95ED",
   "status.pending": "\u5F85\u5E94\u7528",
   "status.unmatched": "\u6CA1\u5BF9\u4E0A",
+  "status.partial": "\u90E8\u5206\u547D\u4E2D",
+  "status.partialDetail": "\uFF08{done}/{total} \u76EE\u6807\uFF09",
   "status.skipped": "\u8DF3\u8FC7",
   "apply.hint": "\u70B9\u5E94\u7528\u4F1A\u6253\u8865\u4E01\u5E76\u628A\u5F53\u524D\u9ED8\u8BA4\u63D0\u793A\u8BCD\u6302\u4E0A\uFF0C\u6846\u91CC\u4ECD\u662F\u63D2\u4EF6\u65E7\u9ED8\u8BA4\u65F6\u81EA\u52A8\u5237\u5230\u52A0\u5BC6\u69FD\uFF0C\u4E0D\u5FC5\u518D\u70B9\u4FDD\u5B58\u3002\u53EA\u6709\u4F60\u53E6\u5199\u7684\u7A3F\u624D\u4F1A\u6309\u6846\u843D\u76D8\u3002\u5F85\u5E94\u7528=\u539F\u6587\u8FD8\u5728\u3002\u8DF3\u8FC7=\u5F53\u524D\u7248\u672C\u4E0D\u9700\u8981\u6216\u7EC4\u4EF6\u672A\u5B89\u88C5\u3002",
   "warn.noRoot": "\u672A\u5B9A\u4F4D\u5230\u5F53\u524D\u5BBF\u4E3B\u7684 @deepseek-ai\uFF0C\u6E05\u6D17\u4E0D\u4F1A\u751F\u6548\u3002\u8BF7\u5B8C\u5168\u9000\u51FA\u540E\u518D\u6253\u5F00\u672C\u5BBF\u4E3B\uFF0C\u5728\u672C\u9875\u70B9\u300C\u5E94\u7528\u300D\u3002\u684C\u9762\u7AEF\u5B89\u88C5\u76EE\u5F55\u53EF\u4EE5\u662F\u4EFB\u610F\u76D8\u7B26\uFF1B\u76EE\u5F55\u540D\u5E26 DeepseekHarness / DeepSeek Harness \u5747\u53EF\u3002",
@@ -9327,6 +9330,7 @@ var en = {
   "metric.purged.skip": "Written. Skipped {n}; those files are not on this install",
   "metric.pendingShort": "Pending {n}",
   "metric.unmatchedShort": "No match {n}",
+  "metric.partialShort": "Partial {n}",
   "metric.skipShort": "Skipped {n}",
   "metric.unlocated.count": "\u2014",
   "metric.shim": "shim",
@@ -9340,6 +9344,8 @@ var en = {
   "status.off": "Off",
   "status.pending": "Pending",
   "status.unmatched": "No match",
+  "status.partial": "Partial",
+  "status.partialDetail": " ({done}/{total} targets)",
   "status.skipped": "Skipped",
   "apply.hint": "Apply writes patches and hangs the current default prompt. A stale plugin default in the box is refreshed from the sealed slot; a separate save is unnecessary. Only a prompt you wrote yourself is kept from the box. Pending = original text still present. Skipped = not needed for this version or the component is not installed.",
   "warn.noRoot": "Could not find this host\u2019s @deepseek-ai tree, so Apply will not patch anything. Fully quit and reopen this host, then Apply here. Desktop may live on any drive; folder names like DeepseekHarnessDesktop or DeepSeek Harness are fine.",
@@ -9965,6 +9971,7 @@ function statusKind(st) {
   if (st === "applied" || st === "already") return "ok";
   if (st === "pending") return "wait";
   if (st === "unmatched") return "bad";
+  if (st === "partial") return "bad";
   if (st === "na") return "ok";
   if (st === "missing_file" || st === "skipped" || st === "unlocated" || st === "off")
     return "miss";
@@ -9975,6 +9982,7 @@ function statusLabel(st, t) {
   if (st === "off") return t("status.skipped");
   if (st === "pending") return t("status.pending");
   if (st === "unmatched") return t("status.unmatched");
+  if (st === "partial") return t("status.partial");
   if (st === "skipped") return t("status.skipped");
   if (st === "missing_file") return t("skip");
   if (st === "unlocated") return t("status.unlocated");
@@ -10004,12 +10012,20 @@ function patchRowsOf(state) {
   return rows.filter((r) => r.st && r.st !== "na" && Number.isFinite(r.id));
 }
 function tallyPatches(rows) {
-  const out = { applied: 0, pending: 0, unmatched: 0, skipped: 0, total: 0 };
+  const out = {
+    applied: 0,
+    pending: 0,
+    unmatched: 0,
+    partial: 0,
+    skipped: 0,
+    total: 0
+  };
   for (const row of rows || []) {
     out.total += 1;
     if (row.st === "applied" || row.st === "already") out.applied += 1;
     else if (row.st === "pending") out.pending += 1;
     else if (row.st === "unmatched") out.unmatched += 1;
+    else if (row.st === "partial") out.partial += 1;
     else out.skipped += 1;
   }
   return out;
@@ -10042,6 +10058,8 @@ function PatchGroups({ state }) {
       notes.push(t("metric.pendingShort", { n: tally.pending }));
     if (tally.unmatched)
       notes.push(t("metric.unmatchedShort", { n: tally.unmatched }));
+    if (tally.partial)
+      notes.push(t("metric.partialShort", { n: tally.partial }));
     if (tally.skipped) notes.push(t("metric.skipShort", { n: tally.skipped }));
     const expanded = !!open[key];
     return h(
@@ -10085,7 +10103,21 @@ function PatchGroups({ state }) {
               { key: r.id },
               h("td", { className: "dshpp-id" }, "#" + r.id),
               h("td", null, t("patch." + r.id)),
-              h("td", null, h(Pill, { value: r.st }))
+              h(
+                "td",
+                null,
+                h(Pill, { value: r.st }),
+                r.st === "partial" ? h(
+                  "span",
+                  { className: "dshpp-sub" },
+                  t("status.partialDetail", {
+                    done: (state.patch_files?.[r.id] || []).filter(
+                      (f) => f.status === "applied"
+                    ).length,
+                    total: (state.patch_files?.[r.id] || []).length
+                  })
+                ) : null
+              )
             )
           )
         )

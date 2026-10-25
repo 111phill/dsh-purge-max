@@ -90,6 +90,7 @@ export const zh = {
   "metric.purged.skip": "已写入。跳过 {n} 项，本机没有这些文件",
   "metric.pendingShort": "待处理 {n}",
   "metric.unmatchedShort": "没对上 {n}",
+  "metric.partialShort": "部分命中 {n}",
   "metric.skipShort": "跳过 {n}",
   "metric.unlocated.count": "—",
   "metric.shim": "shim",
@@ -103,6 +104,8 @@ export const zh = {
   "status.off": "已关闭",
   "status.pending": "待应用",
   "status.unmatched": "没对上",
+  "status.partial": "部分命中",
+  "status.partialDetail": "（{done}/{total} 目标）",
   "status.skipped": "跳过",
   "apply.hint":
     "点应用会打补丁并把当前默认提示词挂上，框里仍是插件旧默认时自动刷到加密槽，不必再点保存。只有你另写的稿才会按框落盘。待应用=原文还在。跳过=当前版本不需要或组件未安装。",
@@ -482,6 +485,7 @@ export const en = {
     "Written. Skipped {n}; those files are not on this install",
   "metric.pendingShort": "Pending {n}",
   "metric.unmatchedShort": "No match {n}",
+  "metric.partialShort": "Partial {n}",
   "metric.skipShort": "Skipped {n}",
   "metric.unlocated.count": "—",
   "metric.shim": "shim",
@@ -495,6 +499,8 @@ export const en = {
   "status.off": "Off",
   "status.pending": "Pending",
   "status.unmatched": "No match",
+  "status.partial": "Partial",
+  "status.partialDetail": " ({done}/{total} targets)",
   "status.skipped": "Skipped",
   "apply.hint":
     "Apply writes patches and hangs the current default prompt. A stale plugin default in the box is refreshed from the sealed slot; a separate save is unnecessary. Only a prompt you wrote yourself is kept from the box. Pending = original text still present. Skipped = not needed for this version or the component is not installed.",
