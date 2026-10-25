@@ -156,7 +156,10 @@ test("the lock is actually held while the body runs", async () => {
     // 只断言"跑过 + 事后删掉"会漏掉"回收了却没有重建锁"：必须在体内证明锁在。
     await f.maintenance.locked(async () => {
       const held = fs.readFileSync(f.lock, "utf8").trim();
-      assert.match(held, /^[^:]+:\d+:[0-9a-f]{16}$/, "持锁期间必须是 host:pid:nonce");
+      const [host, pid, nonce] = held.split(":");
+      assert.equal(host, os.hostname(), "锁必须记下本机名，跨 PID 命名空间才判得清");
+      assert.equal(pid, String(process.pid), "锁必须记下自己的 PID");
+      assert.match(nonce, /^[0-9a-f]{16}$/, "nonce 由 randomBytes(8) 生成");
       assert.throws(() => fs.writeFileSync(f.lock, "x", { flag: "wx" }), /EEXIST/);
     });
   } finally {
@@ -167,9 +170,10 @@ test("the lock is actually held while the body runs", async () => {
 test("a lock written on another host is not trusted on PID alone", async () => {
   const f = fixture();
   try {
-    // WSL 与 Windows 可能共用同一个 .dsh：那边的 PID 在这边查不到，
-    // 不能据此判定"写者已不在"，只能按 mtime 判断是否超龄。
-    plant(f.lock, `${os.hostname()}-elsewhere:${process.ppid}:${"0".repeat(16)}`, FRESH);
+    // WSL 与 Windows 可能共用同一个 .dsh：那边的 PID 在这边根本查不到。
+    // 这里故意用"本机不存在的 PID"——只有 host 字段能解释"不能抢"，
+    // 忽略 host 的实现会当成写者已死、立刻接管，这条就会红。
+    plant(f.lock, `${os.hostname()}-elsewhere:${DEAD_PID}:${"0".repeat(16)}`, FRESH);
     await assert.rejects(
       () => f.maintenance.locked(async () => "ran", { maxAgeMs: 60 * 1000 }),
       /已有维护操作或遗留锁/,
@@ -180,12 +184,27 @@ test("a lock written on another host is not trusted on PID alone", async () => {
   }
 });
 
+test("a stale lock from another host is still reclaimed", async () => {
+  const f = fixture();
+  try {
+    plant(f.lock, `${os.hostname()}-elsewhere:${DEAD_PID}:${"0".repeat(16)}`, STALE);
+    assert.equal(
+      await f.maintenance.locked(async () => "ran", { maxAgeMs: 60 * 1000 }),
+      "ran",
+      "跨机锁判断不了写者，只能按 mtime 超龄回收",
+    );
+  } finally {
+    f.close();
+  }
+});
+
 test("the heartbeat keeps a held lock fresh past the age limit", async () => {
   const f = fixture();
-  const opts = { maxAgeMs: 150, heartbeatMs: 20 };
+  // 阈值放大到秒级：20ms 对 150ms 只剩 130ms 余量，CI 上一次 GC 抖动就会假红。
+  const opts = { maxAgeMs: 1500, heartbeatMs: 200 };
   try {
     await f.maintenance.locked(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 400));
+      await new Promise((resolve) => setTimeout(resolve, 2500));
       // 没有心跳的话，此刻 mtime 已经超过 maxAgeMs，第二个写入者会判定遗留并抢走。
       await assert.rejects(
         () => f.maintenance.locked(async () => "stolen", opts),
@@ -199,12 +218,12 @@ test("the heartbeat keeps a held lock fresh past the age limit", async () => {
 
 test("a synchronous body keeps the lock fresh by calling beat()", async () => {
   const f = fixture();
-  const opts = { maxAgeMs: 150, heartbeatMs: 20 };
+  const opts = { maxAgeMs: 1500, heartbeatMs: 200 };
   try {
     // 快照与哈希是纯同步递归，事件循环被占死，定时器进不来：
     // 那种阶段只能靠循环里自己调 beat() 续命。
     await f.maintenance.locked(async () => {
-      const until = Date.now() + 400;
+      const until = Date.now() + 1800;
       while (Date.now() < until) f.maintenance.beat();
       await assert.rejects(
         () => f.maintenance.locked(async () => "stolen", opts),
