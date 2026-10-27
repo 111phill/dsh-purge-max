@@ -398,6 +398,7 @@ Windows Electron 的递归删除可能进入 Junction。清理使用 `removeTree
 - 解包 NEXT 只通过 `desktopActions.requestRestart()` 重建 Host；原生服务缺失时提示手动重启，不使用通用 helper 或结束 Host。密封 `app.asar` 仍等待用户完整退出后安全换包。
 - `#45/#46/#82/#83/#84` 只适用于官方 Desktop，在 NEXT 下为 `na`。不要直接修改 NEXT 的 `host-process-*.js` 哈希产物。
 - 正式资格仅为 Windows `DSH NEXT 2.0.19-next` + DSH `0.2.1-rc.2`；其他 NEXT 组合为 `unverified`。
+- 分发状态：1.6.61 是本地构建的候选包，尚未发布带 SHA256 的正式 Release。同版本 NEXT 用户按 [1.6.61 分发说明](docs/DISTRIBUTION-1.6.61.md) 用本地 TGZ 安装（校验 `93511F5B758808E85C7B3455F9308B70851C9E0BA99A00E34F69D9056A7517F0`）；不要分发 `.dsh`、`node_modules`、快照/审计日志、`prompt-inject.md` 或用户 profile 配置。`latest` 地址可能仍是 1.6.60，不要把“检测更新”无结果当成安装失败。
 
 ## 1.6.60：缺目标异常与遗留维护锁（#86 / #87）
 

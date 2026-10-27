@@ -10,6 +10,8 @@ A self-hosted add-on for DeepSeek Harness (known in the community as a 破甲 / 
 
 Current version 1.6.61 · targets **DSH Desktop 0.2.1-rc.3** (rc.1 / rc.2 also pass) and Windows **DSH NEXT 2.0.19-next + DSH 0.2.1-rc.2**
 
+> 1.6.61 ships as a **locally built candidate**: no official Release with a checksum file has been published yet. For small-scale testing install the local TGZ and verify its SHA256 — see [distribution notes (zh)](DISTRIBUTION-1.6.61.md).
+
 **Original project and author:** independently maintained from [dsh-purge by 小杨 / YuJunZhiXue](https://github.com/YuJunZhiXue/dsh-purge). The original repository is available again. Original attribution, copyright and the MIT license are retained; this community distribution is not an official upstream release.
 
 </div>

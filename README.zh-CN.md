@@ -11,6 +11,8 @@
 
 当前版本 **1.6.61** · 适配 **DSH Desktop 0.2.1-rc.3**（rc.1 / rc.2 同样通过）及 Windows **DSH NEXT 2.0.19-next + DSH 0.2.1-rc.2** · [English](docs/README.en.md)
 
+1.6.61 正式适配 Windows **DSH NEXT 2.0.19-next**。[发行说明](docs/releases/1.6.61.md) · 注意：本版目前是**本地构建的候选包**，尚未发布带 SHA256 的正式 Release，小范围测试请按 [1.6.61 分发说明](docs/DISTRIBUTION-1.6.61.md) 用本地 TGZ 安装并核对哈希。
+
 1.6.56 改善状态页卡顿，避免缓存旧宿主证据；读取失败不再误报未安装，并修复深色主题按钮对比度。[发行说明](docs/releases/1.6.56.md) · [市场安装与迁移指南](docs/MARKET-MIGRATION.md)。
 
 **原项目与作者**：基于 [小杨 / YuJunZhiXue 的 dsh-purge](https://github.com/YuJunZhiXue/dsh-purge) 独立维护。原仓库已恢复；保留原作者署名、版权与 MIT 许可证。社区版由本仓库维护，并非原作者官方发行。

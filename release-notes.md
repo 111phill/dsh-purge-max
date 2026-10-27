@@ -9,6 +9,8 @@
 - `#45/#46/#82/#83/#84` 标记为官方 Desktop 专用；NEXT 自带 Profile 与 Host 生命周期，这些项目显示“不适用”，不再修改或自检带内容哈希的 `host-process-*.js`。
 - 兼容接口新增可选 `host_family` / `desktop_version`，面板显示 `DSH 0.2.1-rc.2 · DSH NEXT 2.0.19-next`。其他 NEXT 版本仍可识别与诊断，但显示“未验证”。
 
+**分发状态**：1.6.61 是本地构建的候选版，尚未作为正式 Release 发布；安装包 SHA256 为 `93511F5B758808E85C7B3455F9308B70851C9E0BA99A00E34F69D9056A7517F0`，同版本 Windows DSH NEXT 用户请按 [1.6.61 分发说明](docs/DISTRIBUTION-1.6.61.md) 用本地 TGZ 安装。详情见 [发行说明](docs/releases/1.6.61.md)。
+
 ---
 
 # 1.6.60
