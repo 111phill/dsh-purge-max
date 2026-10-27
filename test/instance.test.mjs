@@ -402,7 +402,7 @@ test("Desktop CLI discovery stays in the explicitly requested resources", () => 
     f.close();
   }
 });
-test("symlinked npm entry resolves to the same package, without consulting PATH", () => {
+test("symlinked npm entry resolves to the same package, without consulting PATH", { skip: process.platform === "win32" }, () => {
   const f = fixture();
   try {
     const link = path.join(f.root, "dsh-link");
@@ -452,7 +452,7 @@ test("a symlinked profile keeps its logical CLI name while using the canonical d
     fs.writeFileSync(path.join(target, "package.json"), "{}");
     fs.mkdirSync(path.join(f.home, "profiles"));
     const logical = path.join(f.home, "profiles/web");
-    fs.symlinkSync(target, logical);
+    fs.symlinkSync(target, logical, process.platform === "win32" ? "junction" : "dir");
     assert.equal(
       defaultProfile(f.home, { env: {}, argv: ["node", "host", logical] }),
       target,

@@ -43,6 +43,9 @@ export function StatusStrip({ info }) {
   const compat = info?.compatibility || {};
   const level = compat.level || "";
   const ok = level === "qualified";
+  const desktop = compat.desktop_version
+    ? ` · ${compat.host_family === "dsh-desktop-next" ? "DSH NEXT" : "Desktop"} ${compat.desktop_version}`
+    : "";
   return h(
     "div",
     { className: "dshpp-strip" },
@@ -53,7 +56,7 @@ export function StatusStrip({ info }) {
         className: "dshpp-dot " + (ok ? "is-ok" : level ? "is-warn" : ""),
       }),
       "DSH ",
-      h("b", null, compat.host_version || "…"),
+      h("b", null, compat.host_version || "…", desktop),
     ),
     h(
       "span",

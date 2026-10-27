@@ -117,7 +117,7 @@ export function restartDsh(setNotice, setBusy, t, surface) {
     .then((r) => r.json())
     .then((d) => {
       if (!d.ok) throw new Error(d.error || "restart failed");
-      if (d.manualQuit) {
+      if (d.manualQuit || d.manualRestart) {
         clearTimeout(watch);
         restartOnce = false;
         setBusy(false);

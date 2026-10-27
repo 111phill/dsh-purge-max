@@ -1,3 +1,16 @@
+# 1.6.61
+
+正式适配 Windows `DSH NEXT 2.0.19-next`（内置 DSH `0.2.1-rc.2`）。
+
+- 新增严格 `dsh-desktop-next` 身份校验，同时核对 `package.json`、`lib/main.js`、`lib/host.js`、`lib/desktop-cli.js` 与内置 `@deepseek-ai/dsh`；密封 `app.asar` 和解包 `resources/app` 使用同一证据链。
+- NEXT Host 可直接从启动参数解析应用根、`desktop` Profile 和 `@deepseek-ai` 根，不再依赖 `DSH_BASE`；安装、升级和回滚使用 NEXT 自带 `lib/desktop-cli.js`，保留 `DSH_HOME`、Profile 与 Electron Node 模式参数。
+- 已解包 NEXT 的「应用 → 重启」只调用一次原生 `desktopActions.requestRestart()`，让主进程执行 `shutdown.request` 并优雅重建 Host；接口缺失时明确要求手动重启，绝不回退到通用 helper、`taskkill` 或结束 Host 子进程。
+- 密封 NEXT 首次应用继续使用 Windows 安全 handoff：写完补丁后等待用户完整退出，验证归档未被并发更新，再保留原归档并换到解包目录。
+- `#45/#46/#82/#83/#84` 标记为官方 Desktop 专用；NEXT 自带 Profile 与 Host 生命周期，这些项目显示“不适用”，不再修改或自检带内容哈希的 `host-process-*.js`。
+- 兼容接口新增可选 `host_family` / `desktop_version`，面板显示 `DSH 0.2.1-rc.2 · DSH NEXT 2.0.19-next`。其他 NEXT 版本仍可识别与诊断，但显示“未验证”。
+
+---
+
 # 1.6.60
 
 修复缺失目标文件导致的异常中断，以及异常退出后遗留维护锁阻塞备份、安装和回滚的问题。感谢 Minervaowl7 提交 PR #88，以及 ShiTan-677 提供 macOS 复核证据。

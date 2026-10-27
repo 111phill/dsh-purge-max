@@ -41,10 +41,14 @@ export function CommunityCompatibilityNote() {
   }, []);
   const compat = (info && info.compatibility) || null;
   const host = (compat && compat.host_version) || "unknown";
+  const desktop = compat?.desktop_version
+    ? ` · ${compat.host_family === "dsh-desktop-next" ? "DSH NEXT" : "Desktop"} ${compat.desktop_version}`
+    : "";
   const text = compat
     ? t("compat.host", {
         version: info && info.version ? info.version : "—",
         host,
+        desktop,
         level: compatibilityLevelText(t, compat.level),
       })
     : error
