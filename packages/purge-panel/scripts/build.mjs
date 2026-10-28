@@ -11,6 +11,17 @@ const pkg = JSON.parse(
     "utf8",
   ),
 );
+// 内嵌 CSS 统一按 LF 读入：否则 Windows(CRLF) 检出构建出的 bundle 会带
+// \r\n 转义，与 Linux CI(LF) 的构建结果逐字节不同，--check 永远失败。
+const normalizeCssEol = {
+  name: "normalize-css-eol",
+  setup(build) {
+    build.onLoad({ filter: /\.css$/ }, async (args) => ({
+      contents: (await fs.readFile(args.path, "utf8")).replace(/\r\n/g, "\n"),
+      loader: "text",
+    }));
+  },
+};
 const result = await build({
   absWorkingDir: root,
   entryPoints: ["src/entry.js"],
@@ -23,6 +34,7 @@ const result = await build({
   treeShaking: true,
   legalComments: "inline",
   loader: { ".css": "text" },
+  plugins: [normalizeCssEol],
   define: {
     __PANEL_VERSION__: JSON.stringify(pkg.version),
     __COMMUNITY__: JSON.stringify(community),
